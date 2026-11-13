@@ -6,7 +6,7 @@ import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, ca
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
 import { legendLayout, PX } from './fit.ts';
-import { connector, group, picture, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
+import { connector, group, picture, settle, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
 
 export interface IconRef {
   png?: string;
@@ -106,7 +106,13 @@ class SlideDrawing {
   }
 
   private sp(s: Omit<ShapeSpec, 'id'> & { id?: number }): Item {
-    return { xml: shape({ ...s, id: s.id ?? this.next() }, this.fonts.sans), box: s.frame };
+    const id = s.id ?? this.next();
+    if (!s.text) return { xml: shape({ ...s, id }, this.fonts.sans), box: s.frame };
+    // Set so that Apple's importer puts the text where PowerPoint does (see settle).
+    const { text, apart } = settle(s.text, s.frame);
+    if (!apart) return { xml: shape({ ...s, id, text }, this.fonts.sans), box: s.frame };
+    const label = shape({ id: this.next(), name: `Text: ${s.name}`, frame: apart, geom: { prst: 'rect' }, fill: null, line: null, textBox: true, text }, this.fonts.sans);
+    return { xml: shape({ ...s, id, text: undefined }, this.fonts.sans) + label, box: s.frame };
   }
 
   private run(text: string, size: number, weight: Weight, color: string, style: Style = {}): Run {

@@ -540,7 +540,8 @@ describe('process and states', () => {
     const { r, slide } = await slideOf('process/pull-request.yaml');
     const checks = flowOf(r).find((s) => s.label === 'Required checks')!;
     expect(checks.caption).toBe('build, test, lint, CodeQL');
-    const shape = /<p:sp><p:nvSpPr><p:cNvPr id="\d+" name="Required checks"[\s\S]*?<\/p:sp>/.exec(slide)![0];
+    // Beside its icon, the text sits in a box of its own over the room right of it (see settle).
+    const shape = /<p:sp><p:nvSpPr><p:cNvPr id="\d+" name="Text: Required checks"[\s\S]*?<\/p:sp>/.exec(slide)![0];
     const paras = [...shape.matchAll(/<a:p>([\s\S]*?)<\/a:p>/g)].map((p) => [...p[1]!.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((t) => t[1]).join(''));
     expect(paras).toEqual(['Required checks', 'build, test, lint,', 'CodeQL']);
   });
