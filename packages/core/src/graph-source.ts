@@ -106,6 +106,8 @@ export interface GraphSource {
   origin?: Origins;
   /** Groups that are trust boundaries (trust.ts). */
   trust?: string[];
+  /** What lines without a style mean, by how they are drawn: their name in the key. */
+  key?: Partial<Record<GraphEdge['line'], string>>;
 }
 
 /** References in node-and-edge YAML: `in:` and edge ends. */
@@ -178,6 +180,12 @@ export function graphSchema(typeId: string, cfg: GraphTypeConfig, title: string)
       },
       edges: { type: 'array', items: edgeItemSchema(styles) },
       ...badges,
+      key: {
+        type: 'object',
+        properties: Object.fromEntries(['solid', 'dashed', 'dotted'].map((l) => [l, { type: 'string' }])),
+        additionalProperties: false,
+        description: 'What lines without a style mean, named in the key by how they are drawn, e.g. { dotted: Configuration, not traffic }',
+      },
       ...(trust ? trustFields.top : {}),
       ...modelProperties,
     },
@@ -192,7 +200,7 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
     const model = ctx.model ?? { ...emptyCatalogue() };
     model.used = true;
     // A view is drawn from the model; its trust boundaries stay with the diagram.
-    src = { ...viewSource(src, cfg, model, ctx), ...trustKeys(src as Record<string, unknown>) };
+    src = { ...viewSource(src, cfg, model, ctx), ...trustKeys(src as Record<string, unknown>), ...(src.key ? { key: src.key } : {}) };
   }
   const origin = src.origin;
   // Every environment in one drawing: what only some of them have says which, as a tag on it.
@@ -340,10 +348,11 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   ]);
   // Grey lines next to coloured ones need a name too, or the legend explains only half the drawing:
   // each way a line without a style is drawn gets an entry, once the key explains anything else.
+  // The diagram's `key:` says what they mean; otherwise they are named by how they look.
   if (legend.length || plainLines.size > 1) {
     const plain = term(ctx.lang, cfg.plainEdge ?? 'Connection');
     const named = { solid: plain, dashed: tr(ctx.lang, '{label} (dashed)', { label: plain }), dotted: tr(ctx.lang, '{label} (dotted)', { label: plain }) } as const;
-    legend.unshift(...(['solid', 'dashed', 'dotted'] as const).filter((l) => plainLines.has(l)).map((l) => ({ label: named[l], line: l })));
+    legend.unshift(...(['solid', 'dashed', 'dotted'] as const).filter((l) => plainLines.has(l)).map((l) => ({ label: src.key?.[l] ?? named[l], line: l })));
   }
 
   for (const x of [...groups, ...nodes, ...edges]) for (const t of x.marks ?? []) marked.add(t);

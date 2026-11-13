@@ -40,7 +40,20 @@ await page.waitForSelector('.files .file');
 const listed = await page.locator('.files .file').allInnerTexts();
 if (listed.join() !== 'customer.yaml,finance.yaml') fail(`file list: ${listed}`);
 
-await page.click('.files .file:has-text("finance.yaml")');
+// Opening the folder opened its first diagram: a drawing at once, not an empty canvas.
+await page.waitForTimeout(600);
+if ((await page.locator('.files .file[aria-current="true"]').innerText()).trim() !== 'customer.yaml') fail('the first file did not open with the folder');
+if (!(await page.locator('.drawing svg [data-node]').count())) fail('no drawing after opening the folder');
+await page.screenshot({ path: `${out}/files-0-opened.png` });
+
+// The list by keyboard: ↓ moves to the next file, Enter opens it.
+await page.locator('.files .file').first().focus();
+await page.keyboard.press('ArrowDown');
+if ((await page.evaluate(() => document.activeElement?.textContent?.trim())) !== 'finance.yaml') fail('↓ did not move to the next file');
+await page.keyboard.press('ArrowUp');
+if ((await page.evaluate(() => document.activeElement?.textContent?.trim())) !== 'customer.yaml') fail('↑ did not move back');
+await page.keyboard.press('End');
+await page.keyboard.press('Enter');
 await page.waitForTimeout(600);
 if (!(await page.locator('.drawing').innerText()).includes('settled payments')) fail('contract from the folder not drawn');
 if ((await page.locator('.status-problems').innerText()) !== 'No problems') fail('problems: ' + (await page.locator('.status-problems').innerText()));

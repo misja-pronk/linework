@@ -280,3 +280,17 @@ export const TOGETHER: Record<string, KeyContext[]> = {
   compare: ['anywhere', 'compare'],
   session: ['anywhere', 'session'],
 };
+
+/**
+ * ↑ ↓ (and Home, End) move the focus through a list of buttons, such as the files of a folder; Enter
+ * opens the focused one as a click does, and Tab still steps through them one by one.
+ */
+export function moveInList(e: { key: string; altKey: boolean; metaKey: boolean; ctrlKey: boolean; preventDefault(): void }, items: HTMLElement[]): void {
+  if (e.altKey || e.metaKey || e.ctrlKey) return;
+  const i = items.indexOf(document.activeElement as HTMLElement);
+  if (i < 0) return;
+  const to = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: items.length - 1 }[e.key];
+  if (to == null) return;
+  e.preventDefault();
+  items[Math.max(0, Math.min(items.length - 1, to))]!.focus();
+}

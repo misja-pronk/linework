@@ -178,6 +178,8 @@ interface Drag {
   edge?: string;
   pts?: Point[];
   seg?: number;
+  /** The whole drawing was in view when the drag started: if the drop pushes it past an edge, it fits again. */
+  whole?: boolean;
 }
 
 /** Screen pixels within which a drag snaps to a guide. */
@@ -442,7 +444,8 @@ export function Preview(p: Props) {
 
   // A drawing that was fitted and that nobody has panned or zoomed since fits again when the pane
   // changed size (the YAML pane, the window). In the editor not when the drawing grows past the edges:
-  // the zoom only changes when asked (a new box is brought into view by panning, below). With a band to
+  // the zoom only changes when asked (a new box is brought into view by panning, below), or when a
+  // drop pushed a drawing that was wholly in view past an edge (fitAfterDrop). With a band to
   // keep clear (a session, `clearBottom`) it does: the sheet never runs under the toolbar there. Not
   // under a click in progress: a first click must leave the second of a double-click on the same
   // element, so it waits until the pointer has been still for a moment.
@@ -512,6 +515,33 @@ export function Preview(p: Props) {
   // fits again, so opening the inspector never crops it; otherwise the centre stays where it was.
   const latest = useRef({ view, width: result?.width ?? 0, height: result?.height ?? 0, fit });
   latest.current = { view, width: result?.width ?? 0, height: result?.height ?? 0, fit };
+  /** Whether the whole drawing is on screen as last drawn, clear of the band at the bottom as fit() leaves it. */
+  const wholeInView = () => {
+    const f = frame.current;
+    const { view: v, width, height } = latest.current;
+    if (!f || !width || !height) return false;
+    return v.x >= -1 && v.y >= -1 && v.x + width * v.scale <= f.clientWidth + 1 && v.y + height * v.scale <= f.clientHeight - (p.clearBottom ?? BAR) + 1;
+  };
+  // A card or group dropped past the edge, in a drawing that was wholly in view, fits it again: on the
+  // drop and once more when the drawing of the drop is in. Never during the drag, so nothing jumps
+  // under the pointer.
+  const dropFit = useRef(0);
+  const fitIfOut = () => {
+    if (drag.current || performance.now() > dropFit.current || wholeInView()) return;
+    dropFit.current = 0;
+    latest.current.fit(true);
+  };
+  const fitAfterDrop = (d: Drag) => {
+    if (!d.whole) return;
+    dropFit.current = performance.now() + 1500;
+    requestAnimationFrame(fitIfOut);
+  };
+  useEffect(() => {
+    if (!dropFit.current) return;
+    const r = requestAnimationFrame(fitIfOut);
+    return () => cancelAnimationFrame(r);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- each drawing after a drop
+  }, [result]);
   useEffect(() => {
     const f = frame.current!;
     paneSize.current = { w: f.clientWidth, h: f.clientHeight };
@@ -749,6 +779,7 @@ export function Preview(p: Props) {
     if (!d.moved && Math.hypot(dx, dy) < 4) return;
     if (!d.moved) {
       d.moved = true;
+      d.whole = wholeInView();
       // Selecting happens on release: opening the inspector now would shift the drawing under the pointer.
       setDragging(d.mode);
     }
@@ -848,6 +879,7 @@ export function Preview(p: Props) {
       setSnap(undefined);
       p.onMoveGroup(d.group!, pin, true);
       p.onSelect({ kind: 'group', id: d.group! });
+      fitAfterDrop(d);
       return;
     }
     const follow = (s: Selection) => (navigator.platform.startsWith('Mac') ? e.metaKey : e.ctrlKey) && !!p.onFollow?.(s);
@@ -865,6 +897,7 @@ export function Preview(p: Props) {
         p.onMove(d.node!, pin, true, target !== (d.parent ?? null) ? target : undefined);
         // A moved selection stays selected; a single node becomes the selection.
         if (!d.many) p.onSelect({ kind: 'node', id: d.node! });
+        fitAfterDrop(d);
       }
       if (d.mode === 'marquee') p.onSelectMany(inMarquee(d.x, d.y, e.clientX, e.clientY), !!d.shiftKey || e.shiftKey);
       return;

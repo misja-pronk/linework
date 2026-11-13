@@ -41,7 +41,7 @@ Walkthrough
 4. Monitored centrally: Every resource, App Insights too, sends its data to the platform workspace (the badge on each card).
 
 Key
-- Dotted line: Connection (dotted)
+- Dotted line: Route table (configuration, not traffic)
 - Dashed teal line: Private network
 - Solid violet line with ticks: Data flow
 - Dotted line with ticks: Management

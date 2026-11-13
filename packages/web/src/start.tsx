@@ -10,6 +10,7 @@ import { matchTypes, type DiagramType } from '@cartography/core';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { SCENARIOS, exampleAt } from './scenarios.ts';
 import { Icon } from './icon.tsx';
+import { moveInList } from './keys.ts';
 import { BrandMark } from './brand-mark.tsx';
 import { useModal } from './menu.tsx';
 import { say, t, uiLang } from './i18n/index.ts';
@@ -277,7 +278,7 @@ const typeCount = (id: string) => starters.filter((s) => s.type === id).length;
 /** Every type, with how many templates it has; the one shown marked. */
 function TypeIndex({ shown, onChoose }: { shown: string | undefined; onChoose(id: string): void }) {
   return (
-    <nav className="atlas-index" aria-label={t('Diagram type')}>
+    <nav className="atlas-index" aria-label={t('Diagram type')} onKeyDown={(e) => moveInList(e, [...e.currentTarget.querySelectorAll<HTMLElement>('button')])}>
       <ul>
         <li>
           <button aria-current={shown === 'all' ? 'true' : undefined} onClick={() => onChoose('all')}>
