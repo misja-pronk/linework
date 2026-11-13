@@ -44,11 +44,11 @@ export async function renderFile(ctx: Ctx, job: Job, file: string, text = fs.rea
   if (o['outline-text'] && !safe) ctx.error(`${file}  ${ctx.yellow(t('warning'))}  ${t('--outline-text goes with --svg-safe: ignored')}`);
   const opts = optionsFor(ctx, o, file, o['no-fonts'] || safe || format !== 'svg' ? 'none' : 'embed', job.forced);
   const first = await render(text, opts);
-  // --all-views: the diagram as written (or its first view) plus every view as <file>-<view>.svg.
+  // --all-views: the diagram as written (or its first view) plus every view as <file>--<view>.svg.
   const views = o['all-views'] && first.views?.length ? await Promise.all(first.views.map((v) => render(text, { ...opts, view: v.name }))) : [];
   // A view with nothing in it is no picture: said, not written.
   for (const v of views) if (v.empty) ctx.error(`${shown}#${v.view}  ${ctx.dim(t('empty: nothing to draw, not written'))}`);
-  // --all-layers: the drawing as a whole, then through each of its layers as <file>-<layer>.svg (a slide each in a deck).
+  // --all-layers: the drawing as a whole, then through each of its layers as <file>--<layer>.svg (a slide each in a deck).
   if (o['all-layers'] && !first.layers?.list.length) ctx.error(`${shown}  ${ctx.yellow(t('warning'))}  ${t('--all-layers: this diagram has no layers: (see docs/layers.md)')}`);
   const layered = o['all-layers'] ? await Promise.all((first.layers?.list ?? []).map((l) => render(text, { ...opts, layers: l.name }))) : [];
   for (const [i, l] of layered.entries()) if (l.empty || !l.layers?.kept) ctx.error(`${shown}@${first.layers!.list[i]!.name}  ${ctx.dim(t('nothing on this layer, not written'))}`);

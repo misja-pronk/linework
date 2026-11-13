@@ -19,6 +19,7 @@ nodes:
 - Maps (`nodes`, `groups`, `tables`, …) merge key by key; lists (`edges`, ERD `relations`, …) are appended. The diagram's own entries come first, so their ids, edge numbers and pins stay as they are.
 - An id that is in two files is an error, shown on the `include:` line with the file it came from. So are include cycles (`a.yaml → b.yaml → a.yaml`), unreadable files and problems inside an included file (`parts.yaml:4: …`).
 - A file reached twice through different includes is read once.
+- What an included file says about itself stays its own: its `title`, `subtitle`, `direction`, `focus` and `steps`, and its look and language (`theme`, `icons`, `aspect`, `lang`). The diagram that includes it decides those for the drawing, so a file made in the Dutch editor (`lang: nl`) can be included in an English diagram and the other way round.
 - `carto watch` re-renders when an included file changes; the editor reads includes from the open folder, and the bundled examples read them from the bundle.
 - In the editor, entries from another file can be selected and moved, but are edited in that file.
 
@@ -153,7 +154,7 @@ CLI:
 
 ```sh
 carto render containers.yaml --view ordering     # → containers-ordering.svg
-carto render containers.yaml --all-views         # → containers.svg plus containers-<view>.svg for each
+carto render containers.yaml --all-views         # → containers.svg plus containers--<view>.svg for each
 ```
 
 In the editor a view menu appears in the canvas tools when the diagram has views.
@@ -176,7 +177,7 @@ links:
 ```
 
 - Linked elements carry a small link icon.
-- **SVG exports** contain real `<a href>` links. Links to diagrams point at the SVG the CLI writes next to them (`containers.yaml#containers` → `containers-containers.svg`), so a folder rendered with `--all-views` can be clicked through in a browser.
+- **SVG exports** contain real `<a href>` links. Links to diagrams point at the SVG the CLI writes next to them (`containers.yaml#containers` → `containers--containers.svg`), so a folder rendered with `--all-views` can be clicked through in a browser.
 - **In the editor** ⌘-click (Ctrl-click elsewhere) follows the first link, and the inspector lists them all: URLs open in a new tab, diagrams and views open in place (from the open folder, or among the bundled examples).
 - Links in an included model are relative to the model file; Cartography rebases them for the diagram.
 

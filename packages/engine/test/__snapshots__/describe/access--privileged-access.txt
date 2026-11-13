@@ -25,7 +25,7 @@ Connections
 - sg-helpdesk-nl is Helpdesk Administrator on AU Netherlands and can activate User Administrator on AU Netherlands.
 
 Walkthrough
-1. Three tiers: Tier 0 controls the tenant, Tier 1 manages services such as security and devices, Tier 2 supports users.
+1. Three tiers: A role-assignable group per tier. Tier 0 controls the tenant, Tier 1 manages services such as security and devices, Tier 2 supports users.
 2. Break-glass: Two cloud-only accounts hold Global Administrator permanently, for when sign-in or PIM fails. Excluded from Conditional Access, FIDO2 keys in a safe, and an alert on every sign-in.
   - Break-glass accounts: Alert on every sign-in
 3. Admins sign in safely: One Conditional Access policy covers every admin group. It requires a privileged access workstation and a phishing-resistant method, and leaves out the break-glass accounts.
@@ -41,8 +41,8 @@ Ways to look at this drawing by tag.
 
 Key
 - Dotted line: Member of
-- Solid sky line with ticks: Role assignment
-- Dashed sky line: Eligible, activated through PIM
-- Solid rose line: Policy applies to
+- Solid sky line: Role assignment
+- Dashed sky line with ticks: Eligible, activated through PIM
+- Solid rose line, double: Policy applies to
 - Dotted rose line with ticks: Excluded from the policy
-- Dashed rose line with ticks: Policy requires
+- Dashed rose line, double: Policy requires

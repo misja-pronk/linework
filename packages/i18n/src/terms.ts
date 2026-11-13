@@ -286,6 +286,8 @@ export const terms: Record<string, string> = {
   Member: 'Lid',
   'from {name}@scope': 'vanuit {name}',
   'eligible for {roles}': 'in aanmerking voor {roles}',
+  'also {roles}': 'ook {roles}',
+  'assigned directly': 'direct toegewezen',
   'includes {names}': 'omvat {names}',
   'Member of': 'Lid van',
   'access package': 'toegangspakket',

@@ -232,7 +232,7 @@ jobs:
           commit: true
 ```
 
-Each diagram becomes `<name>.svg` next to it, each view `<name>-<view>.svg`. With `commit: true` only pictures that changed are committed, as `github-actions[bot]`, with `[skip ci]` in the message so the commit does not start the workflow again. If the branch is protected against direct pushes, use `output: pictures` instead: the pictures are written to that folder and uploaded as an artifact.
+Each diagram becomes `<name>.svg` next to it, each view `<name>--<view>.svg` (two hyphens, so a view never takes the name of another file's picture). With `commit: true` only pictures that changed are committed, as `github-actions[bot]`, with `[skip ci]` in the message so the commit does not start the workflow again. If the branch is protected against direct pushes, use `output: pictures` instead: the pictures are written to that folder and uploaded as an artifact.
 
 Use `README` images like `![Shop](docs/shop.svg)` and they stay up to date by themselves.
 

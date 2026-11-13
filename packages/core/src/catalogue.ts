@@ -275,6 +275,15 @@ export function parseLinks(list: unknown): Link[] | undefined {
   return out.length ? out : undefined;
 }
 
+/**
+ * What a picture of one of a diagram's views (or layers) is called, from the diagram's name without
+ * .yaml: customer--detailed-sales. Two hyphens, so a view of customer.yaml is never taken for a view
+ * of customer-detailed.yaml (customer-detailed--sales); one would make both customer-detailed-sales.
+ */
+export function pictureName(base: string, view?: string): string {
+  return view ? `${base}--${view}` : base;
+}
+
 /** Where a link goes in an exported SVG: diagrams become the SVG the CLI writes next to them. */
 export function linkHref(link: Link, self?: string): string | undefined {
   if (link.kind === 'url') return safeHref(link.target);
@@ -283,7 +292,7 @@ export function linkHref(link: Link, self?: string): string | undefined {
   // Other files (an ADR, a runbook) are linked as they are.
   if (!/\.ya?ml$/i.test(file)) return safeHref(link.target);
   const base = file.replace(/\.ya?ml$/i, '');
-  return safeHref(link.view ? `${base}-${link.view}.svg` : `${base}.svg`);
+  return safeHref(`${pictureName(base, link.view)}.svg`);
 }
 
 /**

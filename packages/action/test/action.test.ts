@@ -648,7 +648,7 @@ describe('a run on push', () => {
     expect(sh(r.origin, 'rev-parse', 'main')).toBe(done.commit);
     const added = sh(r.origin, 'show', '--name-only', '--format=%s', 'main').split('\n').filter(Boolean);
     expect(added[0]).toBe('Render diagrams [skip ci]');
-    expect(added.slice(1).sort()).toEqual(['docs/context.svg', 'docs/model.svg', 'docs/old-data.svg', 'docs/old.svg', 'docs/people.svg', 'docs/shop-data.svg', 'docs/shop.svg']);
+    expect(added.slice(1).sort()).toEqual(['docs/context.svg', 'docs/model.svg', 'docs/old--data.svg', 'docs/old.svg', 'docs/people.svg', 'docs/shop--data.svg', 'docs/shop.svg']);
     expect(fs.readFileSync(path.join(r.root, 'docs/shop.svg'), 'utf8')).toContain('<svg');
     expect(j.outputs().commit).toBe(done.commit);
 

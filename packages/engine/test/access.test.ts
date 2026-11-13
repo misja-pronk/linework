@@ -77,8 +77,55 @@ describe('access view', () => {
     const m = (await render(text, { fonts: 'none' })).graph!.nodes[0]!.shape as MatrixShape;
     const cell = (row: string, col: string) => m.cells[m.rows.findIndex((x) => x.label === row)]![m.columns.findIndex((x) => x.label === col)];
     // Reader on prod (through the package) is held now; Owner on rg only once activated.
-    expect(cell('alice', 'rg')).toMatchObject({ text: 'Reader', note: 'via Developer access, from prod; eligible for Owner' });
+    // Every other role there is named, before where the pill's comes from, each with its own way when that differs.
+    expect(cell('alice', 'rg')).toMatchObject({ text: 'Reader', note: 'eligible for Owner (assigned directly); via Developer access, from prod' });
     expect(cell('sg-ops', 'prod')).toMatchObject({ text: 'Reader (eligible)', inherited: false });
+  });
+
+  it('names every role in a cell, also an eligible one the stronger eligible role includes', async () => {
+    const text = `type: access
+view: access
+principals:
+  sg: role-assignable-group
+resources:
+  tenant: tenant
+roles:
+  pra: { label: Privileged Role Administrator }
+  ga: { label: Global Administrator, inherits: pra }
+assignments:
+  - { principal: sg, role: ga, scope: tenant, eligible: true, activation: 2 h }
+  - { principal: sg, role: pra, scope: tenant, eligible: true, activation: 2 h }
+`;
+    const m = (await render(text, { fonts: 'none' })).graph!.nodes[0]!.shape as MatrixShape;
+    expect(m.cells[0]![0]).toMatchObject({ text: 'Global Administrator (eligible)', note: 'also Privileged Role Administrator; max 2 h' });
+  });
+
+  it('draws a group a package hands out as somewhere to get to, and keys only what is drawn', async () => {
+    const r = await render(`type: access
+view: access
+principals:
+  emma: user
+  team: { kind: m365-group, label: Finance team }
+packages:
+  basic: { label: Finance basics, grants: [team, site: Member], holders: [emma] }
+resources:
+  site: sharepoint-site
+`, { fonts: 'none' });
+    const m = r.graph!.nodes[0]!.shape as MatrixShape;
+    // The group holds nothing itself: a column, not an empty row.
+    expect(m.rows.map((x) => x.label)).toEqual(['emma']);
+    expect(m.columns.map((x) => x.label)).toEqual(['Finance team', 'site']);
+    expect(m.cells[0]![0]).toMatchObject({ text: 'Member', inherited: true, note: 'via Finance basics' });
+    // Nothing is assigned directly: the key does not say it is.
+    expect(r.graph!.legend!.map((l) => l.label)).toEqual(['Through a group, access package or parent scope']);
+  });
+
+  it('draws the same relation the same way in every access diagram', async () => {
+    const lines = async (text: string) => (await render(text, { fonts: 'none', view: 'graph' })).graph!.edges.map((e) => `${e.kind}:${e.line}:${e.pattern ?? ''}`);
+    const packagesOnly = await lines('type: access\nprincipals:\n  emma: user\n  team: group\npackages:\n  basic: { grants: [team], holders: [emma] }\n');
+    const all = await lines(source('graph'));
+    for (const l of packagesOnly) expect(all).toContain(l);
+    expect(packagesOnly).toEqual(['Holds:solid:beads', 'Grants:solid:ticks']);
   });
 });
 
@@ -265,6 +312,7 @@ assignments:
     const r = await render(entra.replace('type: access', 'type: access\nview: access'), { fonts: 'none' });
     const m = r.graph!.nodes[0]!.shape as MatrixShape;
     expect(m.rows.map((x) => x.label)).toEqual(['Break-glass', 'sg-admins', 'app-deploy']);
+    // Nobody holds Admin access: no column for the sg-admins it hands out.
     expect(m.cells[1]![0]).toMatchObject({ text: 'Global Administrator (eligible)', note: 'max 2 h, approval by sg-admins' });
   });
 

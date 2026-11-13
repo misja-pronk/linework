@@ -57,12 +57,12 @@ export function help(): Help {
 
   carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
-               [--view name | --all-views]      one of the diagram's views, or each to <file>-<view>.svg
+               [--view name | --all-views]      one of the diagram's views, or each to <file>--<view>.svg
                [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
                                                 pptx and pdf get a slide (page) per step by themselves
                [--icons official|lucide]        the vendor's official icons (carto icons import) or our line icons,
                                                 whatever the diagram's icons: says
-               [--layer security | --all-layers] through one (or several) of its layers:, or each to <file>-<layer>.svg;
+               [--layer security | --all-layers] through one (or several) of its layers:, or each to <file>--<layer>.svg;
                [--dim]                          pptx and pdf: a slide (page) per layer. --dim fades the rest in place
                [--stable]                       note where things were drawn in <file>.layout.json, so the
                                                 next render after an edit keeps them there

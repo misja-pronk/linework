@@ -55,13 +55,14 @@ resources:
 # For presenting. A policy card goes by its id (without one: <package>:policy:<n>, the first policy 0).
 steps:
   - title: Catalogs
-    caption: Finance owns its own catalog. Partner access lives in a separate catalog, with its own owners.
+    caption: Finance keeps its packages in its own catalog. Partner access lives in a separate catalog.
+    focus: [basic, key-user, audit, basic-auto, key-user-approval, audit-approval]
   - title: Basics, automatically
     caption: Everyone in Finance gets the team, the site and the ERP without asking, and loses them when they leave Finance.
     focus: [finance-staff, basic-auto, basic]
     path: [basic -> finance-team, basic -> team-site, basic -> erp]
   - title: More rights, two approvals
-    caption: Key users are approved by their manager and then by the controllers. The access ends after 180 days unless a review keeps it.
+    caption: Key users are approved by their manager and then by the controllers. The access ends after 180 days; a quarterly review can remove it sooner.
     focus: [finance-staff, key-user-approval, key-user]
     path: key-user -> erp
   - title: Guests
