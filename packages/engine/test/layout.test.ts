@@ -150,6 +150,8 @@ const jogBudget: Record<string, number> = {
   'data-products/mesh-detailed.yaml': 1,
   'kubernetes/inference.yaml': 1,
   'azure/hub-spoke.yaml': 1,
+  'azure/aks-baseline.yaml': 1, // with -prod names the gateway's card is taller in its column than traefik: its line steps down into it
+  'azure/app-landing-zone.yaml': 1, // with -prod names one line into the endpoints steps a lane aside
   'azure/private-endpoints.yaml': 1, // the hub stands beside its zones for a slide (4.3 → 5.2 pt): the resolver's trunk steps into the middle zone
   'workspace/containers.yaml': 1,
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
@@ -185,7 +187,7 @@ const bendBudget: Record<string, number> = {
   'azure/hub-spoke.yaml': 1, // IPsec: the hop from the office's border to the turn is shorter than the label
   'kubernetes/inference.yaml': 1, // chat: the router's line steps aside past the embeddings line right where it leaves
   'states/device-connection.yaml': 2, // update verified, between two returns; buffer full, on the short hop up into Sending
-  'azure/aks-baseline.yaml': 1, // secrets: on the short hop from orders-api to its turn down to pe-kv
+  'azure/aks-baseline.yaml': 1, // secrets: on the short hop from orders-api to its endpoint pep-kv-orders-prod
   'c4/kestrel-bank.yaml#components': 1, // a label of one of two lines into one side that no longer share a trunk
   'c4/kestrel-bank.yaml#production-events': 1, // Publishes, at the turn down from the banking API into Kafka
   // Short lines whose middle lies near another line: the label goes to the end clear of it.
