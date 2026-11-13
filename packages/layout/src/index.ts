@@ -151,7 +151,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     const d = open ? was.direction : graph.direction;
     // And what is not pinned stays where it was whenever it can: placing things by hand, the rest
     // holding still is worth more than any score.
-    best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn, pinned ? new Map(Object.entries(sidecar?.nodes ?? {})) : undefined);
+    best = await choose(turned(d), spacing, { ...tuning, dot: was.dot, compact: tuning.compact ?? was.compact, align: tuning.align ?? was.align, mirror: tuning.mirror ?? was.mirror }, prev, d === stayIn, pinned ? new Map(Object.entries(sidecar?.nodes ?? {})) : undefined, false, same);
     if (was.wrap && !best.held) best = rewrap(best, spacing, was.wrap, was.wrapOpts, target) ?? best;
     if (was.tuck && tuning.tuck !== false && !best.held && target != null) best = tucked(best, spacing, target) ?? best;
   } else {
@@ -684,8 +684,11 @@ function noWorse(a: Choice, b: Choice): boolean {
 /** How much better (in score) the wide drawing must be to be kept over the top-down one. */
 const TIE = 1;
 
-/** The best placement in one direction: each way of asking dot, and the previous drawing kept as it was (`changed`: the diagram is not the one drawn before). */
-async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: LayoutMemory | undefined, stay: boolean, hold?: Map<string, Point>, changed = false): Promise<Choice> {
+/**
+ * The best placement in one direction: each way of asking dot, and the previous drawing kept as it was (`changed`: the diagram
+ * is not the one drawn before; `again`: it is, the same shape drawn again).
+ */
+async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: LayoutMemory | undefined, stay: boolean, hold?: Map<string, Point>, changed = false, again = false): Promise<Choice> {
   // Top-down, lines come into a group's first row from above, and its header title sits right where
   // the leftmost of them would come in. A slightly taller header leaves a lane under the title: such
   // a line comes down beside the title, runs under it and drops into its node.
@@ -730,8 +733,12 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
     const fresh = best!;
     // The previous drawing with what it remembers held where it was: routed, weighed, and what moving costs.
     const keep = (memory: LayoutMemory): Choice | undefined => {
-      const kept = stayPlacement(graph, fresh.p, memory, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth, hold);
-      if (!kept) return undefined;
+      const held = stayPlacement(graph, fresh.p, memory, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth, hold);
+      if (!held) return undefined;
+      // The same diagram again: its boxes in the order the drawing before had them (routing goes by that
+      // order where two ways cost the same), so its lines come out as they were too.
+      const inOrderOf = <T,>(m: Map<string, T>, order: Iterable<string> | undefined) => new Map([...new Set([...(order ?? []), ...m.keys()])].filter((id) => m.has(id)).map((id) => [id, m.get(id)!]));
+      const kept = again ? { ...held, nodes: inOrderOf(held.nodes, memory.nodes?.keys()), groups: inOrderOf(held.groups, memory.groups?.keys()) } : held;
       const placed = normalise({ ...kept, edges: route(sized, kept) });
       const sc = score(metricsOf({ placed, sized }));
       return { p: kept, placed, score: sc, cost: sc + moveCost(kept, prev), key: prev.variant ?? fresh.key, sized, held: true };
@@ -740,6 +747,12 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
     // that were placed before it existed (two cards, then the arrow) would otherwise point up or back.
     const forward = (c: Choice) => upstream(graph, c.p, prev) <= upstream(graph, fresh.p, prev);
     const kept = keep(prev);
+    // The same diagram drawn again (a label edited, the same file opened): the drawing as it was, when it
+    // still fits and has no error (a line through a card, a covered label) the fresh one is free of,
+    // whatever the others score. It was chosen, wrapped, tucked and cleared with the lines it has now;
+    // drawn afresh, or held but for one card, it would come out other than the drawing just shown.
+    // A fresh placement that is exactly the previous one is that drawing: it is kept, not "held".
+    if (again && !hold && kept && errors(kept) <= errors(fresh)) return sameBoxes(fresh.p, kept.p) ? fresh : kept;
     // Only when it differs: a fresh placement that is exactly the previous one is not "held".
     if (kept && forward(kept) && (hold || kept.cost < fresh.cost - 1e-9)) best = kept;
     // Everything held costs more than drawing afresh (a new line finds no clean way between the boxes
@@ -822,6 +835,12 @@ function boxesKey(p: Pick<Placement, 'nodes' | 'groups'>): string {
   for (const [id, b] of p.nodes) out += `${id}@${b.x},${b.y},${b.width},${b.height};`;
   for (const [id, b] of p.groups) out += `#${id}@${b.x},${b.y},${b.width},${b.height};`;
   return out;
+}
+
+/** Whether two placements have every box in the same spot, in whatever order they list them. */
+function sameBoxes(a: Placement, b: Placement): boolean {
+  const same = (x: Map<string, Box>, y: Map<string, Box>) => x.size === y.size && [...x].every(([id, p]) => y.get(id)?.x === p.x && y.get(id)?.y === p.y && y.get(id)?.width === p.width && y.get(id)?.height === p.height);
+  return same(a.nodes, b.nodes) && same(a.groups, b.groups);
 }
 
 /** The best drawing of one placement: compacted or not, straightened or not. */
