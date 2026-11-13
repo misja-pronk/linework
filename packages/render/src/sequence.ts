@@ -6,6 +6,7 @@ import { safeHref, type Box, type SequenceEvent, type SequenceParticipant, type 
 import { deepest, nesting, spread, stack, tracks, type Apart, type Band, type Row, type Span } from '@cartography/lanes';
 import { baselineOffset, fitText, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, mix, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
+import { BREAK } from './size.ts';
 import { cardStroke, iconTile, numberMark, shadowAttr, esc } from './paint.ts';
 
 const K = {
@@ -74,7 +75,7 @@ export interface SequenceGeometry {
 export function wrapLines(text: string, size: number, weight: 400 | 500 | 600, max: number): string[] {
   const lines: string[] = [];
   let line = '';
-  for (const word of text.split(/\s+/).filter(Boolean)) {
+  for (const word of text.split(BREAK).filter(Boolean)) {
     const next = line ? `${line} ${word}` : word;
     if (!line || measureText(next, size, weight) <= max) line = next;
     else {
