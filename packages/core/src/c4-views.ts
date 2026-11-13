@@ -147,6 +147,9 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
   // Element id → the deployment nodes that are an instance of it themselves (`of:`).
   const direct = new Map<string, { id: string; root: string }[]>();
   const roots = new Map<string, string>();
+  // Deployment node → the node it sits in, and the element it is an instance of (`of:`).
+  const nodeParent = new Map<string, string | undefined>();
+  const nodeOf = new Map<string, string>();
   const walk = (map: unknown, parent: string | undefined, base: Path) => {
     if (!map || typeof map !== 'object' || Array.isArray(map)) return;
     for (const [key, raw] of Object.entries(map as Record<string, unknown>)) {
@@ -157,6 +160,7 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
         continue;
       }
       roots.set(key, parent ? roots.get(parent)! : key);
+      nodeParent.set(key, parent);
       const list = typeof o.instances === 'string' ? [o.instances] : Array.isArray(o.instances) ? o.instances.map(String) : [];
       const leaf = !list.length && !(o.nodes && typeof o.nodes === 'object' && Object.keys(o.nodes).length);
       let kind = typeof o.kind === 'string' ? o.kind : leaf ? 'infrastructure' : 'deployment-node';
@@ -179,6 +183,7 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
       };
       const el = typeof o.of === 'string' ? els.get(o.of) : undefined;
       if (typeof o.of === 'string' && !el) ctx.warn([...path, 'of'], els.size ? `There is no element "${o.of}" in the model` : `"${o.of}" needs a model: add include: [model.yaml] or elements:`);
+      if (el) nodeOf.set(key, el.id);
       if (el) direct.set(el.id, [...(direct.get(el.id) ?? []), { id: key, root: roots.get(key)! }]);
       const coll = leaf ? 'nodes' : 'groups';
       const name = el?.label ?? el?.name;
@@ -201,6 +206,8 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
 
   // Instance ids: the element's own id, or id@node when it runs in more than one place.
   const instances = new Map<string, { id: string; root: string }[]>();
+  // Instance id → its element and the node it runs in.
+  const where = new Map<string, { el: string; node: string }>();
   for (const [elId, list] of placed) {
     const el = els.get(elId)!;
     instances.set(
@@ -209,12 +216,62 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
         const id = list.length > 1 ? `${elId}@${p.node}` : elId;
         out.nodes![id] = fromElement(el, { in: p.node }, 'nodes', cfg, ctx, el.at);
         out.origin.nodes[id] = p.at;
+        where.set(id, { el: elId, node: p.node });
         return { id, root: p.root };
       }),
     );
   }
   for (const [elId, list] of direct) instances.set(elId, [...(instances.get(elId) ?? []), ...list]);
   checkComplete(v, els, (id) => instances.has(id), 'add it to instances: or a node with of:', ctx);
+
+  // exclude:, as in other views: an element, a deployment node, tag: or kind: takes it out with what
+  // runs in it; a rule with an arrow takes out the lines between them, the model's and the ones written.
+  // A side matches an instance by its element (and that element's parents) or by the nodes it runs in.
+  type Part = { id: string; parent?: string; kind?: string; tags: string[] };
+  const elementParts = (id: string): Part[] => {
+    const parts: Part[] = [];
+    for (let e = els.get(id); e; e = e.parent ? els.get(e.parent) : undefined) parts.push(e);
+    return parts;
+  };
+  const nodeParts = (key: string | undefined): Part[] => {
+    const parts: Part[] = [];
+    for (let k = key; k; k = nodeParent.get(k)) {
+      const e = out.groups![k] ?? out.nodes![k];
+      parts.push({ id: k, parent: nodeParent.get(k), kind: typeof e === 'object' ? e?.kind : undefined, tags: (typeof e === 'object' && e?.tags) || [] });
+      if (nodeOf.has(k)) parts.push(...elementParts(nodeOf.get(k)!));
+    }
+    return parts;
+  };
+  const parts = (id: string): Part[] => {
+    const w = where.get(id);
+    if (w) return [...elementParts(w.el), ...nodeParts(w.node)];
+    return roots.has(id) ? nodeParts(id) : elementParts(id);
+  };
+  const hit = (sel: string, p: Part) =>
+    sel === '*' ||
+    (sel.startsWith('tag:') ? p.tags.includes(sel.slice(4)) : sel.startsWith('kind:') ? p.kind === sel.slice(5) : sel.endsWith('.*') ? p.parent === sel.slice(0, -2) : p.id === sel);
+  const deep = (sel: string, id: string) => parts(id).some((p) => hit(sel, p));
+  const rules = v.exclude ?? [];
+  const gone = (id: string) => rules.some((sel) => !sel.includes('->') && deep(sel, id));
+  const cut = (from: string, to: string) =>
+    rules.some((sel) => {
+      if (!sel.includes('->')) return false;
+      const [a, b] = sel.split('->').map((x) => x.trim()) as [string, string];
+      return deep(a, from) && deep(b, to);
+    });
+  if (rules.some((sel) => !sel.includes('->'))) {
+    for (const coll of ['groups', 'nodes'] as const)
+      for (const id of Object.keys(out[coll]!))
+        if (gone(id)) {
+          delete out[coll]![id];
+          delete out.origin[coll][id];
+        }
+    for (const [elId, list] of instances) {
+      const left = list.filter((x) => !gone(x.id));
+      if (left.length) instances.set(elId, left);
+      else instances.delete(elId);
+    }
+  }
   // A relation of a component is drawn from the container it is deployed in.
   const running = (id: string) => {
     for (let cur: string | undefined = id; cur; cur = els.get(cur)?.parent) if (instances.has(cur)) return { el: cur, list: instances.get(cur)! };
@@ -235,6 +292,7 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
     // As in other views: a relation between exactly the deployed elements wins over ones implied by their parts.
     const exact = f.el === r.from && t.el === r.to;
     pair(f.list, t.list, (a, b) => {
+      if (cut(r.from, r.to) || cut(a, b)) return;
       const key = `${a}\0${b}`;
       const old = drawn.get(key);
       if (old?.exact && !exact) return;
@@ -252,6 +310,8 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
       continue;
     }
     const endIds = [spec.from, spec.to].map((e) => (e.row ? `${e.node}.${e.row}` : e.node));
+    // A line to what exclude: took out, or that it names, is left out with it.
+    if (endIds.some(gone) || cut(endIds[0]!, endIds[1]!)) continue;
     const ends = endIds.map((id) => (roots.has(id) ? [{ id, root: roots.get(id)! }] : running(id)?.list));
     if (!ends[0] || !ends[1]) {
       ctx.warn(at, 'Connect deployment nodes or elements that run in this view');
@@ -263,6 +323,7 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
     // A line written here replaces the model's line between the same two (keep: the model's line
     // stays too); two written lines between the same two are one line with both labels.
     const put = (a: string, b: string, labels: string[], lineStyle: string | undefined, keep = false) => {
+      if (cut(a, b)) return;
       const key = `${a}\0${b}`;
       const old = drawn.get(key);
       if (!old || (!old.written && !keep)) return void drawn.set(key, { labels: [...labels], style: lineStyle, at, id: `d${i}`, written: true });
@@ -272,6 +333,8 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
     };
     if (via && endIds.includes(via)) {
       ctx.warn([...at, 'via'], `"${via}" is an end of this line, so it is drawn straight. Name the node the line goes through, or leave via: out`);
+    } else if (via && gone(via)) {
+      continue;
     } else if (via) {
       // The relation goes through a node of this view (a load balancer): from → via, with the
       // relation's label unless one is written, and via → to, unless a line there is written too.
