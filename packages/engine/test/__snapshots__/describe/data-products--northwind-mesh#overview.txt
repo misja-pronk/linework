@@ -38,7 +38,7 @@ Walkthrough
 5. Federated governance: Orders, Customers and Revenue publish under a data contract. The domains agree on the rules every contract follows, such as classification, PII and freshness, and the platform checks them automatically. The detailed views show each contract.
 
 Key
-- Teal filled pill: Source-aligned
-- Indigo filled pill: Aggregate
-- Amber filled pill: Consumer-aligned
+- Teal icon: Source-aligned
+- Indigo icon: Aggregate
+- Amber icon: Consumer-aligned
 - Solid line: Data flow

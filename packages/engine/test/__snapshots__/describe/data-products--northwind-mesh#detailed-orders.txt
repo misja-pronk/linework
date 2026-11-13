@@ -16,8 +16,8 @@ Connections
 - Orders connects to Demand forecast, connects to Revenue, connects to Sales dashboard and is linked with orders.
 
 Key
-- Teal filled pill: Source-aligned
-- Indigo filled pill: Aggregate
-- Amber filled pill: Consumer-aligned
+- Teal icon: Source-aligned
+- Indigo icon: Aggregate
+- Amber icon: Consumer-aligned
 - Solid line: Data flow
 - Dashed violet line: Data contract
