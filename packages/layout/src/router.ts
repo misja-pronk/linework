@@ -102,6 +102,9 @@ const RUN_ON = 64; // a line starting this near another's end, on its track, rea
 const RUN_ON_COST = 0.5; // per pixel of such a start a lane aside, twice that on the track
 const RUN_ASIDE = 12; // a lane aside: nearer than this
 const OVERHANG = 40; // a label hanging over a bend, past the end of its piece
+const PORT = 24; // ports on one side this far apart at least: nearer, the arrowheads crowd and the lines run too close for their labels
+const LABELLED = 28; // and this far for a line with a label
+const CRAMMED = 250; // a line onto a side that has no room left for one more port: around the card, or into another side, is better
 const MIXED = 4000; // a line onto a table row's side where another line ends in a different mark: around the table is better
 
 const normal: Record<Side, Point> = { N: { x: 0, y: -1 }, E: { x: 1, y: 0 }, S: { x: 0, y: 1 }, W: { x: -1, y: 0 } };
@@ -109,41 +112,64 @@ const opposite: Record<Side, Side> = { N: 'S', S: 'N', E: 'W', W: 'E' };
 
 export function routeEdges(input: RouterInput): Map<string, PlacedEdge> {
   const strange = strangers(input);
-  const sides = chooseSides(input, strange);
+  // Sides chosen with room for every port, and (when that moved a line) without: a line sent round to
+  // another side is only worth it when the drawing reads better for it: no more crossings and no more
+  // labels that cover something, and fewer of either. The sides were weighed on an empty grid, where
+  // a long way round crosses nothing.
+  const roomy = chooseSides(input, strange, true);
+  if (!roomy.pressed) return routeSides(input, strange, roomy.sides);
+  const sides = chooseSides(input, strange, false).sides;
+  const out = routeSides(input, strange, roomy.sides);
+  if ([...sides].every(([id, [f, t]]) => roomy.sides.get(id)![0] === f && roomy.sides.get(id)![1] === t)) return out;
+  const plain = routeSides(input, strange, sides);
+  const covered = (r: Map<string, PlacedEdge>) => placeLabels(input, new Map([...r].map(([k, v]) => [k, { points: v.points }])));
+  const [a, b] = [[crossings(out), covered(out)], [crossings(plain), covered(plain)]] as const;
+  return a[0] <= b[0] && a[1] <= b[1] && (a[0] < b[0] || a[1] < b[1]) ? out : plain;
+}
+
+function routeSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost | undefined, sides: Map<string, [Side, Side]>): Map<string, PlacedEdge> {
   const trunk = input.trunks === false ? new Map<string, string>() : trunkGroups(input, sides);
   const ports = placePorts(input, sides, trunk);
   const out = routeWith(input, sides, trunk, ports, strange);
   // Two lines out of (or into) one side that cross each other: their ports were put in the wrong
-  // order (the line that turns away first leaves on the inside). Swapped, and drawn again; kept
-  // when that crosses less.
+  // order (the line that turns away first leaves on the inside). So do a line out of a side and one
+  // into it. Swapped, and drawn again; kept when that crosses less.
   const swaps = crossedPorts(input, out, sides, trunk);
   if (!swaps.length) return out;
   const swapped = new Map(ports);
-  for (const [a, b, end] of swaps) {
+  // A port taken over keeps its own stub (an arrowhead's or none), out of the same side.
+  const put = (p: Ports, end: End, q: Ports, qend: End): Ports => {
+    const point = qend === 'from' ? q.from : q.to;
+    const n = normal[end === 'from' ? p.fromSide : p.toSide];
+    const [own, tip] = end === 'from' ? [p.from, p.start] : [p.to, p.goal];
+    const len = Math.abs(tip.x - own.x) + Math.abs(tip.y - own.y);
+    const moved = { x: point.x + n.x * len, y: point.y + n.y * len };
+    return end === 'from' ? { ...p, from: point, start: moved } : { ...p, to: point, goal: moved };
+  };
+  for (const [a, ea, b, eb] of swaps) {
     const [pa, pb] = [swapped.get(a)!, swapped.get(b)!];
-    if (end === 'from') {
-      swapped.set(a, { ...pa, from: pb.from, start: pb.start });
-      swapped.set(b, { ...pb, from: pa.from, start: pa.start });
-    } else {
-      swapped.set(a, { ...pa, to: pb.to, goal: pb.goal });
-      swapped.set(b, { ...pb, to: pa.to, goal: pa.goal });
-    }
+    swapped.set(a, put(pa, ea, pb, eb));
+    swapped.set(b, put(pb, eb, pa, ea));
   }
   const again = routeWith(input, sides, trunk, swapped, strange);
   return crossings(again) < crossings(out) ? again : out;
 }
 
-/** Pairs of lines that leave (or reach) one node side on ports of their own and cross each other: each pair once. */
-function crossedPorts(input: RouterInput, routes: Map<string, PlacedEdge>, sides: Map<string, [Side, Side]>, trunk: Map<string, string>): [string, string, 'from' | 'to'][] {
-  const out: [string, string, 'from' | 'to'][] = [];
+type End = 'from' | 'to';
+
+/** Pairs of lines with an end each on one node side, on ports of their own, that cross each other: each pair once. */
+function crossedPorts(input: RouterInput, routes: Map<string, PlacedEdge>, sides: Map<string, [Side, Side]>, trunk: Map<string, string>): [string, End, string, End][] {
+  const out: [string, End, string, End][] = [];
   const used = new Set<string>();
   const list = input.edges.filter((e) => routes.has(e.id) && !e.via?.length && e.from.node !== e.to.node && !trunk.has(e.id));
+  const ends: [End, End][] = [['from', 'from'], ['to', 'to'], ['from', 'to'], ['to', 'from']];
+  const side = (e: RouteRequest, k: End) => sides.get(e.id)![k === 'from' ? 0 : 1];
   for (const [i, a] of list.entries())
     for (const b of list.slice(i + 1)) {
       if (used.has(a.id) || used.has(b.id)) continue;
-      const end = (['from', 'to'] as const).find((k) => a[k].node === b[k].node && a[k].rowY == null && b[k].rowY == null && sides.get(a.id)![k === 'from' ? 0 : 1] === sides.get(b.id)![k === 'from' ? 0 : 1]);
-      if (!end || !crossEach(routes.get(a.id)!.points, routes.get(b.id)!.points)) continue;
-      out.push([a.id, b.id, end]);
+      const pair = ends.find(([ka, kb]) => a[ka].node === b[kb].node && a[ka].rowY == null && b[kb].rowY == null && side(a, ka) === side(b, kb));
+      if (!pair || !crossEach(routes.get(a.id)!.points, routes.get(b.id)!.points)) continue;
+      out.push([a.id, pair[0], b.id, pair[1]]);
       used.add(a.id).add(b.id);
     }
   return out;
@@ -332,7 +358,7 @@ const centre = (b: Box): Point => ({ x: b.x + b.width / 2, y: b.y + b.height / 2
  * the other end) on an empty grid and keeping the cheapest. The layout direction gets a small
  * preference, so most lines still run left to right.
  */
-function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost | undefined): Map<string, [Side, Side]> {
+function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost | undefined, roomy: boolean): { sides: Map<string, [Side, Side]>; pressed: boolean } {
   const out = new Map<string, [Side, Side]>();
   const options = new Map<string, [Side, Side][]>();
   for (const e of input.edges) options.set(e.id, candidates(e, input.direction));
@@ -356,23 +382,61 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
   const rowMarks = new Map<string, Set<string>>();
   const rowKey = (r: RouteEnd, side: Side) => `${r.node}:${r.rowY}:${side}`;
   const clash = (r: RouteEnd, side: Side) => r.rowY != null && [...(rowMarks.get(rowKey(r, side)) ?? [])].some((m) => m !== (r.mark ?? ''));
-  const add = (e: RouteRequest, [f, t]: [Side, Side]) => {
-    ins.set(`${e.to.node}:${t}`, (ins.get(`${e.to.node}:${t}`) ?? 0) + 1);
-    outs.set(`${e.from.node}:${f}`, (outs.get(`${e.from.node}:${f}`) ?? 0) + 1);
-    for (const [r, side] of [[e.from, f], [e.to, t]] as const) if (r.rowY != null) rowMarks.set(rowKey(r, side), (rowMarks.get(rowKey(r, side)) ?? new Set()).add(r.mark ?? ''));
+  // Per node side, the ports chosen so far: lines drawn alike without a label, all in or all out, share one (a trunk).
+  // A line to a card inside a group its other end is not in passes that group's border on the way: it takes room there too.
+  const ports = new Map<string, Map<string, number>>();
+  const portOf = (e: RouteRequest, end: 'from' | 'to') => (e.style && !e.label ? `${end}|${e.style}` : `${end}|${e.id}`);
+  // A line with a label needs a little more: lines run on side by side from their ports, and the label sits between.
+  const room = new Map<string, number>();
+  for (const e of input.edges) for (const end of ['from', 'to'] as const) room.set(portOf(e, end), e.label ? LABELLED : PORT);
+  const groups = new Map((input.groups ?? []).map((g) => [g.id, g]));
+  const around = (r: RouteEnd) => {
+    const out: string[] = [];
+    for (let g = r.within; g != null && groups.has(g) && !out.includes(g); g = groups.get(g)!.parent) out.push(g);
+    return out;
   };
-  for (const e of input.edges) {
-    const list = options.get(e.id)!;
-    if (list.length === 1 || e.from.node === e.to.node) {
-      out.set(e.id, list[0]!);
-      add(e, list[0]!);
-      continue;
-    }
+  const sidesAt = (e: RouteRequest, end: 'from' | 'to', side: Side) => {
+    const far = around(e[end === 'from' ? 'to' : 'from']);
+    const crossed = around(e[end]).filter((g) => !far.includes(g) && g !== e[end === 'from' ? 'to' : 'from'].node);
+    return [{ key: `${e[end].node}:${side}`, box: e[end].box }, ...crossed.map((g) => ({ key: `${g}:${side}`, box: groups.get(g)!.box }))];
+  };
+  let pressed = false;
+  const crammed = (e: RouteRequest, end: 'from' | 'to', side: Side) =>
+    roomy &&
+    e[end].rowY == null &&
+    sidesAt(e, end, side).some(({ key, box }) => {
+      const taken = ports.get(key);
+      if (!taken || taken.has(portOf(e, end))) return false;
+      const [lo, hi] = clearSpan(box, side, input.texts ?? [], 1);
+      let need = room.get(portOf(e, end))! - PORT;
+      for (const id of taken.keys()) need += room.get(id)!;
+      return need > hi - lo;
+    })
+      ? ((pressed = true), CRAMMED)
+      : 0;
+  const add = (e: RouteRequest, [f, t]: [Side, Side], by: 1 | -1 = 1) => {
+    ins.set(`${e.to.node}:${t}`, (ins.get(`${e.to.node}:${t}`) ?? 0) + by);
+    outs.set(`${e.from.node}:${f}`, (outs.get(`${e.from.node}:${f}`) ?? 0) + by);
+    for (const [r, side] of [[e.from, f], [e.to, t]] as const) if (r.rowY != null && by > 0) rowMarks.set(rowKey(r, side), (rowMarks.get(rowKey(r, side)) ?? new Set()).add(r.mark ?? ''));
+    for (const [end, side] of [['from', f], ['to', t]] as const)
+      if (e[end].rowY == null)
+        for (const { key } of sidesAt(e, end, side)) {
+          const taken = ports.get(key) ?? new Map<string, number>();
+          const n = (taken.get(portOf(e, end)) ?? 0) + by;
+          if (n > 0) taken.set(portOf(e, end), n);
+          else taken.delete(portOf(e, end));
+          ports.set(key, taken);
+        }
+  };
+  const choose = (e: RouteRequest, list: [Side, Side][]): [Side, Side] => {
     let best = list[0]!;
     let bestCost = Infinity;
     // Into a later layer (the other end wholly further along the flow), a line leaves and enters
     // along the flow: sideways it would come in on the shoulder, and siblings would loop to reach it.
     const later = input.direction === 'right' ? e.to.box.x > e.from.box.x + e.from.box.width + 24 : e.to.box.y > e.from.box.y + e.from.box.height + 24;
+    // Back to an earlier layer, a line runs against the flow whichever side it takes: the flow is no
+    // reason to leave along it, and an end on the side the line before came in at turns back on itself.
+    const back = input.direction === 'right' ? e.to.box.x + e.to.box.width < e.from.box.x - 24 : e.to.box.y + e.to.box.height < e.from.box.y - 24;
     // A line that runs mostly across the flow (to a card far below, in a left-to-right drawing) and not
     // on to a later layer leaves and enters across it: out of the side along the flow it would start
     // right beside where the line before it came in, and read as that line running on.
@@ -382,17 +446,33 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     // right beside that one's end: the two read as one line running on through the card.
     const meets = (pair: [Side, Side]) => (ins.get(`${e.from.node}:${pair[0]}`) ?? 0) + (outs.get(`${e.to.node}:${pair[1]}`) ?? 0);
     for (const pair of list) {
-      const sideways = (clash(e.from, pair[0]) ? MIXED : 0) + (clash(e.to, pair[1]) ? MIXED : 0) + meets(pair) * MEETS + (crosswise ? pair.filter((x) => !across.includes(x)).length * 2 * BEND : pair.filter((x) => across.includes(x)).length * (later ? FLOW : 25));
+      const sideways = (clash(e.from, pair[0]) ? MIXED : 0) + (clash(e.to, pair[1]) ? MIXED : 0) + meets(pair) * MEETS + crammed(e, 'from', pair[0]) + crammed(e, 'to', pair[1]) + (crosswise ? pair.filter((x) => !across.includes(x)).length * 2 * BEND : pair.filter((x) => across.includes(x)).length * (later ? FLOW : back ? 0 : 25));
       // Only a way cheaper than the best so far is worth finding.
       const found = search(grid, probe.get(`${e.id}|${pair[0]}${pair[1]}`)!, strange(e), SHARE, bestCost - sideways, [e.from.node, e.to.node]);
       if (!found) continue;
       const cost = found.cost + sideways;
       if (cost < bestCost) [best, bestCost] = [pair, cost];
     }
-    out.set(e.id, best);
-    add(e, best);
+    return best;
+  };
+  for (const e of input.edges) {
+    const list = options.get(e.id)!;
+    const pair = list.length === 1 || e.from.node === e.to.node ? list[0]! : choose(e, list);
+    out.set(e.id, pair);
+    add(e, pair);
   }
-  return out;
+  // A side filled by lines chosen later: the lines chosen first have not seen them. Each line on a side
+  // with no room left for it is chosen again, knowing all the others (not on table rows: their marks stay).
+  for (const e of input.edges) {
+    const list = options.get(e.id)!;
+    if (list.length === 1 || e.from.node === e.to.node || e.from.rowY != null || e.to.rowY != null) continue;
+    const was = out.get(e.id)!;
+    add(e, was, -1);
+    const pair = crammed(e, 'from', was[0]) || crammed(e, 'to', was[1]) ? choose(e, list) : was;
+    out.set(e.id, pair);
+    add(e, pair);
+  }
+  return { sides: out, pressed };
 }
 
 function candidates(e: RouteRequest, direction: 'right' | 'down'): [Side, Side][] {

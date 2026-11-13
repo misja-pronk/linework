@@ -29,7 +29,7 @@ const crossingBudget: Record<string, number> = {
   'access/azure-rbac-pim.yaml': 0,
   'access/privileged-access.yaml': 2, // the service desk's lines up into its unit pass the break-glass line into the tenant
   'azure/aks-baseline.yaml': 0,
-  'azure/app-landing-zone.yaml': 3, // the route table's dotted lines (configuration, not traffic) cross the app's lines to the private endpoints and the hub
+  'azure/app-landing-zone.yaml': 1, // the route table's dotted line (configuration, not traffic) crosses the app's way out to the hub
   'azure/data-platform.yaml': 0,
   'azure/hub-spoke.yaml': 0,
   'azure/landing-zone.yaml': 0,
@@ -112,7 +112,7 @@ const crossingBudget: Record<string, number> = {
   'journey/first-deploy.yaml': 0,
   'matrix/crud-services.yaml': 0,
   'matrix/raci-migration.yaml': 0,
-  'kubernetes/inference.yaml': 1, // the router's chat and embeddings lines leave its side one over the other
+  'kubernetes/inference.yaml': 0,
   'kubernetes/platform.yaml': 0,
   'kubernetes/web-app.yaml': 0,
   'sequence/checkout.yaml': 0,
@@ -148,8 +148,7 @@ const jogBudget: Record<string, number> = {
   // A lane aside: lines keep clear of the cards they pass and do not start where another ends on its track.
   'data-products/mesh-detailed.yaml': 1,
   'kubernetes/inference.yaml': 1,
-  'model/deployment.yaml': 1,
-  'azure/hub-spoke.yaml': 2, // the second peering line steps out of the firewall's side beside the first, and the way out to the internet above them
+  'azure/hub-spoke.yaml': 1,
   'azure/private-endpoints.yaml': 1, // the hub stands beside its zones for a slide (4.3 → 5.2 pt): the resolver's trunk steps into the middle zone
   'workspace/containers.yaml': 1,
   'cloud/aws-data-lake.yaml': 1, // two lines into one side: the second end has no room in line with its card
@@ -167,16 +166,15 @@ const jogBudget: Record<string, number> = {
   'deployment/aws.yaml#prod': 2, // the one load balancer (main) feeds both zones: its line into zone 1b's API steps aside past the zone's title; the site files stand by the storefront, a step up
   'deployment/aws.yaml': 2, // Users' line to the load balancer goes around Storefront and the zone's title
   'erd/saas.yaml': 4, // ends are fixed on their rows
-  'access/privileged-access.yaml': 1, // Tier 0's two eligible lines into the tenant step aside, one beside the other
   'kubernetes/platform.yaml': 2, // /api goes under storefront
   'kubernetes/web-app.yaml': 1, // two lines into one side
   // A mind map's branches leave the centre on curves, drawn as short pieces that each read as a step: no kinks a reader sees.
   'mindmap/capability-brainstorm.yaml': 86,
   'mindmap/workshop-agenda.yaml': 72,
   'teams/consultancy-team.yaml': 1, // a dotted line comes up out of its lane into the side of a card in the row above
-  'states/device-connection.yaml': 2, // returns to Idle share its side; the line out of Connecting steps a lane aside, clear of the line in beside it
+  'states/device-connection.yaml': 1, // returns to Idle share its side
   'states/document-approval.yaml': 3, // changes asked and withdrawn run back past In review; wrapped, the review's line back steps aside
-  'states/pull-request.yaml': 4, // the returns into In review and Closed; a line out steps aside from the line in beside it
+  'states/pull-request.yaml': 1, // the return from Changes requested steps into Awaiting review's side
   'systems/data-pipeline.yaml': 1, // two lines into one side
   'systems/saas-platform.yaml': 1, // the overview: the host dashboard's way in steps aside past the guest app's
 };
@@ -222,17 +220,13 @@ const joinBudget: Record<string, number> = {
 // Labels with another line running through or right beside them (nearer than 6 px): none, but for the ones named here.
 const touchBudget: Record<string, number> = {
   'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
-  'access/privileged-access.yaml': 1, // Privileged Role Administrator, beside Tier 0's other eligible line into the tenant
   'c4/kestrel-bank.yaml#containers': 1,
   'c4/kestrel-bank.yaml#components': 1,
   'kubernetes/inference.yaml': 1,
-  'states/device-connection.yaml': 1,
-  'states/pull-request.yaml': 2, // closed without merging, between the line out and the line back
   'systems/invoice-walkthrough.yaml': 1,
   'systems/web-shop.yaml': 1,
   'workspace/containers.yaml#payments': 1,
   'workspace/containers.yaml#api': 1,
-  'workspace/deployment.yaml': 1,
   'azure/web-app.yaml': 1, // db_datawriter, on its role line down to SQL, sits against the TDS line running down beside it
 };
 
@@ -735,6 +729,56 @@ describe('shared trunks', () => {
     expect(falseJoins(graph, { edges })).toEqual(['p+q']);
     edges.set('q', { points: [{ x: 104, y: 30 }, { x: 200, y: 30 }] });
     expect(falseJoins(graph, { edges })).toEqual([]);
+  });
+});
+
+describe('crowded sides', () => {
+  const drawn = (file: string, view?: string) => render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none', view });
+
+  it('send a line round to another side, so the labels of the lines left there lie by their own lines', async () => {
+    // Three labelled lines on one side of Awaiting review (on to Approved and Changes requested, one back): the
+    // label of the line back from Changes requested lay on the line on to Approved.
+    const r = await drawn('states/pull-request.yaml');
+    expect(labelMetrics(r.graph!, r.placed!).labelTouching).toBe(0);
+    expect(measure(r.graph!, r.placed!).crossings).toBe(0);
+  });
+  it('count the lines that pass the side of a group to a card inside it: the service desk comes up into its unit from below', async () => {
+    // Seven lines came in through the tenant's left side, the unit's three among them, 14 px apart.
+    const r = await drawn('access/privileged-access.yaml', 'graph');
+    const box = r.placed!.groups.get('tenant')!;
+    const inside = (p: { x: number; y: number }) => p.x >= box.x - 1 && p.x <= box.x + box.width + 1 && p.y >= box.y - 1 && p.y <= box.y + box.height + 1;
+    const through = [...r.placed!.edges.values()]
+      .filter((e) => inside(e.points.at(-1)!))
+      .flatMap((e) => e.points.slice(1).map((b, i) => [e.points[i]!, b] as const).filter(([a, b]) => a.y === b.y && a.y >= box.y && a.y <= box.y + box.height && Math.min(a.x, b.x) < box.x && Math.max(a.x, b.x) >= box.x).map(([a]) => a.y))
+      .sort((a, b) => a - b);
+    expect(through.length).toBeLessThanOrEqual(4);
+    for (let i = 1; i < through.length; i++) expect(through[i]! - through[i - 1]!).toBeGreaterThanOrEqual(16);
+    expect(labelMetrics(r.graph!, r.placed!).labelTouching).toBe(0);
+  });
+});
+
+describe('lines back and names under shapes', () => {
+  const drawn = (file: string) => render(fs.readFileSync(path.join(examples, file), 'utf8'), { fonts: 'none' });
+  it('take the side with fewer bends for a line back to an earlier layer: gold goes down to the warehouse', async () => {
+    // Out of gold's left side it ran back under the line in from silver, then down: one bend more for the flow's sake.
+    const r = await drawn('azure/data-platform.yaml');
+    const id = r.graph!.edges.find((e) => e.from.node === 'gold' && e.to.node === 'sqlwh')!.id;
+    const [a, b] = r.placed!.edges.get(id)!.points;
+    expect(a!.x).toBe(b!.x);
+    expect(b!.y).toBeGreaterThan(a!.y);
+  });
+  it('never run a line through the name written under a choice', async () => {
+    for (const file of fs.readdirSync(path.join(examples, 'states')).map((f) => `states/${f}`)) {
+      const r = await drawn(file);
+      for (const n of r.graph!.nodes.filter((n) => n.shape.kind === 'flow' && n.shape.mark === 'choice')) {
+        const b = r.placed!.nodes.get(n.id)!;
+        // The question stands under the diamond, centred (render/flow.ts).
+        const name = { x0: b.x + b.width / 2 - 20, x1: b.x + b.width / 2 + 20, y0: b.y + b.height + 6, y1: b.y + b.height + 18 };
+        for (const e of r.placed!.edges.values())
+          for (const [p, q] of e.points.slice(1).map((q, i) => [e.points[i]!, q] as const))
+            expect(Math.max(p.x, q.x) > name.x0 && Math.min(p.x, q.x) < name.x1 && Math.max(p.y, q.y) > name.y0 && Math.min(p.y, q.y) < name.y1, `${file} ${n.id}`).toBe(false);
+      }
+    }
   });
 });
 
