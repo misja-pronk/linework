@@ -1200,8 +1200,11 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = In
     // may turn right after leaving one: a port under header text is then reached from the side.
     if (x === gx && y === gy && d !== ((goalDir + 2) & 3)) return unwind(g, k, p, cost[k]!);
     const base = cost[k]!;
+    const guessed = base + ahead(x, y, d);
     // Nothing still to come is cheaper than this: a caller that knows a better way already has its answer.
-    if (base + ahead(x, y, d) >= limit) return undefined;
+    if (guessed >= limit) return undefined;
+    // Put on the heap again since, at a lower cost: that one has been taken further already.
+    if (heap.taken > guessed) continue;
     for (let nd = 0; nd < 4; nd++) {
       if (nd === ((d + 2) & 3)) continue; // no U-turns
       const nx: number = x + DX[nd]!;
@@ -1259,6 +1262,8 @@ function unwind(g: Grid, k: number, p: Ports, total: number): Found {
 class Heap {
   private keys: number[] = [];
   private pri: number[] = [];
+  /** The priority of what was taken off last. */
+  taken = 0;
   get size() {
     return this.keys.length;
   }
@@ -1282,6 +1287,7 @@ class Heap {
     const ks = this.keys;
     const ps = this.pri;
     const top = ks[0]!;
+    this.taken = ps[0]!;
     const k = ks.pop()!;
     const p = ps.pop()!;
     if (ks.length) {
