@@ -221,7 +221,8 @@ export function App() {
         session={session.on}
         toggleSession={toggleSession}
         notify={notify}
-        exportMenu={{ exports, safeSvg: prefs.safeSvg, toggleSafeSvg: prefs.toggleSafeSvg, written: nav.written, hasPins: !!pins, onDescribe: () => modals.setDescribing(true), saveYaml: files.saveYaml, downloadYaml: files.downloadYaml }}
+        exportMenu={{ exports, safeSvg: prefs.safeSvg, written: nav.written, onDescribe: () => modals.setDescribing(true) }}
+        file={{ save: files.saveYaml, download: files.downloadYaml, ...(pins ? { saveLayout: exports.saveLayout } : {}) }}
       />
 
       <nav className="pane-tabs" role="tablist" aria-label={t('Show')}>

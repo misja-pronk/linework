@@ -271,7 +271,10 @@ export function useFileIO({ document: d, workspace, notify, ask, setSelected, cl
   };
 
   const saveYaml = () => void save();
-  const downloadYaml = () => download(yamlName(doc.name), d.textNow(), 'text/yaml');
+  const downloadYaml = () => {
+    download(yamlName(doc.name), d.textNow(), 'text/yaml');
+    notify(t('Downloaded {file}', { file: yamlName(doc.name) }));
+  };
 
   return { open, leave, pick, start, blank, save, saveYaml, downloadYaml, openFolder, openInFolder, openForProposal, openFile, dropping, onDragFiles, onDropFiles, onDragLeave };
 }

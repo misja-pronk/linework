@@ -21,6 +21,8 @@ const open = async (title) => {
   await page.reload();
   await page.waitForSelector('.start .scenario');
   await page.locator('.scenario-main', { has: page.locator('.scenario-title', { hasText: new RegExp(`^${title}$`) }) }).click();
+  // The diagram edited before is kept between visits: opening another one asks first.
+  await page.locator('.confirm-dialog button:has-text("Discard")').click({ timeout: 1500 }).catch(() => {});
   await page.waitForSelector('.drawing svg [data-node]');
   await wait(900);
 };
@@ -75,6 +77,34 @@ try {
     if (cut.length) fail(`⌘K cuts the names ${cut.join(', ')}`);
     await page.screenshot({ path: `${out}/ux-palette-steps.png` });
     await page.keyboard.press('Escape');
+  }
+  // 3. Export: a word after each download, the page's two pictures named alike, a short menu of
+  //    actions only; saving and the YAML are under ⋯.
+  await open('Azure network');
+  {
+    const exportMenu = () => page.locator('.topbar button:has-text("Export")').click();
+    await exportMenu();
+    await page.waitForSelector('.topbar .menu [role="menuitem"]');
+    const items = await page.locator('.topbar .menu [role^="menuitem"]').count();
+    if (items > 13 || items < 8) fail(`the Export menu has ${items} items`);
+    if (await page.locator('.topbar .menu [role="menuitemcheckbox"]').count()) fail('the Export menu has a checkbox among its actions');
+    await page.screenshot({ path: `${out}/ux-export-menu.png` });
+    const names = [];
+    for (const label of ['PNG', 'The slide as PNG', 'The slide as SVG']) {
+      if (label !== 'PNG') await exportMenu();
+      const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.locator('.topbar .menu [role="menuitem"]', { hasText: new RegExp(`^\\s*${label}`) }).first().click()]);
+      names.push(dl.suggestedFilename());
+      await wait(300);
+      const said = await page.locator('.toast').innerText().catch(() => '');
+      if (!said.includes(dl.suggestedFilename())) fail(`no word after downloading ${label}: "${said}"`);
+    }
+    if (names[1].replace('.png', '') !== names[2].replace('.svg', '')) fail(`the slide's pictures are named ${names[1]} and ${names[2]}`);
+    await page.click('button[aria-label="More actions"]');
+    for (const label of ['Save', 'Download YAML'])
+      if (!(await page.locator('.topbar .menu [role="menuitem"]', { hasText: label }).count())) fail(`⋯ has no ${label}`);
+    const [yaml] = await Promise.all([page.waitForEvent('download'), page.locator('.topbar .menu [role="menuitem"]', { hasText: 'Download YAML' }).click()]);
+    await wait(300);
+    if (!(await page.locator('.toast').innerText().catch(() => '')).includes(yaml.suggestedFilename())) fail('no word after downloading the YAML');
   }
 } catch (e) {
   fail(String(e?.stack ?? e));

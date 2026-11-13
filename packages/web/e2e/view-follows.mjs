@@ -28,6 +28,8 @@ const open = async (title) => {
   await page.reload();
   await page.waitForSelector('.start .scenario');
   await page.locator('.scenario-main', { has: page.locator('.scenario-title', { hasText: new RegExp(`^${title}$`) }) }).click();
+  // The diagram edited before is kept between visits: opening another one asks first.
+  await page.locator('.confirm-dialog button:has-text("Discard")').click({ timeout: 1500 }).catch(() => {});
   await page.waitForSelector('.drawing svg [data-node]');
   await wait(900);
 };

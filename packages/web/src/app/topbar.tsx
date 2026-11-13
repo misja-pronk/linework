@@ -35,6 +35,8 @@ interface Props {
   toggleSession(): void;
   notify(message: string, opts?: { tone?: 'error' }): void;
   exportMenu: ExportMenuProps;
+  /** The file: save it (⌘S), download its YAML, and its layout when something is pinned. */
+  file: { save(): void; download(): void; saveLayout?(): void };
 }
 
 export function Topbar(p: Props) {
@@ -98,7 +100,7 @@ export function Topbar(p: Props) {
         </button>
         {/* Everything the top bar does less often: files, the diagram's look, the editor's light or dark. */}
         <div className="menu-anchor">
-          <button className="icon-button" onClick={() => (setLook(false), setMore((m) => !m))} aria-expanded={more || look} aria-haspopup="menu" aria-label={t('More actions')} title={t('More: new, open a folder, theme, light or dark')}>
+          <button className="icon-button" onClick={() => (setLook(false), setMore((m) => !m))} aria-expanded={more || look} aria-haspopup="menu" aria-label={t('More actions')} title={t('More: new, open, save, theme, light or dark')}>
             <span className="more-dots" aria-hidden="true">⋯</span>
           </button>
           {more && (
@@ -116,6 +118,19 @@ export function Topbar(p: Props) {
                   <Icon name="folder-open" /> {p.remembered.name}
                 </button>
               )}
+              <hr />
+              <button role="menuitem" onClick={() => (setMore(false), p.file.save())}>
+                <Icon name="save" /> {t('Save')} <kbd>{keyHint('save')}</kbd>
+              </button>
+              <button role="menuitem" onClick={() => (setMore(false), p.file.download())}>
+                <Icon name="download" /> {t('Download YAML')}
+              </button>
+              {p.file.saveLayout && (
+                <button role="menuitem" onClick={() => (setMore(false), p.file.saveLayout!())}>
+                  <Icon name="pin" /> {t('Save layout')}
+                </button>
+              )}
+              <hr />
               <button role="menuitem" onClick={() => (setMore(false), p.onCommands())}>
                 <Icon name="search" /> {t('Commands')} <kbd>⌘K</kbd>
               </button>
