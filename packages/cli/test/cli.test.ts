@@ -155,7 +155,7 @@ describe('carto validate on a slide', () => {
     const r = await carto('validate', 'phased.yaml');
     expect(r.code).toBe(0);
     expect(r.err).not.toContain('warning');
-    expect(r.err).toMatch(/hint {2}On a 16:9 slide the whole drawing is [\d.]+ pt: present it per view \(phase-one, phase-two, phase-three\)/);
+    expect(r.err).toMatch(/hint {2}On a 16:9 slide the whole drawing is [\d.]+ pt: a deck presents it per view \(phase-one, phase-two, phase-three\)/);
     // A phase too long for a slide is still said.
     write('phased.yaml', `${head}  - divider: One\n${msgs(15)}  - divider: Two\n${msgs(1)}`);
     expect((await carto('validate', 'phased.yaml')).err).toMatch(/warning {2}View "phase-one": on a 16:9 slide/);
@@ -504,9 +504,16 @@ describe('carto errors and help', () => {
     expect(new Set(fs.readFileSync(path.join(tmp, 'acc.pptx'), 'latin1').match(/ppt\/slides\/slide\d+\.xml/g)).size).toBe(3);
     expect((await carto('render', 'access.yaml', '--all-views', '-o', 'acc.pdf')).code).toBe(0);
     expect(fs.readFileSync(path.join(tmp, 'acc.pdf'), 'latin1').match(/\/Type \/Page\b/g)).toHaveLength(3);
-    // A sequence's whole is the drawing as written: the whole, then a slide per phase.
+    // A sequence's whole is read scrolling, too small for a slide: a slide per phase instead, with or without --all-views.
     const seq = await carto('render', path.join(root, 'examples/sequence/entra-sign-in.yaml'), '--all-views', '-o', 'seq.pptx');
-    expect(seq.out).toContain('3 drawings: the whole and 2 views');
+    expect(seq.out).toContain('2 drawings: the views of the whole, which is read scrolling');
+    expect(seq.err).not.toContain('under 6 pt');
+    const plain = await carto('render', path.join(root, 'examples/sequence/entra-sign-in.yaml'), '-o', 'plain.pptx');
+    expect(plain.out).toContain('2 drawings: the views of the whole');
+    // --view whole still gives the whole; carto deck gives the phases too, and a PDF keeps the whole as its first page.
+    expect((await carto('render', path.join(root, 'examples/sequence/entra-sign-in.yaml'), '--view', 'whole', '-o', 'whole.pptx')).out).toContain('whole.pptx');
+    expect((await carto('deck', path.join(root, 'examples/sequence/entra-sign-in.yaml'), '-o', 'phases.pptx')).out).toContain('2 diagrams');
+    expect((await carto('render', path.join(root, 'examples/sequence/entra-sign-in.yaml'), '--all-views', '-o', 'seq.pdf')).out).toContain('3 drawings: the whole and 2 views');
   }, 120_000);
 
   it('leaves empty views out of --all-views', async () => {

@@ -127,9 +127,12 @@ describe('pptx', () => {
     const survey = parts(await toPptx(await Promise.all(['systems/web-shop.yaml', 'erd/orders.yaml'].map((f) => draw(f)))));
     const slide = survey.text('ppt/slides/slide1.xml');
     const t = themes.survey!;
-    // Text in the theme's own face, with a sans named as the substitute's shape; type columns in the monospace face.
-    expect(slide).toContain('<a:latin typeface="Instrument Sans" panose="020B0604020202020204" pitchFamily="34"');
-    expect(survey.text('ppt/slides/slide2.xml')).toContain('<a:latin typeface="Geist Mono" panose="020B0609020204030204" pitchFamily="49"');
+    // The faces Cartography brings along are on few machines: named as faces every Mac and PC has (Apple's importer sets a missing one in Times).
+    expect(slide).toContain('<a:latin typeface="Arial" panose="020B0604020202020204" pitchFamily="34"');
+    expect(survey.text('ppt/slides/slide2.xml')).toContain('<a:latin typeface="Courier New" panose="020B0609020204030204" pitchFamily="49"');
+    expect(slide).not.toContain('Instrument Sans');
+    // Asked for by name, a face is named as it is.
+    expect(parts(await toPptx(await draw('systems/web-shop.yaml'), { font: 'Instrument Sans', monoFont: 'Geist Mono' })).text('ppt/slides/slide1.xml')).toContain('typeface="Instrument Sans"');
     // Groups lie on the paper tints, with their names in spaced capitals; flat cards, no tile behind the icons.
     expect(slide.toUpperCase()).toContain(`<A:SRGBCLR VAL="${t.group!.tints![0]!.slice(1).toUpperCase()}"/>`);
     expect(slide).toMatch(/spc="\d+"/);
@@ -138,21 +141,21 @@ describe('pptx', () => {
     // The legend is a KEY under a rule.
     expect(slide).toContain('<a:t>KEY</a:t>');
 
-    // Classic keeps its soft shadow, tinted tiles and Inter.
+    // Classic keeps its soft shadow and tinted tiles; its Inter is named Arial too.
     const classic = parts(await toPptx(await draw('systems/web-shop.yaml', 'classic'), { theme: themes.classic })).text('ppt/slides/slide1.xml');
     expect(classic).toContain('<a:outerShdw');
     expect(classic).toContain('name="Tile"');
-    expect(classic).toContain('typeface="Inter"');
+    expect(classic).toContain('typeface="Arial"');
     expect(classic).not.toContain('<a:t>KEY</a:t>');
 
     // Transit: slim arrowheads, roundels, labels in capitals. Drafting: open arrowheads.
     const transit = parts(await toPptx(await draw('systems/web-shop.yaml', 'transit'), { theme: themes.transit })).text('ppt/slides/slide1.xml');
     expect(transit).toContain('<a:tailEnd type="triangle" w="med" len="lg"/>');
-    expect(transit).toContain('typeface="Barlow"');
+    expect(transit).toContain('typeface="Arial"');
     expect(transit).toContain('<a:t>ORDERPLACED</a:t>');
     const drafting = parts(await toPptx(await draw('systems/web-shop.yaml', 'drafting'), { theme: themes.drafting })).text('ppt/slides/slide1.xml');
     expect(drafting).toContain('<a:tailEnd type="arrow"');
-    expect(drafting).toContain('typeface="IBM Plex Mono"');
+    expect(drafting).toContain('typeface="Courier New"');
     // A font of your own choosing wins.
     expect(parts(await toPptx(await draw('systems/web-shop.yaml'), { font: 'Arial' })).text('ppt/slides/slide1.xml')).toContain('typeface="Arial"');
   });
@@ -265,11 +268,52 @@ describe('shapes Quick Look draws', () => {
     const pieces = shapes(line);
     expect(pieces.length).toBeGreaterThan(5);
     expect(pieces.every((s) => s.includes('prst="line"'))).toBe(true);
-    // Every piece the line's colour and width (a dash in front of where a piece starts its pattern is solid); one arrowhead, on the last piece.
+    // Every piece the line's colour and width (a dash in front of where a piece starts its pattern is solid); an arrowhead on the last piece only,
+    // and, the line being dashed, a solid one over it on a piece too short to see: Apple's importer strokes an arrowhead with its line's dashes.
     expect(new Set(pieces.map((s) => /<a:ln [^]*?<\/a:ln>/.exec(s)![0].replace(/<a:(head|tail)End[^>]*\/>|<a:prstDash [^>]*>/g, ''))).size).toBe(1);
-    expect(line.match(/<a:tailEnd /g)).toHaveLength(1);
-    expect(pieces.at(-1)).toContain('<a:tailEnd type="triangle"');
+    expect(line.match(/<a:tailEnd /g)).toHaveLength(2);
+    expect(pieces.at(-2)).toContain('<a:tailEnd type="triangle"');
+    expect(pieces.at(-1)).toContain('name="Arrowhead"');
+    expect(pieces.at(-1)).toContain('<a:prstDash val="solid"/><a:round/><a:tailEnd type="triangle"');
     expect(line).not.toContain('<a:headEnd ');
+  });
+
+  it('draws a line style\'s second mark on the line and in the key, so no two styles differ only by colour', async () => {
+    const slideOf = async (f: string) => parts(await toPptx(await draw(f), { rasterize: () => PNG, steps: false })).text('ppt/slides/slide1.xml');
+    const legend = (slide: string, label: string) => {
+      const at = slide.indexOf(`name="Legend: ${label}"`);
+      // The samples come just before their label.
+      return slide.slice(slide.lastIndexOf('name="Legend', at - 1) > 0 ? slide.lastIndexOf('name="Legend', at - 1) : 0, at);
+    };
+    // Ticks: Management, on its connector (marks drawn over it, as the connector keeps its own place) and in the key.
+    const hub = await slideOf('azure/hub-spoke.yaml');
+    expect(hub).toMatch(/name="Marks: bastion → erp-vm \(RDP\)"[^]*?name="Tick"/);
+    expect(legend(hub, 'Management')).toContain('name="Tick"');
+    expect(legend(hub, 'Public traffic')).not.toContain('name="Tick"');
+    // Beads: the private circuit.
+    const hybrid = await slideOf('network/hybrid-cloud.yaml');
+    expect(hybrid).toContain('name="Bead"');
+    expect(hybrid).toContain('prst="ellipse"');
+    // A double line: wide in its colour, a core in the page's colour along it, small arrowheads; never a compound line or a custom dash.
+    const tiers = await slideOf('access/privileged-access.yaml');
+    expect(tiers).toContain('name="Core"');
+    expect(tiers).toContain('w="sm" len="sm"');
+    for (const s of [hub, hybrid, tiers]) {
+      expect(s).not.toContain('cmpd=');
+      expect(s).not.toContain('<a:custDash>');
+      expect(wellFormed(s)).toBe(true);
+    }
+  });
+
+  it('keys a sequence\'s arrows as it draws them: a call\'s filled head, a reply dashed with a solid open head', async () => {
+    const r = await draw('sequence/service-bus-events.yaml');
+    const phase = await render(example('sequence/service-bus-events.yaml'), { fonts: 'none', view: r.views!.find((v) => v.name.startsWith('phase-'))!.name });
+    const slide = parts(await toPptx(phase, { rasterize: () => PNG })).text('ppt/slides/slide1.xml');
+    const key = slide.slice(slide.indexOf('name="Legend"'));
+    expect(key).toContain('prst="triangle"');
+    expect(key).toContain('<a:prstDash val="dash"/>');
+    expect(key).toContain('name="Arrowhead"');
+    expect(key).toContain('<a:tailEnd type="arrow"');
   });
 
   it('turns a piece so it runs the way the line does, and its arrowhead points the right way', async () => {
@@ -427,7 +471,8 @@ describe('steps', () => {
       await toPptx(r, { steps, onSlide: (s) => seen.push(s.scale) });
       return seen;
     };
-    // A wide drawing with a subtitle: the step takes the subtitle's place, one line, and the drawing is as large as without steps.
+    // A wide drawing with a subtitle short enough to stand on the title's row: it does, the step under it,
+    // one line, and the drawing is as large as without steps.
     const wide = await draw('network/hybrid-cloud.yaml');
     const slide = parts(await toPptx({ ...wide, step: 3 })).text('ppt/slides/slide1.xml');
     const [, titleY, , titleH] = at(slide, 'Title')!;
@@ -435,6 +480,14 @@ describe('steps', () => {
     expect(captionY).toBe(titleY! + titleH!);
     expect(slide).toContain(`<a:t>${wide.steps![2]!.title}</a:t>`);
     expect(slide).not.toContain('name="Subtitle"');
+    expect(/name="Title"[^]*?<\/p:sp>/.exec(slide)![0]).toContain(`<a:t>${wide.graph!.subtitle!}</a:t>`);
+    // A subtitle too long for that keeps its own row under the title, and the step goes under it.
+    const long = await draw('azure/app-landing-zone.yaml');
+    const longSlide = parts(await toPptx({ ...long, step: 2 })).text('ppt/slides/slide1.xml');
+    const [, subY, , subH] = at(longSlide, 'Subtitle')!;
+    expect(subY).toBe(titleY! + titleH!);
+    expect(longSlide).toContain(`<a:t>${long.graph!.subtitle!}</a:t>`);
+    expect(at(longSlide, 'Step caption')![1]).toBe(subY! + subH!);
     expect(at(slide, 'Step number')![1]).toBe(titleY);
     // The caption wraps in its box, as its rows were planned, with no indent a template's text style would hang its second line on.
     expect(/name="Step caption"[^]*?<a:bodyPr wrap="(\w+)"/.exec(slide)![1]).toBe('square');

@@ -26,7 +26,11 @@ export async function deckCommand(ctx: Ctx, files: string[], o: DeckOptions, usa
     const r = { ...drawn, step: undefined };
     theme ??= r.theme;
     if (!r.graph || r.diagnostics.some((d) => d.severity === 'error')) ok = false;
-    if (r.graph) drawings.push({ ...r, name: path.basename(f) });
+    // A drawing read scrolling (a whole sequence) is too small for a slide: its other views (its phases) present it, in a deck of slides.
+    const by = format === 'pptx' && r.scroll && !o.view ? (r.views ?? []).filter((v) => v.name !== (r.view ?? r.asWritten?.name)) : [];
+    const views = by.length ? (await Promise.all(by.map((v) => render(fs.readFileSync(f, 'utf8'), { ...optionsFor(ctx, o, f, 'none'), view: v.name, step: undefined })))).filter((v) => v.graph && !v.empty && !v.diagnostics.some((d) => d.severity === 'error')) : [];
+    if (views.length) drawings.push(...views.map((v) => ({ ...v, name: path.basename(f) })));
+    else if (r.graph) drawings.push({ ...r, name: path.basename(f) });
   }
   if (!drawings.length) return 1;
   fs.mkdirSync(path.dirname(o.out), { recursive: true });

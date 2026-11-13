@@ -15,6 +15,12 @@ export interface Line extends Fill {
   tail?: End;
   /** Line ends: flat (round when dotted) unless said; round where pieces of one stroke meet, as the SVG's round joins. */
   cap?: 'flat' | 'rnd';
+  /**
+   * The small arrowheads, for a line drawn wider than its weight (a double line): an app sizes ends
+   * by the line's width. (Apple's importer draws neither a compound line nor a custom dash as
+   * PowerPoint does, so a line's second mark is drawn as shapes of its own, not as either.)
+   */
+  smallEnds?: boolean;
 }
 
 /** Line ends: a filled triangle, two open strokes, or a long slim triangle. */
@@ -79,7 +85,9 @@ const fill = (f?: Fill | null) => (f ? `<a:solidFill>${color(f.color, f.alpha)}<
 function line(l?: Line | null): string {
   if (!l) return '<a:ln><a:noFill/></a:ln>';
   const dash = l.dash === 'dashed' ? '<a:prstDash val="dash"/>' : l.dash === 'dotted' ? '<a:prstDash val="sysDot"/>' : '<a:prstDash val="solid"/>';
-  const end = (tag: string, e?: End) => (e && e !== 'none' ? `<a:${tag} type="${e === 'open' ? 'arrow' : 'triangle'}" w="med" len="${e === 'slim' ? 'lg' : 'med'}"/>` : '');
+  // An end grows with the line's width: on a line drawn wider than its weight it is the small one.
+  const size = l.smallEnds ? 'sm' : 'med';
+  const end = (tag: string, e?: End) => (e && e !== 'none' ? `<a:${tag} type="${e === 'open' ? 'arrow' : 'triangle'}" w="${size}" len="${e === 'slim' ? 'lg' : size}"/>` : '');
   return `<a:ln w="${i(l.width)}" cap="${l.cap ?? (l.dash === 'dotted' ? 'rnd' : 'flat')}">${fill(l)}${dash}<a:round/>${end('headEnd', l.head)}${end('tailEnd', l.tail)}</a:ln>`;
 }
 

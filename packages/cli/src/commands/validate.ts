@@ -112,7 +112,7 @@ export async function validateCommand(ctx: Ctx, files: string[], o: ValidateOpti
       if (pt < SLIDE_MIN_PT) {
         if (x.scroll) {
           const by = (r.views ?? []).filter((v) => !rest.find((w) => w.view === v.name)?.scroll).map((v) => v.name);
-          const hint = `On a ${page} the whole drawing is ${pt.toFixed(1)} pt: present it per view (${by.join(', ')})`;
+          const hint = `On a ${page} the whole drawing is ${pt.toFixed(1)} pt: a deck presents it per view (${by.join(', ')})`;
           if (!hints.includes(hint)) hints.push(hint);
         } else diagnostics.push({ severity: 'warning', message: `${x.view ? `View "${x.view}": o` : 'O'}n a ${page} its smallest text is ${pt.toFixed(1)} pt, under ${SLIDE_MIN_PT} pt: split it into views, or let it wrap (aspect: 16:9)` });
         continue;

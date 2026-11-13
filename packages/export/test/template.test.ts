@@ -245,8 +245,8 @@ describe('writing into a template', () => {
   it('keeps our look when asked: our faces, our tones, the template\'s title', async () => {
     const r = await draw('systems/web-shop.yaml');
     const slide = parts(await toPptx(r, { template: corporate, keepLook: true })).text('ppt/slides/slide1.xml');
-    expect(slide).toContain('typeface="Instrument Sans"');
-    expect(slide).toContain('typeface="Geist Mono"');
+    expect(slide).toContain('typeface="Arial"');
+    expect(slide).toContain('typeface="Courier New"');
     expect(slide).toContain('<p:ph type="title"/>');
   });
 

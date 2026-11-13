@@ -4,7 +4,7 @@
 // PDF on a slide page measure with it, so they say what PowerPoint shows. Nothing here draws.
 import type { Graph, LegendItem, Placed, StepState } from '@cartography/core';
 import { keyLayout, LEGEND, legendItems, legendWidth, noteMargins, wrap, type StepView } from '@cartography/render';
-import { inThemeFonts, look, type Theme } from '@cartography/theme';
+import { inThemeFonts, look, measureText, type Theme } from '@cartography/theme';
 import { pages } from './steps.ts';
 import type { Drawing } from './pptx.ts';
 
@@ -17,10 +17,12 @@ export const INCH = 914400;
  */
 export const MARGIN = { side: Math.round(0.32 * INCH), top: Math.round(0.25 * INCH), bottom: Math.round(0.24 * INCH) };
 /**
- * The rows over the drawing (inches): the title (24 pt), the subtitle or a step's caption line (13 to
- * 15 pt, the same row so a one-line caption costs the drawing nothing), and the gap under them.
+ * The rows over the drawing (inches): the title (24 pt), the subtitle and a step's caption lines (13 to
+ * 15 pt), and the gap under them.
  */
 export const ROWS = { title: 0.38, line: 0.26, gap: 0.06 };
+/** What the step number ("3 / 5", right-aligned at the end of the title row) leaves of that row's width, in inches. */
+export const NUMBER = 0.6;
 /** Largest scale for small drawings: a 13.5 px label becomes ~16 pt and no bigger. */
 export const MAX_K = 1.6 * PX;
 /** A step's caption on a slide: sizes in points, `px` the caption size for wrapping. */
@@ -97,8 +99,12 @@ export interface SlideFit {
   subtitled: boolean;
   /** The step's caption stands under the title (not beside the drawing, not in a placeholder). */
   header: boolean;
-  /** Where the row under the title starts. */
+  /** The subtitle stands on the title's row, after the title (a step's slide, where both fit). */
+  inline: boolean;
+  /** Where the row under the title starts: the subtitle's. */
   titleTop: number;
+  /** Where the step's title and caption start when they stand under the title: under the subtitle, if any. */
+  stepTop: number;
   /** Where the room under the step's caption starts. */
   capTop: number;
   /** The bottom of the room. */
@@ -125,8 +131,13 @@ export async function fitSlide(graph: Graph, placed: Placed, theme: Theme, s: Sl
   const under = (top: number) => (top > room.y ? top + ROWS.gap * INCH : top);
   const titleTop = room.y + (titled ? ROWS.title * INCH : 0);
   const rows = (width: number) => Math.max(1, ...(view?.states ?? []).map((st) => lines(st, width)));
-  const capTop = under(titleTop + ROWS.line * INCH * rows(room.w / PX - (titled ? 0 : 80)));
-  const subTop = under(titleTop + (subtitled ? ROWS.line * INCH : 0));
+  // A step's title and caption go under the subtitle: the slide keeps saying what the drawing is. On
+  // a step's slide the subtitle stands on the title's row, after it, where both fit beside the step
+  // number, so telling the step costs the drawing no more room than before.
+  const inline = told && !captionPh && titled && subtitled && (await inThemeFonts(theme, () => titleRowFits(graph.title!, graph.subtitle!, theme, (room.w - NUMBER * INCH) / PX)));
+  const subRow = subtitled && !inline ? ROWS.line * INCH : 0;
+  const subTop = under(titleTop + subRow);
+  const capTop = under(titleTop + subRow + ROWS.line * INCH * rows(room.w / PX - (titled ? 0 : 80)));
   // With a caption placeholder only the step number needs a row of its own, under the drawing.
   const below = told && captionPh ? Math.round(ROWS.line * INCH) : 0;
   const c = await inThemeFonts(theme, () => contentSize(graph, placed, theme, view));
@@ -150,7 +161,15 @@ export async function fitSlide(graph: Graph, placed: Placed, theme: Theme, s: Sl
       side = { x: area.x + area.w + gap, y: tpl ? area.y : area.y + (area.h - c.height * k) / 2, w };
     }
   }
-  return { k, area, content: c, ...(side ? { side } : {}), told, titled, subtitled, header: told && !captionPh && !side, titleTop, capTop, bottom, below };
+  return { k, area, content: c, ...(side ? { side } : {}), told, titled, subtitled, header: told && !captionPh && !side, inline, titleTop, stepTop: titleTop + subRow, capTop, bottom, below };
+}
+
+/** Title and subtitle as the deck sets them (24 and 13 pt, see pptx.ts) fit on one row this wide (drawing px), with a little to spare. */
+function titleRowFits(title: string, subtitle: string, theme: Theme, width: number): boolean {
+  const tl = look(theme).title;
+  const pt = 4 / 3;
+  const head = measureText(tl.caps ? title.toUpperCase() : title, 24 * pt, tl.weight >= 600 ? 600 : 400, tl.mono ? 'mono' : 'sans', (tl.tracking ?? 0) * pt);
+  return (head + measureText(`   ${subtitle}`, 13 * pt, 400)) * 1.04 <= width;
 }
 
 /** Lines a step's title and caption take under the title of one of our own slides (16:9 unless said). */

@@ -7,7 +7,7 @@ export * from './roadmap.ts';
 export { groundOf, groupDepths, type Ground } from './ground.ts';
 export { dotGrid, drawSheet, sheetPad } from './sheet.ts';
 export { keyLayout, LEGEND, sampleExtra } from './legend.ts';
-export { cardStroke, esc, labelInk, labelString, tagRadius, umlEnd } from './paint.ts';
+export { cardStroke, esc, labelInk, labelString, patternWidth, tagRadius, umlEnd } from './paint.ts';
 export * from './journey.ts';
 export * from './steps.ts';
 export * from './flow.ts';
