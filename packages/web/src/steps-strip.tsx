@@ -92,7 +92,8 @@ export function StepsStrip(p: StepsStripProps) {
       <span className="steps-title">
         <Icon name="layers" size={14} /> {t('Steps')}
       </span>
-      <div className="steps-row" ref={row}>
+      {/* The keys come in when a step has the keyboard: the step stays in view beside them. */}
+      <div className="steps-row" ref={row} onFocus={(e) => requestAnimationFrame(() => e.target.scrollIntoView({ block: 'nearest', inline: 'nearest' }))}>
         <button className={p.value ? 'step-chip' : 'step-chip active'} data-step={0} onClick={() => p.onPick(undefined)} onKeyDown={(e) => onKey(e, 0)} aria-pressed={!p.value} title={t('The whole drawing, nothing standing back')}>
           {t('All')}
         </button>

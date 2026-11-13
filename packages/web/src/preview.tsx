@@ -773,7 +773,7 @@ export function Preview(p: Props) {
     cancelAnimationFrame(frameReq.current);
     frameReq.current = requestAnimationFrame(() => p.onMove(d.node!, pin, false));
     if (d.many) return;
-    const target = dropGroup(d, e.clientX, e.clientY);
+    const target = dropGroup(d, e.clientX, e.clientY, pin);
     setDropTarget(target !== (d.parent ?? null) ? target : undefined);
   };
 
@@ -785,12 +785,25 @@ export function Preview(p: Props) {
     return best?.[0];
   };
 
-  /** The group under the pointer that can take the dragged node (pin space, so shifts do not matter). */
-  const dropGroup = (d: Drag, cx: number, cy: number): string | null => {
+  /**
+   * The group under the pointer that can take the dragged node (pin space, so shifts do not matter).
+   * Out of its own group (the pointer over a group around it, or over none) only once the card at `pin`
+   * is clear of that group: a short drag, or one just over its border, keeps it in. Onto another group
+   * it goes as soon as the pointer is over it.
+   */
+  const dropGroup = (d: Drag, cx: number, cy: number, pin: Point): string | null => {
     const s = result?.placed?.shift ?? { x: 0, y: 0 };
     const at = toLayout(cx, cy);
     const g = groupAt(d.groups!, { x: at.x + s.x, y: at.y + s.y });
     if (g && g !== d.parent && !p.canDrop(g, { node: d.node })) return d.parent ?? null;
+    const home = d.parent ? d.groups!.get(d.parent) : undefined;
+    if (home && g !== d.parent) {
+      const around = new Set<string>();
+      for (let id = result?.graph?.groups.find((x) => x.id === d.parent)?.parent; id; id = result?.graph?.groups.find((x) => x.id === id)?.parent) around.add(id);
+      const { width, height } = d.box!;
+      const over = pin.x < home.x + home.width && pin.x + width > home.x && pin.y < home.y + home.height && pin.y + height > home.y;
+      if ((g === null || around.has(g)) && over) return d.parent!;
+    }
     return g;
   };
 
@@ -848,7 +861,7 @@ export function Preview(p: Props) {
       if (d.mode === 'node') {
         const pin = dragPin(d, e);
         setSnap(undefined);
-        const target = d.many ? (d.parent ?? null) : dropGroup(d, e.clientX, e.clientY);
+        const target = d.many ? (d.parent ?? null) : dropGroup(d, e.clientX, e.clientY, pin);
         p.onMove(d.node!, pin, true, target !== (d.parent ?? null) ? target : undefined);
         // A moved selection stays selected; a single node becomes the selection.
         if (!d.many) p.onSelect({ kind: 'node', id: d.node! });
@@ -1024,7 +1037,8 @@ export function Preview(p: Props) {
     const y1 = y0 + box.height * view.scale;
     const dx = x0 < m ? m - x0 : x1 > f.clientWidth - m ? Math.max(m - x0, f.clientWidth - m - x1) : 0;
     const dy = y0 < m + 50 ? m + 50 - y0 : y1 > f.clientHeight - m - 50 ? Math.max(m + 50 - y0, f.clientHeight - m - 50 - y1) : 0;
-    if (dx || dy) setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
+    // The app moved it, not people: a fitted view stays one, so it fits again when the pane changes size.
+    if (dx || dy) setView((v) => carry(v, { ...v, x: v.x + dx, y: v.y + dy }));
     // Only when the selection changes, not on every view change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.kind, selected?.id, result]);
