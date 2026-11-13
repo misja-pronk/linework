@@ -33,13 +33,13 @@ Connections
 - Sam Okafor holds Year-end audit.
 
 Walkthrough
-1. Catalogs: Finance owns its own catalog. Partner access lives in a separate catalog, with its own owners.
+1. Catalogs: Finance keeps its packages in its own catalog. Partner access lives in a separate catalog.
 2. Basics, automatically: Everyone in Finance gets the team, the site and the ERP without asking, and loses them when they leave Finance.
-3. More rights, two approvals: Key users are approved by their manager and then by the controllers. The access ends after 180 days unless a review keeps it.
+3. More rights, two approvals: Key users are approved by their manager and then by the controllers. The access ends after 180 days; a quarterly review can remove it sooner.
 4. Guests: Fabrikam's auditors request access themselves. The controllers approve, it is read-only, and it ends after 90 days.
   - Sam Okafor: Guest removed when the last package ends
 
 Key
-- Solid green line with ticks: Holds package
+- Solid green line with beads: Holds package
 - Dashed line: Can request
-- Solid violet line: Package grants
+- Solid violet line with ticks: Package grants
