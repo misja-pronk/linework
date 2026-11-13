@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import { unzipSync, strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { render, slideTextPt, textPtAt, type RenderResult } from '@cartography/engine';
+import { SMALL_PX, smallestTextPx } from '@cartography/render';
 import { themes } from '@cartography/theme';
 import { bundledFontFiles, fontFiles } from '@cartography/theme/node';
 import { pages, pdfFamilies, slideScale, svgOnPage, toPdf, toPptx, type FamilyBytes, type FontBytes, type SlideText } from '../src/index.ts';
@@ -606,6 +607,15 @@ describe('on the page', () => {
       expect(seen[0]!.smallestPt, f).toBe(textPtAt(r.svg!, seen[0]!.scale));
       // The title row, margins and legend cost the drawing hardly more than the SVG's own title and padding.
       expect(seen[0]!.smallestPt, f).toBeGreaterThanOrEqual(slideTextPt(r.svg!, r.width!, r.height!)! - 0.1);
+    }
+  });
+  it("counts the word KEY and the ends of a class's lines: as large as a line's label", async () => {
+    const r = await draw('class/domain-model.yaml');
+    for (const word of ['KEY', '0..*', 'copies']) {
+      const tag = [...r.svg!.matchAll(/<text\b[^>]*>([^<]*)</g)].find((m) => m[1] === word)?.[0];
+      expect(tag, word).toBeDefined();
+      // Read by the same measure as validate and the deck: not an aside, not detail.
+      expect(smallestTextPx(tag!), word).toBe(SMALL_PX);
     }
   });
   it('a PDF on a slide page is as large as the slide', async () => {
