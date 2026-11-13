@@ -6,6 +6,7 @@ import { safeHref, type Box, type SequenceEvent, type SequenceParticipant, type 
 import { deepest, nesting, spread, stack, tracks, type Apart, type Band, type Row, type Span } from '@cartography/lanes';
 import { baselineOffset, fitText, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, mix, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
+import { BREAK } from './size.ts';
 import { cardStroke, iconTile, numberMark, shadowAttr, esc } from './paint.ts';
 
 const K = {
@@ -74,7 +75,7 @@ export interface SequenceGeometry {
 export function wrapLines(text: string, size: number, weight: 400 | 500 | 600, max: number): string[] {
   const lines: string[] = [];
   let line = '';
-  for (const word of text.split(/\s+/).filter(Boolean)) {
+  for (const word of text.split(BREAK).filter(Boolean)) {
     const next = line ? `${line} ${word}` : word;
     if (!line || measureText(next, size, weight) <= max) line = next;
     else {
@@ -84,6 +85,27 @@ export function wrapLines(text: string, size: number, weight: 400 | 500 | 600, m
   }
   if (line || !lines.length) lines.push(line);
   return lines.map((l) => fitText(l, size, weight, max));
+}
+
+/**
+ * A box's name as the theme sets group names, but a resource's own name keeps its case: in
+ * "App Service app-orders-prod" the kind may go to capitals, app-orders-prod is what the portal and the
+ * messages call it. A name: a word in lower case with a hyphen, underscore, dot or digit in it.
+ */
+export function boxLabel(theme: Theme, label: string): ReturnType<typeof groupLabel> {
+  const lab = groupLabel(theme, label);
+  if (lab.text === label) return lab;
+  return { ...lab, text: label.split(/(\s+)/).map((w) => (/^[^\sA-Z]*[a-z][^\sA-Z]*$/.test(w) && /[-_.\d]/.test(w) ? w : w.toUpperCase())).join('') };
+}
+
+/**
+ * A message's label, wrapped narrow to ask for room; one only a little wider than that stays on one
+ * line (its gap widens a little), so no second line holds just a word or two.
+ */
+function labelLines(label: string): string[] {
+  const L = K.label;
+  const lines = wrapLines(label, L.size, 500, L.max);
+  return lines.length === 2 && measureText(label, L.size, 500) <= L.max * 1.3 ? [label] : lines;
 }
 
 const widest = (lines: string[], size: number, weight: 400 | 500 | 600) => Math.max(0, ...lines.map((l) => measureText(l, size, weight)));
@@ -114,7 +136,7 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
     const b = lanes[i]!.box;
     const box = b !== undefined && lanes.filter((p) => p.box === b).length === 1 ? shape.boxes.find((x) => x.id === b) : undefined;
     if (!box) return w;
-    const lab = groupLabel(theme, box.label);
+    const lab = boxLabel(theme, box.label);
     return Math.max(w, Math.ceil(measureText(lab.text, lab.size, 600, 'sans', lab.tracking)) + 28 - 2 * K.box.pad);
   });
   const headerHeight = lanes.some((p) => p.caption) ? K.head.captioned : K.head.plain;
@@ -132,7 +154,7 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
   const open: { index: number; first: number; branches: { row: number; label?: string }[] }[] = [];
   for (const ev of shape.events) {
     if (ev.kind === 'message') {
-      const lines = ev.label ? wrapLines(ev.label, L.size, 500, L.max) : [];
+      const lines = ev.label ? labelLines(ev.label) : [];
       const text = lines.length * L.line;
       if (ev.from === ev.to) {
         const h = Math.max(22, text);
@@ -408,6 +430,15 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
     } else if (ev?.kind === 'divider') dividers.push({ y: rowTop(r) + row.size / 2, label: ev.label });
   }
 
+  // The sides of the boxes around participants, across.
+  const boxSides = shape.boxes.flatMap((b) => {
+    const members = lanes.map((p, i) => (p.box === b.id ? i : -1)).filter((i) => i >= 0);
+    if (!members.length) return [];
+    const x = Math.min(...members.map((i) => cx(i) - room[i]! / 2)) - K.box.pad;
+    const x2 = Math.max(...members.map((i) => cx(i) + room[i]! / 2)) + K.box.pad;
+    return [{ b, x, x2 }];
+  });
+
   // Frames hug what they hold, with insets that grow with the frames inside, and fit their tab.
   const level = nesting(bands);
   const order = bands.map((_, i) => i).sort((p, q) => level[p]! - level[q]! || p - q);
@@ -426,8 +457,16 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
     const word = (w: string) => measureText(w.toUpperCase(), TAB.size, 600);
     const tag = Math.max(word(band.ev.frame) + 2 * TAB.padX, band.branches.length ? TAB.padX + word(BRANCH_WORD[band.ev.frame] ?? 'else') : 0) + 8;
     const pad = K.frame.pad + level[i]! * K.frame.step;
-    const x = lo - Math.max(pad, tag + level[i]! * K.frame.step);
-    const width = Math.max(hi + pad - x, tabWidth(band.ev, theme) + 24, ...band.branches.map((b) => branchWidth(band.ev.frame, b.label, theme) + 24));
+    let x = lo - Math.max(pad, tag + level[i]! * K.frame.step);
+    let right = hi + pad;
+    // A frame that reaches out of a box takes in the whole box across, so its edge never runs
+    // inside the box while the other crosses the box's side.
+    const out = (1 + level[i]!) * K.frame.step;
+    for (const { x: bx, x2: bx2 } of boxSides) {
+      if (x > bx && x < bx2 && right > bx2) x = bx - out;
+      if (right > bx && right < bx2 && x < bx) right = bx2 + out;
+    }
+    const width = Math.max(right - x, tabWidth(band.ev, theme) + 24, ...band.branches.map((b) => branchWidth(band.ev.frame, b.label, theme) + 24));
     const s = stacked.bands[i]!;
     frameBox.set(i, { x, y: top + s.start, width, height: s.end - s.start });
   }
@@ -452,13 +491,7 @@ function place(shape: SequenceShape, theme: Theme): SequenceGeometry {
   // Boxes around participants that belong together, from the top to the bottom of the drawing.
   const footerY = shape.footers ? bottom : undefined;
   const height0 = (footerY ?? bottom - headerHeight) + headerHeight + (headerY ? K.box.foot : 0);
-  const boxes = shape.boxes.flatMap((b) => {
-    const members = lanes.map((p, i) => (p.box === b.id ? i : -1)).filter((i) => i >= 0);
-    if (!members.length) return [];
-    const x = Math.min(...members.map((i) => cx(i) - room[i]! / 2)) - K.box.pad;
-    const x2 = Math.max(...members.map((i) => cx(i) + room[i]! / 2)) + K.box.pad;
-    return [{ box: { x, y: 0, width: x2 - x, height: height0 }, label: b.label, tone: b.tone }];
-  });
+  const boxes = boxSides.map(({ b, x, x2 }) => ({ box: { x, y: 0, width: x2 - x, height: height0 }, label: b.label, tone: b.tone }));
 
   // Shift so the leftmost thing drawn sits at 0.
   const xs: [number, number][] = [
@@ -536,9 +569,14 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
     const line = groupLine(theme, t);
     const fill = groupFill(theme, 0, t);
     out.push(rect(b.box, theme.radius.group, `fill="${fill}"${line ? ` stroke="${line}" stroke-width="${theme.stroke.group}"` : ''}`));
-    const lab = groupLabel(theme, b.label);
+    const lab = boxLabel(theme, b.label);
     const track = lab.tracking ? ` letter-spacing="${lab.tracking}"` : '';
-    out.push(text(b.box.x + 14, b.box.y + K.box.head / 2 + 1, fitText(lab.text, lab.size, 600, b.box.width - 28, 'sans', lab.tracking), lab.size, 600, groupLabelInk(theme, t), undefined, track));
+    const fitted = fitText(lab.text, lab.size, 600, b.box.width - 28, 'sans', lab.tracking);
+    let name = text(b.box.x + 14, b.box.y + K.box.head / 2 + 1, fitted, lab.size, 600, groupLabelInk(theme, t), undefined, track);
+    // A resource's own name, kept in lower case, is not spaced out like the capitals around it.
+    if (track && fitted === lab.text && fitted !== fitted.toUpperCase())
+      name = name.replace(`>${esc(fitted)}</text>`, `>${fitted.split(/(\s+)/).map((w) => (w !== w.toUpperCase() ? `<tspan letter-spacing="0">${esc(w)}</tspan>` : esc(w))).join('')}</text>`);
+    out.push(name);
   }
 
   const fills = frameFills(g, theme);

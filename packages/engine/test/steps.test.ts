@@ -236,12 +236,14 @@ describe('steps: drawing', () => {
     // The route does not lean on colour alone: a halo under it and a heavier line.
     const edge = r.graph!.edges.find((e) => e.to.node === 'stripe')!.id;
     const line = part(two, 'edge', edge);
-    expect(line).toContain('stroke-opacity="0.22"');
+    expect(line).toContain('data-halo');
+    // One calm halo for every line in focus: a shade of the text colour, never a tone or the accent.
+    expect(line).toContain(`stroke="${r.theme!.text}" stroke-opacity="0.13"`);
     const widths = [...line.matchAll(/stroke-width="([\d.]+)"/g)].map((m) => Number(m[1]));
     const other = r.graph!.edges.find((e) => e.to.node === 'db')!.id;
     const quiet = part(two, 'edge', other);
     expect(Math.max(...widths.slice(1))).toBeGreaterThan(Math.max(...[...quiet.matchAll(/stroke-width="([\d.]+)"/g)].map((m) => Number(m[1]))));
-    expect(quiet).not.toContain('stroke-opacity="0.22"');
+    expect(quiet).not.toContain('data-halo');
     // The callout, the words and the place in the story.
     expect(two).toContain('Card data leaves here');
     expect(two).toContain('>Paying<');
@@ -261,15 +263,21 @@ describe('steps: drawing', () => {
   });
 
   it('keeps the room a note needs outside the drawing in the whole drawing too, so it does not jump to the first step', async () => {
-    const hub = example('azure/hub-spoke.yaml');
-    const whole = await render(hub, { fonts: 'none' });
-    const placed = whole.placed!;
-    // A step whose note stands past the drawing's edge.
-    const out = whole.steps!.findIndex((s) => placeNotes(s, placed).some((n) => n.box.y + n.box.height > placed.height || n.box.x + n.box.width > placed.width || n.box.x < 0 || n.box.y < 0));
-    expect(out).toBeGreaterThanOrEqual(0);
-    for (let i = 1; i <= whole.steps!.length; i++) {
+    // An example with a step whose note stands past the drawing's edge.
+    const outside = (r: Awaited<ReturnType<typeof render>>) =>
+      r.steps!.some((s) => placeNotes(s, r.placed!).some((n) => n.box.y + n.box.height > r.placed!.height || n.box.x + n.box.width > r.placed!.width || n.box.x < 0 || n.box.y < 0));
+    let hub = '';
+    let whole: Awaited<ReturnType<typeof render>> | undefined;
+    for (const f of ['azure/hub-spoke.yaml', 'azure/app-landing-zone.yaml', 'network/hybrid-cloud.yaml', 'azure/private-endpoints.yaml', 'azure/aks-baseline.yaml', 'azure/web-app.yaml', 'azure/workload-identities.yaml', 'access/privileged-access.yaml', 'access/azure-rbac-pim.yaml']) {
+      hub = example(f);
+      whole = await render(hub, { fonts: 'none' });
+      if (outside(whole)) break;
+      whole = undefined;
+    }
+    expect(whole).toBeDefined();
+    for (let i = 1; i <= whole!.steps!.length; i++) {
       const s = await render(hub, { fonts: 'none', step: i, stepCaption: false });
-      expect([s.width, s.height, s.origin], `step ${i}`).toEqual([whole.width, whole.height, whole.origin]);
+      expect([s.width, s.height, s.origin], `step ${i}`).toEqual([whole!.width, whole!.height, whole!.origin]);
     }
   });
 

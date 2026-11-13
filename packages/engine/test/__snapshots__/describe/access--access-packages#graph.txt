@@ -1,6 +1,6 @@
-Northwind finance access packages
+Finance access packages
 
-Roles, groups and access packages, who gets what, as a graph: Who may request what, who approves, and for how long. 14 elements in 2 groups, with 14 connections.
+Roles, groups and access packages, who gets what, as a graph: Northwind finance · who may request what, who approves, and for how long. 14 elements in 2 groups, with 14 connections.
 
 Groups and elements
 - Finance staff (department = Finance)
@@ -10,13 +10,13 @@ Groups and elements
   - Finance basics (Access package)
   - ERP key user (Access package)
 - Finance team (Microsoft 365 group · Teams)
-- Finance team site (SharePoint site)
+- Finance intranet (SharePoint communication site)
 - Northwind ERP (Enterprise application)
-- Fabrikam (Connected organisation · auditors)
+- Fabrikam (Connected organization · auditors)
 - External partners (Catalog)
   - Approval: Finance controller (90 days · review monthly)
   - Year-end audit (Access package)
-- Finance reports (Power BI app)
+- Finance report viewers (Security group · Power BI app audience)
 - Emma de Wit (Accountant)
 - Sam Okafor (Guest · Fabrikam)
 
@@ -24,20 +24,20 @@ Connections
 - Finance staff connects to Assigned automatically and connects to Approval: manager → Finance controller.
 - Assigned automatically connects to Finance basics.
 - Approval: manager → Finance controller connects to ERP key user.
-- Finance basics grants Finance team, grants Finance team site (Member) and grants Northwind ERP (Finance user).
+- Finance basics grants Finance team, grants Finance intranet (Member) and grants Northwind ERP (Finance user).
 - ERP key user grants Northwind ERP (Key user).
 - Fabrikam connects to Approval: Finance controller.
 - Approval: Finance controller connects to Year-end audit.
-- Year-end audit grants Finance team site (Visitor) and grants Finance reports (Viewer).
+- Year-end audit grants Finance intranet (Visitor) and grants Finance report viewers.
 - Emma de Wit holds Finance basics.
 - Sam Okafor holds Year-end audit.
 
 Walkthrough
 1. Catalogs: Finance keeps its packages in its own catalog. Partner access lives in a separate catalog.
-2. Basics, automatically: Everyone in Finance gets the team, the site and the ERP without asking, and loses them when they leave Finance.
-3. More rights, two approvals: Key users are approved by their manager and then by the controllers. The access ends after 180 days; a quarterly review can remove it sooner.
-4. Guests: Fabrikam's auditors request access themselves. The controllers approve, it is read-only, and it ends after 90 days.
-  - Sam Okafor: Guest removed when the last package ends
+2. Basics, automatically: Everyone in Finance gets the team, the intranet and the ERP without asking, and loses them when they leave Finance.
+3. More rights, two approvals: Key users are approved by their manager and then by the Finance controller. The access ends after 180 days; a quarterly review can remove it sooner.
+4. Guests: Fabrikam's auditors request access themselves. The Finance controller approves, it is read-only, and it ends after 90 days.
+  - Sam Okafor: Blocked when the last package ends, removed 30 days later
 
 Key
 - Solid green line with beads: Holds package

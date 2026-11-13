@@ -1,8 +1,8 @@
 type: process
 title: Release to production
-subtitle: "Northwind Orders API, part 2 of 2: one build goes through dev and test, and a person opens the gate to production"
+subtitle: "Northwind Orders API · part 2 of 2: one build goes through dev and test, and a person opens the gate to production"
 
-# The same actors as part 1 (pull-request.yaml), from the merge on. The deploy
+# Part 1 (pull-request.yaml) without the developer, and with Azure: from the merge on. The deploy
 # job signs in to Azure with OIDC (a federated credential): no secret in GitHub.
 lanes:
   github: GitHub
@@ -11,21 +11,21 @@ lanes:
   azure: Azure
 
 nodes:
-  Merged to main: { kind: start, in: github }
+  Merged to main: { in: github, kind: start }
   Build once: { in: actions, kind: script, caption: one artifact for all stages }
   Deploy to dev: { in: azure, kind: service, caption: rg-orders-dev }
   Deploy to test: { in: azure, kind: service, caption: rg-orders-test }
-  Integration tests: { in: actions, kind: script }
+  Integration tests: { in: actions, kind: script, caption: a red test stops the run }
   # The production environment has required reviewers: the run waits here until one approves.
-  Waiting for approval: { kind: timer, in: github }
+  Waiting for approval: { in: github, kind: timer }
   Release approved?: reviewer
-  Deploy to production: { in: azure, kind: service, caption: "staging slot, then swap" }
+  Deploy to production: { in: azure, kind: service, caption: rg-orders-prod }
   Healthy?: azure
   # Rolling back is the same swap the other way: the previous version is still warm in the slot.
   Swap back: { in: azure, kind: service }
   Live in production: { kind: end, in: azure }
-  Rolled back: { kind: error, in: azure }
-  Release stopped: { kind: end, in: reviewer }
+  Rolled back: { in: azure, kind: end }
+  Release stopped: { in: reviewer, kind: end }
 
 flow:
   - Merged to main -> Build once -> Deploy to dev -> Deploy to test -> Integration tests -> Waiting for approval -> Release approved? -yes-> Deploy to production -> Healthy? -yes-> Live in production
@@ -46,5 +46,5 @@ steps:
     caption: The release goes to the staging slot, is warmed up and checked, and the slots are swapped.
     path: Release approved? -> Deploy to production -> Healthy? -> Live in production
   - title: Roll back
-    caption: Unhealthy after the swap? Swap back. The previous version is live again within a minute.
+    caption: Unhealthy after the swap? Swap back. The previous version is live again within minutes.
     path: Healthy? -> Swap back -> Rolled back

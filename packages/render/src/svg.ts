@@ -139,7 +139,9 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
     const em = state?.edges[e.id];
     if (!pe || pe.points.length < 2 || badged.has(e.id) || em === 'hidden') continue;
     const pts = toOutline(pe.points, graph, placed, e.from.node, e.to.node);
-    const halo = em === 'focus' ? `<path d="${roundedPath(pts, theme.radius.corner)}" fill="none" stroke="${e.tone ? theme.tones[e.tone].fg : (theme.accent ?? theme.tones.blue.fg)}" stroke-opacity="0.22" stroke-width="${r1(theme.stroke.edge * 1.8 + 8)}" stroke-linecap="round" stroke-linejoin="round"/>` : '';
+    // One halo for every line in focus, in no colour of its own: a line's colour keeps saying what kind
+    // of line it is (the key), and a warm or toned glow would read as a warning or as a second meaning.
+    const halo = em === 'focus' ? `<path d="${roundedPath(pts, theme.radius.corner)}" fill="none" stroke="${theme.text}" stroke-opacity="${FOCUS_HALO}" stroke-width="${r1(theme.stroke.edge * 1.8 + 8)}" stroke-linecap="round" stroke-linejoin="round" data-halo=""/>` : '';
     out.push(`<g${data('edge', e.id)}>${halo}${drawEdge(e, pts, lineTheme(e))}</g>`);
   }
   // Where two lines cross, one hops over the other, so a crossing never reads as a junction.
@@ -222,6 +224,9 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
 function linkMark(x: number, y: number, theme: Theme): string {
   return drawIcon('link', x, y, 12, theme.textFaint, 1.6);
 }
+
+/** How strongly the halo under a line in focus shows: a soft shade, not a colour. */
+export const FOCUS_HALO = 0.13;
 
 const tip = (description?: string) => (description ? `<title>${esc(description)}</title>` : '');
 

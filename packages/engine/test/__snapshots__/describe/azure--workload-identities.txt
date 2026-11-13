@@ -1,42 +1,42 @@
-Northwind workload identities
+Workload identities
 
-Azure infrastructure diagram: Which identity each workload signs in with, and which roles it holds where. 10 elements in 4 groups, with 8 connections.
+Azure infrastructure diagram: Northwind shop · which identity each workload signs in with, and which roles it holds where. 10 elements in 4 groups, with 8 connections.
 
 Groups and elements
 - GitHub (northwind/shop)
   - deploy.yml (GitHub Actions · environment prod)
 - Northwind (Entra ID tenant)
-  - github-prod (Federated credential · repo:northwind/shop)
-  - app-shop-deploy (App registration)
-  - app-shop-deploy (Service principal (enterprise app))
+  - github-prod (repo:northwind/shop:environment:prod)
+  - sp-shop-deploy-prod (App registration)
+  - sp-shop-deploy-prod (Service principal (enterprise app))
+  - Microsoft Graph (Service principal (Microsoft))
 - sub-shop-prod (Subscription)
   - rg-shop-prod (Resource group)
-    - app-shop-web (App Service · system-assigned identity)
+    - app-shop-web-prod (App Service · system-assigned identity)
     - kv-shop-prod (Key Vault)
-    - func-shop-jobs (Function App)
-    - id-shop-jobs (User-assigned managed identity)
-    - stshopexports (Storage account)
-- Microsoft Graph (Microsoft API)
+    - func-shop-jobs-prod (Function App)
+    - id-shop-jobs-prod (User-assigned managed identity)
+    - stshopexportsprod (Storage account)
 
 Connections
-- deploy.yml signs in with github-prod (OIDC token).
-- github-prod connects to app-shop-deploy (App registration) (Management: set on).
-- app-shop-deploy (App registration) connects to app-shop-deploy (Service principal (enterprise app)) (Management: service principal).
-- app-shop-deploy (Service principal (enterprise app)) is Contributor on rg-shop-prod.
-- app-shop-web is Key Vault Secrets User on kv-shop-prod.
-- func-shop-jobs signs in with id-shop-jobs (signs in as).
-- id-shop-jobs is Storage Blob Data Contributor on stshopexports and is User.Read.All (application) on Microsoft Graph.
+- deploy.yml connects to github-prod (OIDC token).
+- github-prod connects to sp-shop-deploy-prod (App registration) (set on).
+- sp-shop-deploy-prod (App registration) connects to sp-shop-deploy-prod (Service principal (enterprise app)) (service principal).
+- sp-shop-deploy-prod (Service principal (enterprise app)) is Contributor on rg-shop-prod.
+- app-shop-web-prod is Key Vault Secrets User on kv-shop-prod.
+- func-shop-jobs-prod connects to id-shop-jobs-prod (signs in as).
+- id-shop-jobs-prod is Storage Blob Data Contributor on stshopexportsprod and is User.Read.All (application) on Microsoft Graph.
 
 Walkthrough
 1. Three kinds: An app registration for code outside Azure, managed identities for code inside it. None has a secret to leak.
-2. Deploying from GitHub: Only northwind/shop in environment prod can swap GitHub's OIDC token for a service principal token.
-  - github-prod: subject: northwind/shop, environment prod
+2. Deploying from GitHub: Only northwind/shop's prod environment gets an Entra token as the service principal, for its OIDC token.
+  - github-prod: Trusts this subject only
 3. Pipeline, least privilege: The service principal is Contributor on one resource group, not on the subscription.
 4. System-assigned: The web app's identity lives and dies with the app, and may only read secrets from its own vault.
-5. User-assigned: The jobs' own identity can be shared and outlives a redeploy; it writes exports and reads users in Graph.
-  - Microsoft Graph: Needs admin consent
+5. User-assigned: A resource of its own, so it can be shared and outlives a redeploy. It writes exports and reads users.
+  - Microsoft Graph: Granted by an admin as an app role
 
 Key
-- Dotted amber line: Identity
-- Dotted line with ticks: Management
+- Solid line: Part of the app registration
+- Dotted line: Signs in with
 - Dashed indigo line with ticks: Role assignment

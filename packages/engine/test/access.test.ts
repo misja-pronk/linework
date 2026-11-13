@@ -4,6 +4,7 @@ import type { MatrixShape } from '@cartography/core';
 import { parse, stringify } from 'yaml';
 import { accessChanges, effectiveAccess, type AccessSource } from '@cartography/access';
 import { describe as describeDiagram, toText } from '@cartography/describe';
+import { wrapNote, wrapText } from '@cartography/render';
 import { findType, render } from '../src/index.ts';
 
 const source = (view: string) => `type: access
@@ -77,8 +78,8 @@ describe('access view', () => {
     const m = (await render(text, { fonts: 'none' })).graph!.nodes[0]!.shape as MatrixShape;
     const cell = (row: string, col: string) => m.cells[m.rows.findIndex((x) => x.label === row)]![m.columns.findIndex((x) => x.label === col)];
     // Owner is assigned on rg itself (eligible: once activated), so it takes the pill; Reader on prod (through
-    // the package) is held now and named too. Every other role there is named, before where the pill's comes
-    // from, each with its own way when that differs.
+    // the package) is held now and named too. The pill's own way comes first, then every other role there,
+    // each with its own way when that differs.
     expect(cell('alice', 'rg')).toMatchObject({ text: 'Owner (eligible)', note: 'also Reader (via Developer access, from prod)' });
     expect(cell('sg-ops', 'prod')).toMatchObject({ text: 'Reader (eligible)', inherited: false });
   });
@@ -98,7 +99,40 @@ assignments:
   - { principal: sg, role: pra, scope: tenant, eligible: true, activation: 2 h }
 `;
     const m = (await render(text, { fonts: 'none' })).graph!.nodes[0]!.shape as MatrixShape;
-    expect(m.cells[0]![0]).toMatchObject({ text: 'Global Administrator (eligible)', note: 'also Privileged Role Administrator; max 2\u00a0h' });
+    expect(m.cells[0]![0]).toMatchObject({ text: 'Global Administrator (eligible)', note: 'max 2\u00a0h; also Privileged Role Administrator' });
+  });
+
+  it('says how a role is activated where it is assigned, and only where it comes from below that', async () => {
+    const text = `type: access
+view: access
+principals:
+  priya: { kind: user, member-of: devs }
+  devs: group
+  admins: group
+resources:
+  mg: management-group
+  sub: { kind: subscription, in: mg }
+  rg: { kind: resource-group, in: sub }
+  kv: { kind: key-vault, in: rg }
+roles:
+  reader: { label: Reader }
+  contributor: { label: Contributor, inherits: reader }
+  owner: { label: Owner, inherits: contributor }
+assignments:
+  - { principal: admins, role: owner, scope: mg, eligible: true, activation: 4 h, approval: admins }
+  - devs is reader on sub
+  - { principal: devs, role: contributor, scope: rg, eligible: true, activation: 8 h }
+`;
+    const r = await render(text, { fonts: 'none' });
+    expect(r.diagnostics).toEqual([]);
+    const m = r.graph!.nodes[0]!.shape as MatrixShape;
+    const cell = (row: string, col: string) => m.cells[m.rows.findIndex((x) => x.label === row)]![m.columns.findIndex((x) => x.label === col)];
+    expect(cell('admins', 'mg')!.note).toBe('max 4\u00a0h, approval by admins');
+    expect(cell('admins', 'kv')!.note).toBe('from mg');
+    // The words under a pill are first about that pill: Reader comes through devs from sub; Contributor is a further, eligible role.
+    expect(cell('priya', 'kv')).toMatchObject({ text: 'Reader', note: 'via devs, from sub; eligible for Contributor (from rg)' });
+    expect(cell('priya', 'rg')).toMatchObject({ text: 'Contributor (eligible)', note: 'via devs, max 8\u00a0h; also Reader (from sub)' });
+    expect(r.graph!.legend!.map((l) => l.label)).toEqual(['Assigned directly', 'Through a group or parent scope']);
   });
 
   it('draws a group a package hands out as somewhere to get to, and keys only what is drawn', async () => {
@@ -117,8 +151,8 @@ resources:
     expect(m.rows.map((x) => x.label)).toEqual(['emma']);
     expect(m.columns.map((x) => x.label)).toEqual(['Finance team', 'site']);
     expect(m.cells[0]![0]).toMatchObject({ text: 'Member', inherited: true, note: 'via Finance basics' });
-    // Nothing is assigned directly: the key does not say it is.
-    expect(r.graph!.legend!.map((l) => l.label)).toEqual(['Through a group, access package or parent scope']);
+    // Nothing is assigned directly, and the outlined pill comes through a package only: the key says just that.
+    expect(r.graph!.legend!.map((l) => l.label)).toEqual(['Through an access package']);
   });
 
   it('draws the same relation the same way in every access diagram', async () => {
@@ -350,5 +384,19 @@ describe('subtitles of a type\'s own views', () => {
     expect(plain).toBe('Baseline assessment 2026');
     expect((await render(text, { fonts: 'none', view: 'maturity' })).graph!.subtitle).toBe(plain);
     expect((await render(text, { fonts: 'none', view: 'investment' })).graph!.subtitle).toBe('Heatmap: Investment');
+  });
+});
+
+describe('notes under a pill', () => {
+  it('never break "8 h" over two lines', () => {
+    for (let n = 1; n < 40; n++) {
+      const note = `${'x'.repeat(n)} also Reader (from sub-shop-prod); max 8\u00a0h`;
+      for (const line of wrapNote(note)) expect(line).not.toMatch(/^h\b/);
+      for (const line of wrapText(note, 10.5, 400, 200, 8)) expect(line).not.toMatch(/^h\b/);
+    }
+  });
+
+  it('end a line after a comma rather than leave a name hanging, when that takes no more lines', () => {
+    expect(wrapNote('via sg-azure-platform-admins, from Northwind')).toEqual(['via sg-azure-platform-admins,', 'from Northwind']);
   });
 });

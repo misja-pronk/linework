@@ -1,71 +1,67 @@
 type: azure
 title: Data platform
-subtitle: Northwind · from sources to reports through a bronze, silver and gold lake
+subtitle: Northwind data · from sources to reports through a bronze, silver and gold lake
 direction: right
 
-# Left to right: sources → ingestion → lake (bronze) → Databricks → lake (silver, gold) → serving.
-# Processing is Azure Databricks with Unity Catalog: the most common choice for a lakehouse on
-# Azure today. Microsoft Fabric would replace Databricks and the SQL warehouse with one workspace.
-# Private networking is said on the cards, not drawn as lines: the lake (and Key Vault, not drawn)
-# has public access off and private endpoints, Databricks is VNet-injected without public IPs,
-# Data Factory runs in a managed VNet. The serverless SQL warehouse runs in Databricks' serverless
-# plane and reaches the lake through private endpoints of a network connectivity config; Power BI
-# is SaaS. So the subtitle does not claim "all private".
-# Captions stay short so the drawing reads on a slide: ERP is on-premises SQL Server (through a
-# self-hosted integration runtime), CRM a SaaS REST API; bronze holds data as delivered, silver
-# cleaned and conformed, gold business-ready Delta tables.
-# Power BI is SaaS; what stands in the subscription is the Fabric capacity (an Azure resource,
-# Microsoft.Fabric/capacities) its workspaces run on. Its reports query the warehouse (DirectQuery);
-# with private networking that goes through a VNet data gateway.
-# Adding a source: a card in sources and a line to Data Factory (batch) or Event Hubs (streaming).
+# Left to right: sources → ingestion → lake (bronze, silver, gold) → serving.
+# Processing is Azure Databricks with Unity Catalog; Microsoft Fabric would replace Databricks and the warehouse.
+# Networking: the lake has public access off and private endpoints, Databricks is VNet-injected without public
+# IPs, Data Factory runs in a managed VNet and reaches the on-premises ERP through a self-hosted integration runtime.
+# The serverless SQL warehouse runs in Databricks' serverless plane (not in the subscription) and reaches the lake
+# through private endpoints of a network connectivity config. Power BI is SaaS; its Fabric capacity (F64) is an Azure
+# resource in the subscription, not drawn. Reports query the warehouse with DirectQuery.
+# Adding a source: a card in Sources and a line to Data Factory (batch) or Event Hubs (streaming).
 
 groups:
   sources: { kind: boundary, label: Sources, caption: Upstream }
-  sub: { kind: subscription, label: sub-data-prd, caption: Landing zone · Corp }
-  rg-process: { kind: resource-group, label: rg-data-process, in: sub }
-  rg-ingest: { kind: resource-group, label: rg-data-ingest, in: sub }
-  rg-lake: { kind: resource-group, label: rg-data-lake, in: sub }
-  lake: { kind: boundary, label: stnwlakeprd, caption: ADLS Gen2 · private, in: rg-lake }
-  rg-serve: { kind: resource-group, label: rg-data-serve, in: sub }
+  sub-data-prod: { kind: subscription, label: sub-data-prod, caption: Landing zone · Corp }
+  rg-data-process: { kind: resource-group, label: rg-data-process, in: sub-data-prod }
+  rg-data-ingest: { kind: resource-group, label: rg-data-ingest, in: sub-data-prod }
+  rg-data-lake: { kind: resource-group, label: rg-data-lake, in: sub-data-prod }
+  stdatalakeprod: { kind: boundary, label: stdatalakeprod, caption: ADLS Gen2 · private, in: rg-data-lake }
+  # Services outside the subscription: Databricks runs the warehouse, Microsoft runs Power BI
+  databricks-serverless: { kind: boundary, label: Databricks serverless, caption: Run by Databricks }
+  microsoft-fabric: { kind: boundary, label: Microsoft Fabric, caption: SaaS }
 
 nodes:
   erp: { kind: external, label: ERP, caption: SQL Server · nightly, in: sources }
   crm: { kind: external, label: CRM, caption: REST API · hourly, in: sources }
-  web: { kind: app-service, label: Web shop, caption: Clickstream events, in: sources }
+  web-shop: { kind: app-service, label: Web shop, caption: Clickstream events, in: sources }
 
-  adf: { kind: data-factory, label: adf-nw-data, caption: Managed VNet, in: rg-ingest }
-  evh: { kind: event-hub, label: evh-clickstream, in: rg-ingest }
+  adf-data-prod: { kind: data-factory, label: adf-data-prod, caption: Managed VNet · SHIR, in: rg-data-ingest }
+  evhns-data-prod: { kind: event-hub, label: evhns-data-prod, caption: Event hub clickstream, in: rg-data-ingest }
 
-  bronze: { kind: storage, label: bronze, caption: Raw, in: lake }
-  silver: { kind: storage, label: silver, caption: Cleaned, in: lake }
-  gold: { kind: storage, label: gold, caption: Business-ready, in: lake }
+  bronze: { kind: storage, label: bronze, caption: Raw, in: stdatalakeprod }
+  silver: { kind: storage, label: silver, caption: Cleaned, in: stdatalakeprod }
+  gold: { kind: storage, label: gold, caption: Business-ready, in: stdatalakeprod }
 
-  dbw: { kind: databricks, label: dbw-nw-data, caption: Unity Catalog · VNet-injected, in: rg-process }
+  dbw-data-prod: { kind: databricks, label: dbw-data-prod, caption: Unity Catalog · VNet-injected, in: rg-data-process }
 
-  sqlwh: { kind: sql-warehouse, label: Serverless SQL warehouse, caption: Databricks SQL, in: rg-serve }
-  bi: { kind: service, icon: chart-column-big, tone: amber, label: Power BI, caption: Fabric capacity · F64, in: rg-serve }
+  sql-warehouse: { kind: sql-warehouse, label: Serverless SQL warehouse, caption: Databricks SQL, in: databricks-serverless }
+  power-bi: { kind: service, icon: chart-column-big, tone: amber, label: Power BI, caption: Reports · capacity F64, in: microsoft-fabric }
 
 edges:
-  - erp -> adf: { style: data }
-  - crm -> adf: { style: data }
-  - web -> evh: { style: data }
-  - adf -> bronze: { style: data }
-  - evh -> bronze: { style: data }
-  # Databricks jobs move the data up the medallion; the workspace governs the lake through Unity Catalog
+  - erp -> adf-data-prod: { style: data }
+  - crm -> adf-data-prod: { style: data }
+  - web-shop -> evhns-data-prod: { style: data }
+  - adf-data-prod -> bronze: { style: data }
+  - evhns-data-prod -> bronze: { style: data }
+  # The data moves up the medallion on the data lines; the workspace runs the jobs that move it
   - bronze -> silver: { label: clean, style: data }
   - silver -> gold: { label: model, style: data }
-  - dbw ..> lake: { label: jobs, style: management }
-  - gold -> sqlwh: { style: data }
-  - sqlwh -> bi: { label: DirectQuery, style: data }
+  - dbw-data-prod ..> stdatalakeprod: { label: jobs, style: management }
+  - gold -> sql-warehouse: { style: data }
+  - sql-warehouse -> power-bi: { label: DirectQuery, style: data }
 
 steps:
-  - One subscription with a resource group per stage, and the lake in the middle.
+  - title: One subscription
+    caption: A resource group per stage, the lake in the middle; the warehouse and Power BI are services.
   - title: Ingest
     caption: Data Factory copies batch sources into bronze; web shop events stream in through Event Hubs.
-    path: [erp -> adf -> bronze, crm -> adf, web -> evh -> bronze]
+    path: [erp -> adf-data-prod -> bronze, crm -> adf-data-prod, web-shop -> evhns-data-prod -> bronze]
   - title: Refine
     caption: Databricks jobs clean bronze into silver and model silver into gold, governed by Unity Catalog.
-    path: [dbw -> lake, bronze -> silver -> gold]
+    path: [dbw-data-prod -> stdatalakeprod, bronze -> silver -> gold]
   - title: Serve
-    caption: Power BI reports, running on the Fabric capacity, query gold through a serverless SQL warehouse (DirectQuery).
-    path: gold -> sqlwh -> bi
+    caption: Power BI reports on the Fabric capacity query gold through a serverless SQL warehouse (DirectQuery).
+    path: gold -> sql-warehouse -> power-bi

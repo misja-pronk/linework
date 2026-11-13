@@ -2,7 +2,7 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type JourneySeg, journeyPath, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, SECTION_PX, SMALL_PX, smallestTextPx } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type JourneySeg, journeyPath, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, SECTION_PX, SMALL_PX, smallestTextPx, patternWidth } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
 import { legendLayout, PX } from './fit.ts';
@@ -719,8 +719,10 @@ class SlideDrawing {
     return {
       color: e.tone ? this.theme.tones[e.tone].fg : this.theme.edge,
       alpha: e.tone ? 0.9 : undefined,
-      width: this.L(this.theme.stroke.edge * (e.width ?? 1)),
+      // A double line is drawn wider, two thin lines in it, as render's patternWidth.
+      width: this.L(patternWidth(e.pattern, this.theme.stroke.edge * (e.width ?? 1))),
       dash: e.line,
+      ...(e.pattern === 'double' ? { smallEnds: true } : {}),
       head: e.start === 'arrow' ? arrow : 'none',
       tail: e.end === 'arrow' ? arrow : 'none',
     };
@@ -803,7 +805,10 @@ class SlideDrawing {
       // in pieces (Quick Look draws a connector with three bends as one straight stroke end to end).
       if (fit && fit.prst !== 'bentConnector4') {
         const xml = connector({ id: this.next(), name, frame: fit.frame, prst: fit.prst, adj: fit.adj, line, start: this.site(pts[0]!, e.from.node, e.from.row), end: this.site(pts.at(-1)!, e.to.node, e.to.row) });
-        return { xml, box: fit.frame };
+        // What the connector cannot carry itself is drawn over it: the second mark of its style, and
+        // solid arrowheads on a dashed line. These stay put when a shape is moved in PowerPoint.
+        const over = [...this.patternMarks(e, pts, line, 0, 'square'), ...this.solidEnds(pts, line)];
+        return { xml: xml + (over.length ? this.group(`Marks: ${name.replace(/^Line: /, '')}`, over).xml : ''), box: fit.frame };
       }
     }
     // A trunk drawn with another line is left out, up to its bend there.
@@ -811,11 +816,77 @@ class SlideDrawing {
     if (trunk?.head) pts = trimTo(pts, trunk.head, keep);
     if (trunk?.tail) pts = trimTo([...pts].reverse(), trunk.tail, keep).reverse();
     // Routed paths stay as drawn, with the same bends as the SVG, in pieces Quick Look draws too.
-    const pieces = this.route(pts, this.theme.radius.corner, corner, { ...line, head: trunk?.head ? 'none' : line.head, tail: trunk?.tail ? 'none' : line.tail });
+    const drawn = { ...line, head: trunk?.head ? 'none' : line.head, tail: trunk?.tail ? 'none' : line.tail } as Line;
+    const pieces = this.route(pts, this.theme.radius.corner, corner, drawn);
     const ends = [...this.marker(e.end, raw.at(-1)!, raw.at(-2)!, line.color), ...this.marker(e.start, raw[0]!, raw[1]!, line.color)];
+    const over = [...this.patternMarks(e, pts, drawn, this.theme.radius.corner, corner), ...this.solidEnds(pts, drawn)];
     // A line of one piece is that piece, under the line's name.
-    if (pieces.length === 1 && !ends.length) return this.piece(pieces[0]!.a, pieces[0]!.b, pieces[0]!.line, name);
-    return this.group(name, [...pieces.map((p) => this.piece(p.a, p.b, p.line, p.name)), ...ends]);
+    if (pieces.length === 1 && !ends.length && !over.length) return this.piece(pieces[0]!.a, pieces[0]!.b, pieces[0]!.line, name);
+    return this.group(name, [...pieces.map((p) => this.piece(p.a, p.b, p.line, p.name)), ...ends, ...over]);
+  }
+
+  /**
+   * The second mark of a line style (layout px), as render's patternOver draws it: ticks, a short
+   * wide piece every 16 px from 7 px in; beads, a dot as often; a double line, a core in the page's
+   * colour along it, short of its arrowheads. Drawn as shapes: neither a custom dash nor a compound
+   * line looks the same in Apple's importer as in PowerPoint.
+   */
+  private patternMarks(e: { pattern?: GraphEdge['pattern']; width?: number }, pts: Point[], line: Line, radius: number, corner: 'round' | 'chamfer' | 'square'): Item[] {
+    if (!e.pattern || pts.length < 2) return [];
+    const w = this.theme.stroke.edge * (e.width ?? 1);
+    if (e.pattern === 'double') {
+      const wide = patternWidth('double', w);
+      // Short of an arrowhead: the small end on a line this wide is about twice its width long.
+      const back = (end?: string) => (end && end !== 'none' ? wide * 2 + 1 : 0);
+      let core = pts.map((p) => ({ ...p }));
+      core = trimEnd(core, back(line.tail));
+      core = trimEnd([...core].reverse(), back(line.head)).reverse();
+      const pieces = this.route(core, radius, corner, { color: this.theme.surface, width: this.L(Math.max(1, wide * 0.4)), dash: line.dash });
+      return pieces.map((p) => this.piece(p.a, p.b, p.line, 'Core'));
+    }
+    const out: Item[] = [];
+    const total = pts.slice(1).reduce((s, p, i) => s + dist(pts[i]!, p), 0);
+    const at = (s: number): [Point, number] => {
+      for (let i = 1; i < pts.length; i++) {
+        const [a, b] = [pts[i - 1]!, pts[i]!];
+        const d = dist(a, b);
+        if (s <= d || i === pts.length - 1) return [{ x: a.x + ((b.x - a.x) * s) / (d || 1), y: a.y + ((b.y - a.y) * s) / (d || 1) }, i];
+        s -= d;
+      }
+      return [pts[0]!, 0];
+    };
+    // None under an arrowhead.
+    const head = line.tail && line.tail !== 'none' ? 10 : 0;
+    const color = this.opaque(line, pts).color;
+    for (let s = 7; s + 1.1 <= total - head; s += 16) {
+      const [p, leg] = at(s);
+      if (e.pattern === 'beads') {
+        const r = (w + 2) / 2;
+        out.push(this.sp({ name: 'Bead', frame: this.frame(p.x - r, p.y - r, 2 * r, 2 * r), geom: { prst: 'ellipse' }, fill: { color }, line: null }));
+        continue;
+      }
+      const [q, other] = at(s + 1.1);
+      // A tick across a bend is left out: it would not lie on either leg.
+      if (other === leg) out.push(this.piece(p, q, { color, width: this.L(w + 3.2), cap: 'flat' }, 'Tick'));
+    }
+    return out;
+  }
+
+  /**
+   * Apple's importer (Quick Look, Keynote) strokes an arrowhead with its line's dashes, so a dashed or
+   * dotted line ends in a broken glyph there: a solid arrowhead over each end, on a piece too short to
+   * show. PowerPoint draws it where it draws the line's own.
+   */
+  private solidEnds(pts: Point[], line: Line): Item[] {
+    if (!line.dash || line.dash === 'solid' || pts.length < 2) return [];
+    const color = this.opaque(line, pts).color;
+    const end = (tip: Point, from: Point, kind?: End) => {
+      if (!kind || kind === 'none') return [];
+      const d = dist(from, tip) || 1;
+      const a = { x: tip.x - ((tip.x - from.x) / d) * 0.5, y: tip.y - ((tip.y - from.y) / d) * 0.5 };
+      return [this.piece(a, tip, { color, width: line.width, cap: 'flat', tail: kind, ...(line.smallEnds ? { smallEnds: true } : {}) }, 'Arrowhead')];
+    };
+    return [...end(pts.at(-1)!, pts.at(-2)!, line.tail), ...end(pts[0]!, pts[1]!, line.head)];
   }
 
   /** A straight piece from a to b (layout px): a line shape, flipped so it runs from a to b and its arrowheads sit at the right ends. */
@@ -1211,13 +1282,34 @@ class SlideDrawing {
         this.icon('check', x + 5, cy - 5, 10, filled ? t.surface : tone.fg, 2),
       ];
     }
+    if (item.swatch === 'focus') {
+      // What a focus is about: a card in the ring it gets in the drawing.
+      const ring = t.accent ?? t.tones.blue.fg;
+      return [box(23, 18, 6, null, { color: ring, width: this.L(1.6) }, -1.5), box(17, 12, 3.5, { color: t.surface }, { color: t.border, width: this.L(1) }, 1.5)];
+    }
+    if (item.swatch === 'message') {
+      // A sequence's arrow, as render's messageSample draws it: a call solid with a filled head, a reply
+      // dashed with an open one, an async message in violet with an open one, a lost one ending in a cross.
+      const arrow = item.arrow ?? 'sync';
+      const ink = arrow === 'async' ? t.tones.violet.fg : arrow === 'reply' ? t.edge : t.textMuted;
+      const tip = { x: x + (arrow === 'lost' ? 20 : 24), y: cy };
+      const line: Line = { color: ink, width: this.L(t.stroke.edge), dash: arrow === 'reply' ? 'dashed' : 'solid', cap: 'rnd', tail: arrow === 'sync' || arrow === 'lost' ? 'none' : 'open' };
+      const cross = arrow === 'lost' ? [this.stroke([{ pts: [{ x: tip.x - 4, y: cy - 4 }, { x: tip.x + 4, y: cy + 4 }], curved: false }, { pts: [{ x: tip.x - 4, y: cy + 4 }, { x: tip.x + 4, y: cy - 4 }], curved: false }], { color: t.tones.rose.fg, width: this.L(1.6), cap: 'rnd' }, 'Swatch')] : [];
+      // A call's head is a filled triangle of its own: Apple's importer draws a line's triangle end as an outline, which would read as an async message's open head.
+      const filled = arrow === 'sync' ? [this.sp({ name: 'Swatch', frame: { ...this.frame(tip.x - 9, cy - 4.5, 9, 9), rot: 90 }, geom: { prst: 'triangle' }, fill: { color: ink }, line: null })] : [];
+      const shaft = arrow === 'sync' ? { x: tip.x - 6, y: cy } : tip;
+      return [this.piece({ x, y: cy }, shaft, line, 'Swatch'), ...this.solidEnds([{ x, y: cy }, tip], line), ...filled, ...cross];
+    }
     if (item.end && item.end !== 'none') {
       // A relationship's end (a crow's foot, a UML triangle): a longer line with the mark the drawing puts on it.
       const [from, tip] = [{ x, y: cy }, { x: x + 30, y: cy }];
       const line: Line = { color, width: this.L(t.stroke.edge), dash: item.line ?? 'solid', tail: item.end === 'arrow' ? this.arrow() : 'none' };
       return [this.piece(from, tip, line, 'Swatch'), ...this.marker(item.end, tip, from, color)];
     }
-    return [this.sp({ name: 'Swatch', frame: this.frame(x, cy, 20, 0), geom: { prst: 'line' }, fill: null, line: { color, width: this.L(t.stroke.edge * (item.width ?? 1) + 0.4), dash: item.line ?? 'solid' } })];
+    // A line sample with the line's second mark (ticks, beads, a double line), as the key in the drawing has it.
+    const sample: Line = { color, width: this.L(patternWidth(item.pattern, t.stroke.edge * (item.width ?? 1) + 0.4)), dash: item.line ?? 'solid' };
+    const marks = this.patternMarks({ pattern: item.pattern, width: (t.stroke.edge * (item.width ?? 1) + 0.4) / t.stroke.edge }, [{ x: x - 1, y: cy }, { x: x + 22, y: cy }], sample, 0, 'square');
+    return [this.sp({ name: 'Swatch', frame: this.frame(x, cy, 20, 0), geom: { prst: 'line' }, fill: null, line: sample }), ...marks];
   }
 }
 
@@ -1237,6 +1329,23 @@ export function clean(points: Point[]): Point[] {
 }
 
 const dist = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
+
+/** A polyline (layout px) shortened by `by` at its end, legs that fall away dropped. */
+export function trimEnd(pts: Point[], by: number): Point[] {
+  const out = pts.map((p) => ({ ...p }));
+  let left = by;
+  while (left > 0 && out.length > 1) {
+    const [a, b] = [out.at(-2)!, out.at(-1)!];
+    const d = dist(a, b);
+    if (d > left) {
+      out[out.length - 1] = { x: b.x - ((b.x - a.x) / d) * left, y: b.y - ((b.y - a.y) / d) * left };
+      break;
+    }
+    out.pop();
+    left -= d;
+  }
+  return out;
+}
 const mid = (a: Point, b: Point) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 const degrees = (rad: number) => Math.round((((rad * 180) / Math.PI + 360) % 360) * 1000) / 1000 % 360;
 

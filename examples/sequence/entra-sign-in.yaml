@@ -1,6 +1,6 @@
 type: sequence
 title: Sign in with Entra ID
-subtitle: "Northwind Orders portal: authorization code flow with PKCE, Conditional Access, and an API that checks every token"
+subtitle: "Northwind Orders portal · authorization code flow with PKCE, Conditional Access, and an API that checks every token"
 autonumber: true
 
 # Who takes part, left to right. The portal is a single-page app: a public client
@@ -14,14 +14,16 @@ participants:
 # Each message is a step when presenting (P). One line per label keeps the
 # whole flow readable on a 16:9 slide.
 messages:
-  - divider: Sign in
+  - divider: Sign in with PKCE and Conditional Access
   - user -> spa: Open the portal
   # PKCE: a random code_verifier, and its SHA-256 hash (S256) as the code_challenge.
   - spa -> spa: Make code_verifier and challenge
-  # Scopes: openid profile offline_access api://orders/Orders.Read, plus state and nonce.
+  # Scopes: openid profile offline_access api://orders/Orders.Read, plus state and nonce. The App ID URI
+  # defaults to api://<application (client) id>; api://orders is one the API's owners set by hand.
   - spa -> entra: "/authorize: scope, code_challenge"
   # The sign-in page and the prompt answer the /authorize request above: they open no call of their own.
-  - user -> entra: { label: Sign in with password or passkey, activate: false }
+  # A password: Conditional Access then asks for a second factor. A passkey would have been MFA already.
+  - user -> entra: { label: Sign in with password, activate: false }
   # Conditional Access is evaluated after the first factor: location, device, sign-in risk.
   - entra -> entra: Evaluate Conditional Access
   - opt: Policy requires MFA
@@ -29,7 +31,7 @@ messages:
       - entra -> user: { label: Approve in Authenticator (number match), activate: false }
       - user -> entra: { label: Approved, activate: false }
   - entra --> spa: Redirect to the portal with code and state
-  - divider: Tokens and the API
+  - divider: Tokens and the API call
   # Only the holder of the code_verifier can redeem the code.
   - spa -> entra: "/token: code, code_verifier"
   # Access token for api://orders, valid about an hour; an SPA's refresh token lasts 24 hours.

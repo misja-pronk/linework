@@ -22,44 +22,44 @@ await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 await page.locator('.scenario-main', { hasText: 'Azure network' }).click();
-await page.waitForSelector('.drawing [data-node="erp-vm"]');
+await page.waitForSelector('.drawing [data-node="vmss-erp-prod"]');
 await wait(800);
 
 // 1. The panel opens on the outline, nested as the drawing is: subscription › VNet › subnet › box.
 if (!(await page.locator('.shapes .outline[role="tree"]').count())) fail('the left panel does not open on the outline');
 if (await page.locator('.shapes .add-item').count()) fail('the shapes list shows with the outline');
 const level = async (key) => Number(await row(key).getAttribute('aria-level'));
-const levels = [await level('group:sub-erp'), await level('group:vnet-erp'), await level('group:erp-app'), await level('node:erp-vm')];
+const levels = [await level('group:sub-erp-prod'), await level('group:vnet-erp-prod'), await level('group:snet-app'), await level('node:vmss-erp-prod')];
 if (levels.join() !== '1,2,3,4') fail(`the outline is not nested as the drawing: ${levels}`);
 if ((await row('lines').getAttribute('aria-expanded')) !== 'false') fail('the lines do not start folded');
 if (await page.locator('.outline [data-key^="edge:"]').count()) fail('folded lines still show');
 await page.screenshot({ path: `${out}/1-outline.png` });
 
 // 2. A click on a row selects it in the drawing (and in the side panel).
-await row('node:erp-vm').click();
+await row('node:vmss-erp-prod').click();
 await wait(400);
-if (!(await selectedRows()).includes('node:erp-vm')) fail('the clicked row is not highlighted');
+if (!(await selectedRows()).includes('node:vmss-erp-prod')) fail('the clicked row is not highlighted');
 const sideSays = await page.locator('.side').innerText();
 if (!sideSays.includes('vmss-erp')) fail(`clicking the outline did not select it: the side panel says ${sideSays.slice(0, 80)}`);
 await page.screenshot({ path: `${out}/2-nested-selected.png` });
 
 // 3. Selected in the drawing: highlighted in the outline, unfolded to when it was folded away.
-await row('group:conn').locator('.outline-fold').click();
+await row('group:sub-connectivity').locator('.outline-fold').click();
 await wait(200);
-if (await row('node:afw').count()) fail('folding the subscription left its contents showing');
-await page.locator('.drawing [data-node="afw"]').click();
+if (await row('node:afw-hub').count()) fail('folding the subscription left its contents showing');
+await page.locator('.drawing [data-node="afw-hub"]').click();
 await wait(400);
-if (!(await row('node:afw').count())) fail('selecting in the drawing did not unfold the outline to it');
-if ((await selectedRows()).join() !== 'node:afw') fail(`selecting in the drawing highlights ${await selectedRows()} in the outline`);
+if (!(await row('node:afw-hub').count())) fail('selecting in the drawing did not unfold the outline to it');
+if ((await selectedRows()).join() !== 'node:afw-hub') fail(`selecting in the drawing highlights ${await selectedRows()} in the outline`);
 
 // 4. The arrows walk the tree and select as they go; Left goes to the parent; Enter goes back to the drawing.
-await row('node:afw').click();
+await row('node:afw-hub').click();
 await page.keyboard.press('ArrowLeft');
 await wait(200);
-if ((await selectedRows()).join() !== 'group:fw-snet') fail(`ArrowLeft selects ${await selectedRows()}, not the subnet`);
+if ((await selectedRows()).join() !== 'group:AzureFirewallSubnet') fail(`ArrowLeft selects ${await selectedRows()}, not the subnet`);
 await page.keyboard.press('ArrowDown');
 await wait(200);
-if ((await selectedRows()).join() !== 'node:afw') fail(`ArrowDown selects ${await selectedRows()}`);
+if ((await selectedRows()).join() !== 'node:afw-hub') fail(`ArrowDown selects ${await selectedRows()}`);
 await page.keyboard.press('Enter');
 await wait(200);
 if (!(await page.evaluate(() => !!document.activeElement?.closest('.preview')))) fail('Enter in the outline did not go back to the drawing');
@@ -67,18 +67,18 @@ if (!(await page.evaluate(() => !!document.activeElement?.closest('.preview'))))
 // 5. The drawing's keys for the selection work from the outline: ⌘D, Delete, ⌘C ⌘V; the keyboard stays there.
 const nodes = () => page.locator('.drawing [data-node]').count();
 const n0 = await nodes();
-await row('node:bastion').click();
+await row('node:bas-hub').click();
 await page.keyboard.press('Meta+d');
 await wait(800);
 if ((await nodes()) !== n0 + 1) fail('⌘D in the outline did not duplicate');
 const copy = (await selectedRows())[0];
-if (!copy || copy === 'node:bastion') fail(`the duplicate is not selected in the outline: ${copy}`);
+if (!copy || copy === 'node:bas-hub') fail(`the duplicate is not selected in the outline: ${copy}`);
 if (!(await page.evaluate(() => !!document.activeElement?.closest('.outline')))) fail('the keyboard left the outline after ⌘D');
 await page.keyboard.press('Delete');
 await wait(800);
 if ((await nodes()) !== n0) fail('Delete in the outline did not delete');
 if (!(await page.evaluate(() => !!document.activeElement?.closest('.outline')))) fail('the keyboard left the outline after Delete');
-await row('node:bastion').click();
+await row('node:bas-hub').click();
 await page.keyboard.press('Meta+c');
 await page.keyboard.press('Meta+v');
 await wait(800);
@@ -87,7 +87,7 @@ await page.keyboard.press('Delete');
 await wait(800);
 
 // 6. The quick add: A, "sql", Enter adds a SQL database (into the selected group, as it says).
-await row('group:erp-app').click();
+await row('group:snet-app').click();
 await page.locator('.preview').focus();
 await page.keyboard.press('a');
 await page.waitForSelector('.add-menu:not(.inline) input:focus');
@@ -103,7 +103,7 @@ await page.screenshot({ path: `${out}/3-quick-add.png` });
 await page.keyboard.press('Enter');
 await wait(800);
 const y = await yaml();
-if (!/sql[\w-]*: \{ kind: sql[\w-]*,.*in: erp-app/.test(y)) fail(`Enter did not add a SQL shape in the subnet:\n${y.split('\n').filter((l) => /sql/.test(l)).join('\n')}`);
+if (!/sql[\w-]*: \{ kind: sql[\w-]*,.*in: snet-app/.test(y)) fail(`Enter did not add a SQL shape in the subnet:\n${y.split('\n').filter((l) => /sql/.test(l)).join('\n')}`);
 if (!(await page.locator('.outline [data-key^="node:sql"]').count())) fail('the added shape is not in the outline');
 
 // 7. The shapes tab: the whole palette, to browse and drag.

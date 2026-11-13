@@ -2,6 +2,7 @@
 // (not see-through, so lines never show through cards), the route in focus gets weight, and the
 // caption, the "3 / 7" marker and callouts take the same room at every step so nothing jumps.
 import { esc } from './paint.ts';
+import { BREAK } from './size.ts';
 import type { Box, Placed, Point, StepNote, StepState } from '@cartography/core';
 import { baselineOffset, hex, measureText, mix, parseColor, type Theme } from '@cartography/theme';
 
@@ -58,7 +59,7 @@ export function strongTheme(theme: Theme): Theme {
 export function wrap(text: string, size: number, weight: 400 | 500 | 600, max: number): string[] {
   const lines: string[] = [];
   let line = '';
-  for (const word of text.split(/\s+/).filter(Boolean)) {
+  for (const word of text.split(BREAK).filter(Boolean)) {
     const next = line ? `${line} ${word}` : word;
     if (line && measureText(next, size, weight) > max) (lines.push(line), (line = word));
     else line = next;

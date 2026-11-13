@@ -9,8 +9,8 @@
 # The self-serve platform and federated governance are told in the steps: the diagram shows what they produce
 # (the products and who reads them; the contracts are in the detailed views).
 type: data-products
-title: Northwind data mesh
-subtitle: Data products owned by the domains, from operational systems to the people who use them
+title: Data mesh
+subtitle: Northwind wholesale · data products owned by the domains, from operational systems to the people who use them
 view: overview   # overview, or detailed-<domain> or detailed-<product>: ports and contracts (the view picker lists them)
 # detail: [revenue]   # these products drawn with their ports and contract (detailed-orders: one product, its neighbours as cards)
 
@@ -20,7 +20,7 @@ domains:
   supply: { label: Supply chain, owner: Supply chain data }
 
 sources:
-  erp: { kind: erp, label: ERP, caption: Orders and invoices, domain: sales }
+  erp: { kind: erp, label: ERP, domain: sales }
   crm: { kind: saas, label: CRM, domain: sales }
   wms: { kind: database, label: Warehouse management, domain: supply }
   ledger: { kind: erp, label: General ledger, domain: finance }
@@ -87,9 +87,11 @@ contracts:
       order_id: uuid pk
       customer_id: uuid
       ordered_at: timestamp
+      status: string
       total_eur: decimal(12,2)
-    sla: { freshness: 15 min, availability: 99.9% }
-    quality: [order_id is unique, total_eur >= 0]
+      delivered_at: timestamp null
+    sla: { freshness: 15 min, availability: 99.9%, retention: 7 years }
+    quality: [order_id is unique, total_eur >= 0, every order has a customer]
   customers:
     label: customers
     version: 1.6.0
@@ -117,10 +119,10 @@ steps:
     caption: Sales, Supply chain and Finance each publish data products, and each product has a team that answers for it.
     focus: [orders, customers, stock, forecast, revenue]
   - title: Source-aligned products
-    caption: Each operational system is read once, by the team that knows it, and published under a contract.
+    caption: Each operational system is read once, by the team that knows it, and published as a product.
     path: [erp -> orders, crm -> customers, wms -> stock]
   - title: Products built on products
-    caption: Demand forecast and Revenue read other products through their output ports, never the systems behind them.
+    caption: Demand forecast and Revenue read other domains' data through output ports, never their systems. The ledger is Finance's own.
     path: [orders -> forecast, stock -> forecast, orders -> revenue, customers -> revenue]
   - title: Served from a self-serve platform
     caption: Dashboards and applications read the products too. One platform team gives every domain the same storage, pipelines, catalogue and access, so a new product takes days, not months.

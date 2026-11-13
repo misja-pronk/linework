@@ -399,8 +399,8 @@ class Model {
     }
     // Identities p acts as: itself, its groups, and what its access packages give it.
     const groups = this.memberships(p);
-    const sources: { id: string; via?: string }[] = [{ id: p }];
-    for (const [g, via] of groups) sources.push({ id: g, via: this.label(via) });
+    const sources: { id: string; via?: string; through?: Reach['through'] }[] = [{ id: p }];
+    for (const [g, via] of groups) sources.push({ id: g, via: this.label(via), through: 'group' });
     const out = new Map<string, Reach[]>();
     const add = (scope: string, r: Reach) => out.set(scope, [...(out.get(scope) ?? []), r]);
     const appRoles: { scope: string; role: string; via: string }[] = [];
@@ -408,8 +408,8 @@ class Model {
       const via = pkg.label ?? this.word('access package');
       for (const g of this.grants(pkg)) {
         if (this.principal(g.target)) {
-          sources.push({ id: g.target, via });
-          for (const [inner] of this.memberships(g.target)) sources.push({ id: inner, via });
+          sources.push({ id: g.target, via, through: 'package' });
+          for (const [inner] of this.memberships(g.target)) sources.push({ id: inner, via, through: 'package' });
         } else if (this.resource(g.target)) appRoles.push({ scope: g.target, role: g.role, via });
       }
     }
@@ -425,6 +425,7 @@ class Model {
             text: a.eligible ? this.word('{role} (eligible)', { role: text }) : text,
             direct: !s.via && !from,
             via: s.via,
+            ...(s.through ? { through: s.through } : {}),
             from,
             tone: role?.tone ?? 'indigo',
             ...(a.eligible ? { eligible: true } : {}),
@@ -432,7 +433,7 @@ class Model {
           });
         }
     // App and site roles from a package: a fixed text, not one of the roles.
-    for (const a of appRoles) add(a.scope, { text: a.role, direct: false, via: a.via, tone: 'indigo' });
+    for (const a of appRoles) add(a.scope, { text: a.role, direct: false, via: a.via, through: 'package', tone: 'indigo' });
     const rank = (r: Reach) => (r.role ? this.rank(r.role) : 0);
     for (const [scope, list] of out) {
       // What is held now before what has to be activated first: an eligible role is no standing access.
@@ -454,6 +455,8 @@ export interface Reach {
   direct: boolean;
   /** The group or access package it comes through. */
   via?: string;
+  /** Whether `via` is a group or an access package. */
+  through?: 'group' | 'package';
   /** The scope above it was assigned on. */
   from?: string;
   tone: Tone;
@@ -463,7 +466,14 @@ export interface Reach {
   activation?: string;
 }
 
-const reachNote = (r: Reach, word: Word = english) => [r.via && word('via {name}', { name: r.via }), r.from && word('from {name}@scope', { name: r.from }), r.activation].filter(Boolean).join(', ') || undefined;
+/**
+ * Where a role in a cell comes from, in words: its group or package, the scope above it was assigned
+ * on, and how it is activated. The activation (max 4 h, approval by …) is said where the role is
+ * assigned; the scopes below that inherit it say only where it comes from, so it is not said twelve times.
+ */
+const reachParts = (r: Reach, word: Word = english): string[] =>
+  [r.via && word('via {name}', { name: r.via }), r.from && word('from {name}@scope', { name: r.from }), !r.from && r.activation].filter((x): x is string => !!x);
+const reachNote = (r: Reach, word: Word = english) => reachParts(r, word).join(', ') || undefined;
 
 function principalHeader(m: Model, id: string): MatrixHeader {
   const p = m.principal(id)!;
@@ -675,20 +685,29 @@ function accessView(m: Model, was?: Model): Graph {
   const groups = granted.filter((g) => rows.some((p) => membership(m, p, g)));
   const scopes = scopesInOrder(m);
   const columns = [...groups, ...scopes];
+  // The ways an outlined pill comes to be, so the key names only those.
+  const routes = new Set<'group' | 'package' | 'scope'>();
   const cells = rows.map((p) => {
     const reach = m.reach(p);
+    const groupsOf = m.memberships(p);
     return columns.map((scope) => {
-      if (groups.includes(scope)) return membership(m, p, scope);
+      if (groups.includes(scope)) {
+        const c = membership(m, p, scope);
+        if (c?.inherited) routes.add(groupsOf.has(scope) ? 'group' : 'package');
+        return c;
+      }
       // What is assigned on this very scope goes on the pill, ahead of what is inherited from above it.
       const all = [...(reach.get(scope) ?? [])].sort((a, b) => +!!a.from - +!!b.from);
       const [best, ...others] = all;
       if (!best) return undefined;
+      if (best.from) routes.add('scope');
+      if (best.through) routes.add(best.through);
       const cell = cellOf(best, m.word);
       if (!others.length) return cell;
-      // Every other role there too, before where the pill's role comes from: a note too long to draw in
-      // full loses the tail, never a role. Each says where it comes from when that is not the pill's way.
-      // What it shares with the pill's way (the same group, the same scope above) is said once, after the pill.
-      const parts = (r: Reach) => [r.via && m.word('via {name}', { name: r.via }), r.from && m.word('from {name}@scope', { name: r.from }), r.activation].filter((x): x is string => !!x);
+      // The pill's own way first, so the words under a pill are about that pill; then every other role
+      // there too, each with where it comes from when that is not the pill's way. What it shares with
+      // the pill's way (the same group, the same scope above) is not said again.
+      const parts = (r: Reach) => reachParts(r, m.word);
       const own = new Set(parts(best));
       const name = (r: Reach) => {
         const label = r.role ? m.label(r.role) : r.text;
@@ -701,14 +720,28 @@ function accessView(m: Model, was?: Model): Graph {
       const pending = best.eligible ? [] : others.filter((r) => r.eligible);
       const also = others.filter((r) => !pending.includes(r));
       const more = [also.length && m.word('also {roles}', { roles: also.map(name).join(', ') }), pending.length && m.word('eligible for {roles}', { roles: pending.map(name).join(', ') })];
-      return { ...cell, note: [...more, cell.note].filter(Boolean).join('; ') };
+      return { ...cell, note: [cell.note, ...more].filter(Boolean).join('; ') };
     });
   });
   return matrixGraph(
     m,
     { kind: 'matrix', corner: m.word('Who \\ where'), rows: rows.map((id) => principalHeader(m, id)), columns: columns.map((id) => (groups.includes(id) ? principalHeader(m, id) : resourceHeader(m, id))), cells },
-    pillLegend(cells, 'Assigned directly', 'Through a group, access package or parent scope'),
+    pillLegend(cells, 'Assigned directly', inheritedKey(routes)),
   );
+}
+
+/** The key for outlined pills: only the ways that are drawn ("Through a group or parent scope"). */
+function inheritedKey(routes: Set<'group' | 'package' | 'scope'>): string {
+  const g = routes.has('group');
+  const p = routes.has('package');
+  const s = routes.has('scope');
+  if (g && p && s) return 'Through a group, access package or parent scope';
+  if (g && p) return 'Through a group or access package';
+  if (g && s) return 'Through a group or parent scope';
+  if (p && s) return 'Through an access package or parent scope';
+  if (g) return 'Through a group';
+  if (p) return 'Through an access package';
+  return 'From a parent scope';
 }
 
 // ---------------------------------------------------------------- gained and lost

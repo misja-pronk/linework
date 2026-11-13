@@ -4,7 +4,7 @@ import type { Box, MatrixCell, MatrixShape, Tone } from '@cartography/core';
 import { baselineOffset, chipText, fitText, groupLine, look, measureText, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
 import { chipBack, iconTile, shadowAttr, tagRadius, topBand, esc } from './paint.ts';
-import { wrapText } from './size.ts';
+import { BREAK, wrapText } from './size.ts';
 
 /**
  * Matrix metrics, shared with the slide export. ROW_ICON/COL_ICON: room an icon takes before a header
@@ -51,6 +51,37 @@ const partWidth = (text: string, theme: Theme) => measureText(text, chipText(the
 /** Width of the small pills of a cell with several values. */
 export const partsWidth = (parts: { text: string }[], theme: Theme) => parts.reduce((a, p) => a + partWidth(p.text, theme), 0) + Math.max(0, parts.length - 1) * PART_GAP;
 
+/**
+ * A cell's note on lines of at most NOTE_WRAP: where it can, a line ends after a comma or semicolon
+ * rather than leave a scope's name or a word of the next clause hanging ("via sg-platform-admins," /
+ * "from Northwind", not "via sg-platform-admins, from" / "Northwind"), when that takes no more lines.
+ */
+export function wrapNote(note: string): string[] {
+  const greedy = wrapText(note, NOTE, 400, NOTE_WRAP, 8);
+  const words = note.trim().split(BREAK);
+  const lines: string[] = [];
+  let line: string[] = [];
+  for (const w of words) {
+    if (!line.length || measureText([...line, w].join(' '), NOTE, 400) <= NOTE_WRAP) {
+      line.push(w);
+      continue;
+    }
+    // The last clause end on this line, if the line keeps at least half its room up to there.
+    let cut = line.length;
+    for (let k = line.length - 2; k >= 0; k--)
+      if (/[,;]$/.test(line[k]!)) {
+        if (measureText(line.slice(0, k + 1).join(' '), NOTE, 400) >= NOTE_WRAP / 2) cut = k + 1;
+        break;
+      }
+    lines.push(line.slice(0, cut).join(' '));
+    line = [...line.slice(cut), w];
+    // What was carried over may not fit with the new word: start over from greedy wrapping then.
+    if (measureText(line.join(' '), NOTE, 400) > NOTE_WRAP) return greedy;
+  }
+  if (line.length) lines.push(line.join(' '));
+  return lines.length <= greedy.length ? lines : greedy;
+}
+
 export function matrixGeometry(m: MatrixShape, theme: Theme): MatrixGeometry {
   const label = (h: { label: string; caption?: string; icon?: string }, iconWidth: number) =>
     (h.icon ? iconWidth : 0) + Math.max(measureText(h.label, theme.size.cell, 600), h.caption ? measureText(h.caption, theme.size.caption, 400) : 0);
@@ -59,7 +90,7 @@ export function matrixGeometry(m: MatrixShape, theme: Theme): MatrixGeometry {
   const notes = m.cells.map((r) => m.columns.map((_, j) => {
     const c = r[j];
     if (!c?.note || (m.plain && !c.tone)) return undefined;
-    return measureText(c.note, NOTE, 400) > NOTE_WRAP ? wrapText(c.note, NOTE, 400, NOTE_WRAP, 8) : [c.note];
+    return measureText(c.note, NOTE, 400) > NOTE_WRAP ? wrapNote(c.note) : [c.note];
   }));
   const cellWidth = (c: MatrixCell | undefined, i: number, j: number) => {
     if (!c) return 0;

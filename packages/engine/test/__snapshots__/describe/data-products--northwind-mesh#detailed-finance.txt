@@ -1,4 +1,4 @@
-Northwind data mesh
+Data mesh
 
 Data products, finance in detail: Finance in detail. 6 elements in 1 group, with 5 connections.
 
@@ -18,7 +18,7 @@ Connections
 - Customers connects to Revenue.
 
 Key
-- Teal filled pill: Source-aligned
-- Indigo filled pill: Aggregate
+- Teal icon: Source-aligned
+- Indigo icon: Aggregate
 - Solid line: Data flow
 - Dashed violet line: Data contract

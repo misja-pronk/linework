@@ -6,16 +6,16 @@
 # The products and consumers after Orders show its lineage onwards: who breaks when the contract changes.
 type: data-products
 title: Orders data product
-subtitle: Sources, ports, contract and consumers of one data product
+subtitle: Northwind sales · sources, ports, contract and consumers of one data product
 view: overview   # overview, or detailed-<domain> or detailed-<product>: ports and contracts (the view picker lists them)
 detail: [orders]
 direction: right
 
 domains:
-  sales: { label: Sales, owner: Order management team }
+  sales: { label: Sales, owner: Sales analytics }
 
 sources:
-  erp: { kind: erp, label: ERP, caption: Orders and order lines }
+  erp: { kind: erp, label: ERP }
   webshop: { kind: stream, label: Webshop events, caption: Event Hubs }
 
 products:
@@ -23,7 +23,8 @@ products:
     label: Orders
     class: source-aligned
     domain: sales
-    version: 2.3.0   # the owner is the domain's: the order management team
+    owner: Order management team
+    version: 2.3.0
     inputs:
       - { from: erp, label: CDC every 5 min, name: erp-orders }
       - { from: webshop, label: stream, name: web-events }
@@ -32,15 +33,18 @@ products:
       order-placed: { kind: topic, label: order placed }
   revenue:
     label: Revenue
-    caption: Finance
     class: aggregate
+    owner: Finance data team
+    version: 3.0.0
     inputs: [orders.orders]
     outputs:
       revenue: { kind: view, label: revenue by month }
   forecast:
     label: Demand forecast
-    caption: Supply chain
     class: consumer-aligned
+    owner: Planning analytics
+    version: 0.4.0
+    status: beta
     inputs: [orders.orders]
     outputs:
       forecast: { kind: api, label: forecast API }
@@ -68,9 +72,8 @@ steps:
   - title: One product, one team
     caption: Orders belongs to the order management team. They run it, version it and answer for it.
   - title: Input ports
-    caption: Changes come from the ERP through change data capture, web orders as a stream. Nobody else reads these systems.
+    caption: Changes come from the ERP through change data capture, webshop events as a stream. Nobody else reads these systems.
     path: [erp -> orders, webshop -> orders]
-    note: { orders: "Deduplicated, joined, amounts in euros" }
   - title: The contract
     caption: The orders table promises a schema, freshness within 15 minutes and checks that run on every load. A breaking change is a new major version.
     focus: [orders]

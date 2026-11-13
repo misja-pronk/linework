@@ -16,9 +16,9 @@ Connections
 - orders.order_id connects to orders.order_id.
 
 Key
-- Teal filled pill: Source-aligned
-- Indigo filled pill: Aggregate
-- Amber filled pill: Consumer-aligned
+- Teal icon: Source-aligned
+- Indigo icon: Aggregate
+- Amber icon: Consumer-aligned
 - Solid line: Data flow
 - Dashed violet line: Data contract
 - Solid violet line with ticks: Foreign key

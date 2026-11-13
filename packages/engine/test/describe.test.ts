@@ -35,6 +35,33 @@ group('every example in words', () => {
   }
 });
 
+group('in the order it is drawn', () => {
+  it('tells lanes top to bottom (or left to right), as they are drawn, not by where their first step is met', async () => {
+    const text = `type: process
+lanes: { dev: Developer, github: GitHub, actions: Actions }
+nodes:
+  Push: { in: dev }
+  Checks: { in: actions }
+  Merge: { in: github }
+flow:
+  - Push -> Checks -> Merge
+`;
+    const r = await render(text, { fonts: 'none' });
+    const lanes = r.graph!.groups.filter((g) => g.lane);
+    const drawn = [...lanes].sort((a, b) => r.placed!.groups.get(a.id)!.y - r.placed!.groups.get(b.id)!.y || r.placed!.groups.get(a.id)!.x - r.placed!.groups.get(b.id)!.x).map((g) => g.label);
+    expect(drawn).toEqual(['Developer', 'GitHub', 'Actions']);
+    const told = describe({ ...r }).sections[0]!.items!.map((i) => i.text.replace(/ \(lane\)$/, ''));
+    expect(told).toEqual(drawn);
+  });
+
+  it('says a kind drawn as its icon in the key is an icon, not a pill', async () => {
+    const r = await render(fs.readFileSync(path.join(root, 'data-products/northwind-mesh.yaml'), 'utf8'), { fonts: 'none' });
+    const key = toText(describe({ ...r }));
+    expect(key).not.toContain('filled pill');
+    expect(key).toMatch(/Teal icon: Source-aligned/);
+  });
+});
+
 group('how big, in the words of its kind', () => {
   it('counts what a sequence has, participants and messages, not the one picture it is drawn as', async () => {
     const r = await render('type: sequence\nparticipants:\n  a: person\n  b: service\n  c: service\nmessages:\n  - a -> b: Asks\n  - b -> c: Reads\n  - c --> b: Rows\n  - b --> a: Answers\n', { fonts: 'none' });

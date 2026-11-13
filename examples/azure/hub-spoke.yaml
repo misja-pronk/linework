@@ -1,82 +1,80 @@
 type: azure
 title: Hub and spoke
-subtitle: Northwind · all traffic between on-premises, the spokes and the internet passes the hub firewall
+subtitle: Northwind · traffic between on-premises, the spokes and the internet passes the hub firewall; admins use Bastion
 
 # Left to right: head office (Amsterdam) → hub (Connectivity subscription) → spokes, one subscription each.
 # Address plan: hub 10.0.0.0/22, a /22 per spoke from 10.1.0.0, head office 10.10.0.0/16.
-# Every spoke subnet has an NSG (nsg-app, nsg-web) and its spoke's route table (rt-erp, rt-intranet):
-# 0.0.0.0/0 → 10.0.0.68, the firewall's private IP. The GatewaySubnet has rt-gateway, which sends
-# the spoke ranges to the firewall too. Captions hold the address plan only, so the drawing stays
-# readable on a slide; the layers and the steps name the route tables and NSGs. The VPN is a
-# site-to-site IPsec tunnel with BGP: the edge router's card says so, its line carries no label.
-# Adding a spoke: copy sub-erp with its vnet and subnet, take the next /22 and add a
-# peering line from the firewall to what runs in it.
+# Route tables: rt-erp-prod and rt-intranet-prod send 0.0.0.0/0 to the firewall (10.0.0.68); rt-gateway-weu
+# on the GatewaySubnet sends the spoke ranges there too. NSGs nsg-erp-prod and nsg-intranet-prod guard the spoke subnets.
+# Adding a spoke: copy sub-erp-prod with its VNet and subnet, take the next /22, and add a peering line from the firewall.
 
 groups:
-  onprem: { kind: on-premises, label: Head office, caption: 10.10.0.0/16 }
+  head-office: { kind: on-premises, label: Head office, caption: 10.10.0.0/16 }
 
   # Platform: the hub, owned by the network team
-  conn: { kind: subscription, label: sub-connectivity, caption: Platform · Connectivity }
-  hub: { kind: vnet, label: vnet-hub-weu, caption: 10.0.0.0/22, in: conn }
-  gw-snet: { kind: subnet, label: GatewaySubnet, caption: 10.0.0.0/27, in: hub }
-  fw-snet: { kind: subnet, label: AzureFirewallSubnet, caption: 10.0.0.64/26, in: hub }
-  bas-snet: { kind: subnet, label: AzureBastionSubnet, caption: 10.0.0.128/26, in: hub }
+  sub-connectivity: { kind: subscription, label: sub-connectivity, caption: Platform · Connectivity }
+  vnet-hub-weu: { kind: vnet, label: vnet-hub-weu, caption: 10.0.0.0/22, in: sub-connectivity }
+  GatewaySubnet: { kind: subnet, label: GatewaySubnet, caption: 10.0.0.0/27, in: vnet-hub-weu }
+  AzureFirewallSubnet: { kind: subnet, label: AzureFirewallSubnet, caption: 10.0.0.64/26, in: vnet-hub-weu }
+  AzureBastionSubnet: { kind: subnet, label: AzureBastionSubnet, caption: 10.0.0.128/26, in: vnet-hub-weu }
 
   # Spokes: one per workload, peered to the hub only (spokes are never peered to each other)
-  sub-intranet: { kind: subscription, label: sub-intranet-prd, caption: Landing zone · Corp }
-  vnet-intranet: { kind: vnet, label: vnet-intranet-weu, caption: 10.1.4.0/22, in: sub-intranet }
-  intranet-web: { kind: subnet, label: snet-web, caption: 10.1.4.0/24, in: vnet-intranet }
+  sub-intranet-prod: { kind: subscription, label: sub-intranet-prod, caption: Landing zone · Corp }
+  vnet-intranet-prod: { kind: vnet, label: vnet-intranet-prod, caption: 10.1.4.0/22, in: sub-intranet-prod }
+  snet-web: { kind: subnet, label: snet-web, caption: 10.1.4.0/24, in: vnet-intranet-prod }
 
-  sub-erp: { kind: subscription, label: sub-erp-prd, caption: Landing zone · Corp }
-  vnet-erp: { kind: vnet, label: vnet-erp-weu, caption: 10.1.0.0/22, in: sub-erp }
-  erp-app: { kind: subnet, label: snet-app, caption: 10.1.0.0/24, in: vnet-erp }
+  sub-erp-prod: { kind: subscription, label: sub-erp-prod, caption: Landing zone · Corp }
+  vnet-erp-prod: { kind: vnet, label: vnet-erp-prod, caption: 10.1.0.0/22, in: sub-erp-prod }
+  snet-app: { kind: subnet, label: snet-app, caption: 10.1.0.0/24, in: vnet-erp-prod }
 
 nodes:
-  router: { kind: vpn-gateway, label: Edge router, caption: IPsec · BGP AS 65010, in: onprem }
+  edge-router: { kind: vpn-gateway, label: Edge router, caption: IPsec · BGP AS 65010, in: head-office }
 
-  vpngw: { kind: vpn-gateway, label: vpng-hub, caption: VpnGw2AZ · AS 65515, in: gw-snet, tags: [routing] }
-  afw: { kind: firewall, label: afw-hub, caption: Premium · 10.0.0.68, in: fw-snet, tags: [routing, security] }
-  bastion: { kind: bastion, label: bas-hub, caption: Standard, in: bas-snet, tags: [security] }
+  vpng-hub: { kind: vpn-gateway, label: vpng-hub, caption: VpnGw2AZ · AS 65515, in: GatewaySubnet, tags: [routing] }
+  afw-hub: { kind: firewall, label: afw-hub, caption: Premium · 10.0.0.68, in: AzureFirewallSubnet, tags: [routing, security] }
+  bas-hub: { kind: bastion, label: bas-hub, caption: Standard, in: AzureBastionSubnet, tags: [security] }
 
-  erp-vm: { kind: vmss, label: vmss-erp, in: erp-app }
-  web-vm: { kind: vmss, label: vmss-intranet, in: intranet-web }
+  vmss-erp-prod: { kind: vmss, label: vmss-erp-prod, in: snet-app }
+  vmss-intranet-prod: { kind: vmss, label: vmss-intranet-prod, in: snet-web }
 
   internet: internet
 
 edges:
-  - router -> vpngw: { style: private, tags: [routing] }
-  # rt-gateway on the GatewaySubnet sends the spoke ranges to the firewall, not straight to the peering
-  - vpngw -> afw: { label: UDR, style: private, tags: [routing] }
-  - afw -> erp-vm: { label: peering, style: private, tags: [routing] }
-  - afw -> web-vm: { label: peering, style: private, tags: [routing] }
-  - afw -> internet: { label: SNAT, style: public, tags: [routing, security] }
-  - bastion -> erp-vm: { label: RDP, style: management, tags: [security] }
+  - edge-router -> vpng-hub: { style: private, tags: [routing] }
+  # rt-gateway-weu sends the spoke ranges to the firewall first; the firewall forwards over the peering
+  - vpng-hub -> afw-hub: { label: UDR, style: private, tags: [routing] }
+  - afw-hub -> vmss-erp-prod: { label: peering, style: private, tags: [routing] }
+  - afw-hub -> vmss-intranet-prod: { label: peering, style: private, tags: [routing] }
+  - afw-hub -> internet: { label: SNAT, style: public, tags: [routing, security] }
+  # Bastion reaches the VMs straight over the peering, not through the firewall
+  - bas-hub -> vmss-erp-prod: { label: RDP, style: management, tags: [security] }
 
 layers:
   routing:
     tags: [routing]
     title: Routing
-    caption: Route tables rt-erp and rt-intranet send 0.0.0.0/0 to the firewall; rt-gateway sends the spoke ranges there too.
+    caption: Route tables rt-erp-prod and rt-intranet-prod send 0.0.0.0/0 to the firewall; rt-gateway-weu sends the spoke ranges there too.
   security:
     tags: [security]
     title: Security
     dim-others: true
-    caption: One way out to the internet, admin access only through Bastion. NSGs nsg-app and nsg-web guard the spoke subnets.
+    caption: One way out to the internet, admin access only through Bastion. NSGs nsg-erp-prod and nsg-intranet-prod guard the spoke subnets.
 
 steps:
-  - The hub holds the shared network services; each workload gets its own spoke.
+  - title: Hub and spokes
+    caption: The hub holds the shared network services; each workload gets a spoke of its own.
   - title: From the office
-    caption: The office reaches the spokes over the VPN; route table rt-gateway sends it to the firewall, not the peering.
-    path: router -> vpngw -> afw -> erp-vm
-    note: { vpngw: "rt-gateway: spokes → 10.0.0.68" }
+    caption: rt-gateway-weu sends office traffic to the firewall first, which forwards it over the peering.
+    path: edge-router -> vpng-hub -> afw-hub -> vmss-erp-prod
+    note: { vpng-hub: "rt-gateway-weu: spokes → 10.0.0.68" }
   - title: Out to the internet
-    caption: Each spoke subnet's route table (rt-erp, rt-intranet) sends 0.0.0.0/0 to the firewall at 10.0.0.68.
-    path: afw -> internet
-    note: { erp-vm: "rt-erp: 0.0.0.0/0 → 10.0.0.68" }
+    caption: Each spoke's route table sends 0.0.0.0/0 to the firewall, which takes it out with SNAT.
+    path: vmss-erp-prod -> afw-hub -> internet
+    note: { vmss-erp-prod: "rt-erp-prod: 0.0.0.0/0 → 10.0.0.68" }
   - title: Spoke to spoke
     caption: Spokes are not peered to each other. ERP and intranet only meet through the firewall rules.
-    path: [afw -> erp-vm, afw -> web-vm]
+    path: [afw-hub -> vmss-erp-prod, afw-hub -> vmss-intranet-prod]
   - title: Admin access
-    caption: No public IPs on VMs. Admins come in through Bastion; NSG nsg-app lets RDP in from AzureBastionSubnet only.
-    path: bastion -> erp-vm
-    note: { erp-vm: "nsg-app: RDP from AzureBastionSubnet only" }
+    caption: No public IPs on VMs. Bastion reaches them over the peering; the NSG lets RDP in from Bastion only.
+    path: bas-hub -> vmss-erp-prod
+    note: { vmss-erp-prod: "nsg-erp-prod: RDP from AzureBastionSubnet only" }
