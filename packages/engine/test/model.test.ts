@@ -74,6 +74,17 @@ describe('include', () => {
     expect(r.diagnostics[0]!.message).toMatch(/^x\.yaml:2: "kind" cannot be "nope"/);
   });
 
+  it('takes a file with its own language and look: the including diagram’s rule', async () => {
+    const load = files({
+      'part.yaml': 'type: systems\nlang: nl\ntheme: dark\naspect: 16:9\nicons: {}\nnodes:\n  db: database\n',
+      'model.yaml': 'type: model\nlang: nl\ntheme: dark\nelements:\n  m: { kind: service, label: M }\n',
+    });
+    const r = await render('type: systems\ninclude: [part.yaml, model.yaml]\nnodes:\n  api: service\n  m: { ref: m }\nedges:\n  - api -> db\n', { load, fonts: 'none' });
+    expect(r.diagnostics).toEqual([]);
+    expect(r.lang).toBe('en');
+    expect(ids(r).nodes).toEqual(['api', 'm', 'db']);
+  });
+
   it('works for types with their own collections (ERD tables and relations)', async () => {
     const load = files({ 'more.yaml': 'type: erd\ntables:\n  b: { columns: { id: int pk, a_id: int fk a } }\n' });
     const r = await render('type: erd\ninclude: [more.yaml]\ntables:\n  a: { columns: { id: int pk } }\nrelations: []\n', { load, fonts: 'none' });
