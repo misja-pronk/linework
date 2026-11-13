@@ -20,6 +20,7 @@ import { shareCommand } from './commands/share.ts';
 import { themesCommand, typesCommand } from './commands/types.ts';
 import { validateCommand } from './commands/validate.ts';
 import { watchCommand } from './commands/watch.ts';
+import pkg from '../package.json' with { type: 'json' };
 
 export type { Io } from './io.ts';
 
@@ -53,6 +54,7 @@ export async function run(argv: string[], io: Io = processIo): Promise<number> {
 async function dispatch(ctx: Ctx, { command, files, values }: Args, h: Help, badLang: string | undefined): Promise<number> {
   const unknown = (cmd: string) => (ctx.error(unknownCommand(cmd, h)), 1);
   if (badLang !== undefined) throw new UsageError(t('--lang is en or nl, not "{value}"', { value: badLang }));
+  if (values.version) return (ctx.log(`carto ${pkg.version}`), 0);
   if (command === 'help') {
     const [what] = files;
     if (what === 'all') ctx.log(h.all);
@@ -104,4 +106,11 @@ async function dispatch(ctx: Ctx, { command, files, values }: Args, h: Help, bad
 
 // Run as a program (node carto.mjs, tsx main.ts, a bin link): the process's own arguments and terminal.
 const entry = process.argv[1] && fs.existsSync(process.argv[1]) ? fs.realpathSync(process.argv[1]) : undefined;
-if (entry && entry === fs.realpathSync(fileURLToPath(import.meta.url))) process.exitCode = await run(process.argv.slice(2));
+if (entry && entry === fs.realpathSync(fileURLToPath(import.meta.url))) {
+  // A reader that stops early (carto render x.yaml -o - | head) wants no more: stop quietly, not with a stack.
+  process.stdout.on('error', (e: NodeJS.ErrnoException) => {
+    if (e.code !== 'EPIPE') throw e;
+    process.exit(0);
+  });
+  process.exitCode = await run(process.argv.slice(2));
+}

@@ -35,6 +35,13 @@ group('every example in words', () => {
   }
 });
 
+group('how big, in the words of its kind', () => {
+  it('counts what a sequence has, participants and messages, not the one picture it is drawn as', async () => {
+    const r = await render('type: sequence\nparticipants:\n  a: person\n  b: service\n  c: service\nmessages:\n  - a -> b: Asks\n  - b -> c: Reads\n  - c --> b: Rows\n  - b --> a: Answers\n', { fonts: 'none' });
+    expect(describe({ ...r }).size).toBe('3 participants and 4 messages');
+  });
+});
+
 group('the text alternative in the SVG', () => {
   it('names the drawing and points at its description; a step says which', async () => {
     const r = await render(fs.readFileSync(path.join(root, 'systems/invoice-walkthrough.yaml'), 'utf8'), { fonts: 'none' });

@@ -78,7 +78,7 @@ function describeIn(input: DescribeInput): Description {
   const about = clean(graph.subtitle);
   const summary = [`${kind}${about ? `: ${sentence(about)}` : '.'}`, told.size ? sentence(told.size) : ''].filter(Boolean).join(' ');
   const sections = [...told.sections, ...walkthrough(graph, input), ...layerSection(input), ...trustSection(graph), ...keySection(graph)];
-  return { title, summary, sections: sections.filter((x) => x.text || x.items?.length) };
+  return { title, summary, ...(told.size ? { size: told.size } : {}), sections: sections.filter((x) => x.text || x.items?.length) };
 }
 
 interface Told {
@@ -170,7 +170,10 @@ function detailOf(n: GraphNode): string[] {
     if (s.stack && !/\b(ha|pair|stack|cluster|redundant)\b/i.test(s.caption ?? '')) out.push(d('a redundant pair'));
   } else if (s.kind === 'flow') {
     const what = w(FLOW_WORDS[s.mark ?? ''] ?? s.form);
-    if (s.form === 'gateway' || s.form === 'event') out.push(clean(s.label) || s.form === 'event' ? [n.kind && !['start', 'end', 'message', 'none'].includes(n.kind) ? w(n.kind) : '', what].filter(Boolean).join(' ') : what);
+    // "timer intermediate event"; a kind the words already say ("decision decision") once.
+    const own = n.kind && !['start', 'end', 'message', 'none'].includes(n.kind) ? w(n.kind) : '';
+    const kindWord = own && !what.toLowerCase().split(' ').includes(own.toLowerCase()) ? own : '';
+    if (s.form === 'gateway' || s.form === 'event') out.push(clean(s.label) || s.form === 'event' ? [kindWord, what].filter(Boolean).join(' ') : what);
     else if (s.form === 'subprocess' || s.form === 'document' || s.form === 'note') out.push(w(s.form));
     if (s.caption) out.push(s.caption);
   } else if (s.kind === 'table' && s.caption) out.push(s.caption);
@@ -422,7 +425,14 @@ function tellGraph(graph: Graph, type: string | undefined): Told {
   if (graph.walk?.length) {
     const byId = new Map(graph.nodes.map((n) => [n.id, n]));
     const stop = (b: NonNullable<Graph['walk']>[number]) => b.nodes.map((id) => byId.get(id)).find((n) => n && n.shape.kind === 'flow');
-    sections.push({ heading: d('Main path'), ordered: true, items: graph.walk.map((b) => ({ text: [stop(b) ? nameOf(stop(b)) : b.title, clean(b.caption)].filter(Boolean).join(': ') })) });
+    // A caption that names the decision before it ("Checks green? yes") is how the stop is reached, not
+    // what it is: after the name, "Waiting for review (Checks green?: yes)". A caption of only the line's label stays.
+    const byEdge = new Map(graph.edges.map((e) => [e.id, e]));
+    const how = (b: NonNullable<Graph['walk']>[number]) => {
+      const e = b.edges.map((id) => byEdge.get(id)).find((x) => x && clean(x.label));
+      return e && clean(b.caption) !== clean(e.label) ? `${nameOf(byId.get(e.from.node), e.from.node)}: ${clean(e.label)}` : undefined;
+    };
+    sections.push({ heading: d('Main path'), ordered: true, items: graph.walk.map((b) => ({ text: how(b) ? `${stop(b) ? nameOf(stop(b)) : b.title} (${how(b)})` : [stop(b) ? nameOf(stop(b)) : b.title, clean(b.caption)].filter(Boolean).join(': ') })) });
   }
   const tables = drawn.filter((n) => n.shape.kind === 'table');
   if (tables.length && type === 'class') sections.push(...tellTables(graph, tables as TableNode[]).sections);

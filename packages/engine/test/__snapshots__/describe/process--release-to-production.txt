@@ -13,12 +13,12 @@ Lanes and steps
   - Deploy to dev (rg-orders-dev)
   - Deploy to test (rg-orders-test)
   - Deploy to production (staging slot, then swap)
-  - Healthy? (decision decision)
+  - Healthy? (decision)
   - Live in production (end event)
   - Swap back
   - Rolled back (error end event)
 - Reviewer (lane)
-  - Release approved? (decision decision)
+  - Release approved? (decision)
   - Release stopped (end event)
 
 Main path
@@ -29,9 +29,9 @@ Main path
 5. Integration tests
 6. Waiting for approval
 7. Release approved?
-8. Deploy to production: Release approved? yes
+8. Deploy to production (Release approved?: yes)
 9. Healthy?
-10. Live in production: Healthy? yes
+10. Live in production (Healthy?: yes)
 
 Connections
 - Merged to main leads to Build once.

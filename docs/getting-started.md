@@ -49,7 +49,7 @@ edges:
 - `kind` says what a thing is. It brings the icon, the shape and the entry in the key. In the editor, autocomplete lists the kinds each type knows.
 - `in:` puts a thing in a group; groups nest the same way.
 - An edge is `from -> to`, with a label, or a map with a label and a `style` (`sync`, `async`, `data`, …), each with its own dash in the key.
-- A line without a style (`a --> b` dashed, `a ..> b` dotted) is named in the key by how it looks, "Connection (dotted)", unless `key:` says what it means: `key: { dotted: Configuration }`.
+- A line without a style (`a --> b` dashed, `a ..> b` dotted) is named in the key by how it looks, "Connection (dotted)", unless `key:` says what it means: `key: { dotted: Configuration }`. A name written there is shown even when it is the only entry in the key. `key:` works in the types drawn from nodes and edges: systems, C4, context map, Azure, cloud, Kubernetes, network and GitHub. The other types draw their own key, and there `key:` is an unknown field.
 
 ## Pick the right type
 

@@ -10,7 +10,7 @@ Lanes and steps
   - End event
 - Line manager (lane)
   - Check request
-  - Approved? (decision decision)
+  - Approved? (decision)
   - Explain why
   - Request rejected (end event)
 - IT service desk (lane)
@@ -21,7 +21,7 @@ Main path
 2. Request access
 3. Check request
 4. Approved?
-5. Grant access: Approved? yes
+5. Grant access (Approved?: yes)
 6. Confirm access
 7. End event
 

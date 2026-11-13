@@ -220,7 +220,7 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
     for (let cur: string | undefined = id; cur; cur = els.get(cur)?.parent) if (instances.has(cur)) return { el: cur, list: instances.get(cur)! };
     return undefined;
   };
-  const drawn = new Map<string, { labels: string[]; style?: string; at: Path; id: string; exact?: boolean }>();
+  const drawn = new Map<string, { labels: string[]; style?: string; at: Path; id: string; exact?: boolean; written?: boolean }>();
   const pair = (from: { id: string; root: string }[], to: { id: string; root: string }[], add: (f: string, t: string) => void) => {
     // Instances in the same environment talk to each other; across environments only when there is no other.
     for (const f of from) {
@@ -251,10 +251,8 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
       ctx.error(at, spec);
       continue;
     }
-    const ends = [spec.from, spec.to].map((e) => {
-      const id = e.row ? `${e.node}.${e.row}` : e.node;
-      return roots.has(id) ? [{ id, root: roots.get(id)! }] : running(id)?.list;
-    });
+    const endIds = [spec.from, spec.to].map((e) => (e.row ? `${e.node}.${e.row}` : e.node));
+    const ends = endIds.map((id) => (roots.has(id) ? [{ id, root: roots.get(id)! }] : running(id)?.list));
     if (!ends[0] || !ends[1]) {
       ctx.warn(at, 'Connect deployment nodes or elements that run in this view');
       continue;
@@ -262,9 +260,22 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
     const style = typeof spec.props.style === 'string' ? spec.props.style : undefined;
     const label = withTechnology(spec.label, typeof spec.props.technology === 'string' ? spec.props.technology : undefined);
     const via = typeof spec.props.via === 'string' ? spec.props.via : undefined;
-    if (via) {
+    // A line written here replaces the model's line between the same two (keep: the model's line
+    // stays too); two written lines between the same two are one line with both labels.
+    const put = (a: string, b: string, labels: string[], lineStyle: string | undefined, keep = false) => {
+      const key = `${a}\0${b}`;
+      const old = drawn.get(key);
+      if (!old || (!old.written && !keep)) return void drawn.set(key, { labels: [...labels], style: lineStyle, at, id: `d${i}`, written: true });
+      for (const l of labels) if (!old.labels.includes(l)) old.labels.push(l);
+      old.style ??= lineStyle;
+      old.written = true;
+    };
+    if (via && endIds.includes(via)) {
+      ctx.warn([...at, 'via'], `"${via}" is an end of this line, so it is drawn straight. Name the node the line goes through, or leave via: out`);
+    } else if (via) {
       // The relation goes through a node of this view (a load balancer): from → via, with the
       // relation's label unless one is written, and via → to, unless a line there is written too.
+      // A line already there, the model's or one written, stays and gets this label as well.
       const hop = roots.has(via) ? [{ id: via, root: roots.get(via)! }] : running(via)?.list;
       if (!hop) {
         ctx.warn([...at, 'via'], `"${via}" is not a deployment node or an element that runs in this view`);
@@ -277,12 +288,12 @@ function deploymentSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelContex
         drawn.delete(`${a}\0${b}`);
       });
       const first = [...direct.values()][0];
-      pair(ends[0], hop, (a, b) => drawn.set(`${a}\0${b}`, { labels: label ? [label] : (direct.get(a)?.labels ?? []), style: style ?? direct.get(a)?.style, at, id: `d${i}` }));
-      pair(hop, ends[1], (a, b) => void (drawn.has(`${a}\0${b}`) || drawn.set(`${a}\0${b}`, { labels: [], style: style ?? first?.style, at, id: `d${i}` })));
+      pair(ends[0], hop, (a, b) => put(a, b, label ? [label] : (direct.get(a)?.labels ?? []), style ?? direct.get(a)?.style, true));
+      pair(hop, ends[1], (a, b) => void (drawn.has(`${a}\0${b}`) || put(a, b, [], style ?? first?.style)));
       continue;
     }
     // Written here, so it wins over the model's relation between the same two.
-    pair(ends[0], ends[1], (a, b) => drawn.set(`${a}\0${b}`, { labels: label ? [label] : [], style, at, id: `d${i}` }));
+    pair(ends[0], ends[1], (a, b) => put(a, b, label ? [label] : [], style));
   }
   const ids = new Set<string>();
   for (const [key, d] of drawn) {

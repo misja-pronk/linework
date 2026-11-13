@@ -32,9 +32,13 @@ export interface Source {
  * What YAML says, in the words of someone writing a label: "a -> b: [paid] / ship" is a list with
  * text after it, which YAML reports as a scalar it did not expect.
  */
-function plain(message: string, line: string): string {
-  if (/^Unexpected scalar at node end/.test(message) && /:\s+\[[^\]]*\]\s*[^\s#]/.test(line)) return 'Text that starts with [ ] and goes on after it needs quotes, like "[paid] / ship"';
-  return message;
+function plain(message: string, line: string, column: number): string {
+  if (!/^Unexpected scalar at node end/.test(message)) return message;
+  if (/:\s+\[[^\]]*\]\s*[^\s#]/.test(line)) return 'Text that starts with [ ] and goes on after it needs quotes, like "[paid] / ship"';
+  // Text after a closing } or ] ("a: { kind: api } x"): it belongs inside, or nowhere.
+  const close = line.slice(0, column - 1).trimEnd().at(-1);
+  if (close === '}' || close === ']') return `There is text after the closing ${close} on this line: remove it, or move it inside the ${close === '}' ? '{ }' : '[ ]'}`;
+  return 'There is text after the value on this line that does not belong to it: remove it, or put the whole value in quotes';
 }
 
 export function parseSource(text: string): Source {
@@ -51,7 +55,7 @@ export function parseSource(text: string): Source {
     const [from = 0, to = from] = e.pos;
     diagnostics.push({
       severity: doc.errors.includes(e as never) ? 'error' : 'warning',
-      message: plain(e.message.split('\n')[0]!, text.slice(text.lastIndexOf('\n', from - 1) + 1).split('\n')[0]!),
+      message: plain(e.message.split('\n')[0]!, text.slice(text.lastIndexOf('\n', from - 1) + 1).split('\n')[0]!, lines.linePos(from).col),
       ...position(from, to),
     });
   }
@@ -151,6 +155,9 @@ export function validate(source: Source, schema: object): Diagnostic[] {
   return out;
 }
 
+/** Errors about an entry written short ("web: api") whose value is not a kind: said about the entry, not its name. */
+const shortForms = new WeakSet<ErrorObject>();
+
 // anyOf/oneOf produce one error per branch; keep the most specific ones so people see one clear message.
 function simplify(errors: ErrorObject[]): ErrorObject[] {
   const byPath = new Map<string, ErrorObject[]>();
@@ -169,6 +176,8 @@ function simplify(errors: ErrorObject[]): ErrorObject[] {
     if (deeper && concrete.length && concrete.every((e) => e.keyword === 'type' || (e.keyword === 'enum' && isMap(e)))) continue;
     const specific = concrete.filter((e) => e.keyword !== 'type' && !(scalarNoise(e) && concrete.some((x) => !scalarNoise(x) && x.keyword !== 'type')));
     const chosen = specific.length ? specific : concrete.length ? concrete : list;
+    // A value that may be a kind or a map of details: the entry written short, its name the key.
+    if (list.some((e) => e.keyword === 'type' && e.params.type === 'object')) for (const e of chosen) if (e.keyword === 'enum') shortForms.add(e);
     out.push(...dedupe(chosen));
   }
   return out;
@@ -192,6 +201,7 @@ function describe(e: ErrorObject, path: Path): string {
     case 'required':
       return `${where} needs "${e.params.missingProperty}"`;
     case 'enum':
+      if (shortForms.has(e) && path.length) return shortForm(String(path[path.length - 1]), e.data, (e.params.allowedValues as unknown[]).map(String));
       return oneOf(where, e.data, (e.params.allowedValues as unknown[]).map(String));
     case 'type':
       return `${where} must be ${Array.isArray(e.params.type) ? e.params.type.join(' or ') : e.params.type}`;
@@ -218,6 +228,18 @@ function oneOf(where: string, value: unknown, allowed: string[]): string {
   const shown = typeof value === 'string' || typeof value === 'number' ? `"${value}"` : 'that';
   const few = allowed.filter((a) => a !== near).slice(0, 6).join(', ');
   return `${where} cannot be ${shown}${near ? `: did you mean ${near}?` : ''} (${allowed.length} allowed, e.g. ${few}, …; completion in the editor lists them all)`;
+}
+
+/**
+ * An entry written short ("web: api") with a value that is not a kind: the entry's name is fine, what
+ * follows it is not. Says what may follow: one of the kinds, or the details in { }.
+ */
+function shortForm(name: string, value: unknown, allowed: string[]): string {
+  const near = typeof value === 'string' ? nearest(value, allowed) : undefined;
+  const kinds = allowed.length <= LIST_ALL ? allowed.join(', ') : `${allowed.filter((a) => a !== near).slice(0, 6).join(', ')}, …`;
+  const scalar = typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+  const what = scalar ? `"${value}" is not a kind${near ? `: did you mean ${near}?` : ''}` : Array.isArray(value) ? 'a list is not a kind' : 'it needs a kind or its details';
+  return `"${scalar ? `${name}: ${value}` : name}": ${what}. Write a kind after the name (${kinds}), or the details in { }, like ${name}: { label: ${name} }`;
 }
 
 /** The allowed value one typo or so away, or the only one that starts the same. */

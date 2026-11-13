@@ -348,11 +348,19 @@ export function buildGraph(src: GraphSource, cfg: GraphTypeConfig, ctx: BuildCon
   ]);
   // Grey lines next to coloured ones need a name too, or the legend explains only half the drawing:
   // each way a line without a style is drawn gets an entry, once the key explains anything else.
-  // The diagram's `key:` says what they mean; otherwise they are named by how they look.
-  if (legend.length || plainLines.size > 1) {
+  // The diagram's `key:` says what they mean; otherwise they are named by how they look. A name
+  // written in `key:` is shown even when nothing else is in the key: it was written to be read.
+  const looks = ['solid', 'dashed', 'dotted'] as const;
+  const keyed = (l: (typeof looks)[number]) => src.key?.[l]?.trim() || undefined;
+  for (const l of looks) {
+    if (src.key?.[l] === undefined) continue;
+    if (!keyed(l)) ctx.warn(['key', l], `The key name for ${l} lines is empty: write what they mean, or leave ${l}: out`);
+    else if (!plainLines.has(l)) ctx.warn(['key', l], `No line without a style is drawn ${l}, so "${keyed(l)}" is not in the key: draw one with ${{ solid: '->', dashed: '-->', dotted: '..>' }[l]}, or leave ${l}: out`);
+  }
+  if (legend.length || plainLines.size > 1 || looks.some((l) => plainLines.has(l) && keyed(l))) {
     const plain = term(ctx.lang, cfg.plainEdge ?? 'Connection');
     const named = { solid: plain, dashed: tr(ctx.lang, '{label} (dashed)', { label: plain }), dotted: tr(ctx.lang, '{label} (dotted)', { label: plain }) } as const;
-    legend.unshift(...(['solid', 'dashed', 'dotted'] as const).filter((l) => plainLines.has(l)).map((l) => ({ label: src.key?.[l] ?? named[l], line: l })));
+    legend.unshift(...looks.filter((l) => plainLines.has(l)).map((l) => ({ label: keyed(l) ?? named[l], line: l })));
   }
 
   for (const x of [...groups, ...nodes, ...edges]) for (const t of x.marks ?? []) marked.add(t);

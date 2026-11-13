@@ -22,6 +22,7 @@ import {
   modelSchema,
   parseSource,
   readFocus,
+  nearest,
   resolveSteps,
   finalState,
   stepsSchema,
@@ -313,9 +314,12 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const c4Views = isModel && !!data.views && typeof data.views === 'object' && Object.values(data.views).some((v) => !!v && typeof v === 'object' && 'kind' in v);
   const type = isModel ? (c4Views ? c4 : systems) : findType(data.type);
   if (!type) {
-    const known = types.map((t) => t.id).join(', ');
-    const message = data.type == null ? `Add "type:" at the top, one of: ${known} (or model)` : `Unknown type "${String(data.type)}", use one of: ${known} (or model)`;
-    return { diagnostics: [...diagnostics, source.at(data.type == null ? [] : ['type'], message)] };
+    const ids = types.map((t) => t.id);
+    if (data.type == null) return { diagnostics: [...diagnostics, source.at([], `Add "type:" at the top, one of: ${ids.join(', ')} (or model)`)] };
+    // The type meant, or a few common ones: the whole list is in completion and carto types, with what each is for.
+    const near = nearest(String(data.type), [...ids, 'model']);
+    const message = `Unknown type "${String(data.type)}": ${near ? `did you mean ${near}?` : 'use a type such as systems, azure, sequence or process'} (completion in the editor and carto types list them all)`;
+    return { diagnostics: [...diagnostics, { ...source.at(['type'], message), choices: [...ids, 'model'] }] };
   }
 
   // Types that do not list the model keys are checked without them, and the keys on their own. A key

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { render, type RenderResult } from '@cartography/engine';
 import { pages, type Drawing } from '@cartography/export';
 import type { DeckOptions } from '../args.ts';
-import { document, optionsFor, stepsFlag } from '../draw.ts';
+import { document, documentFlags, optionsFor, stepsFlag } from '../draw.ts';
 import { t } from '../i18n.ts';
 import type { Ctx } from '../io.ts';
 
@@ -15,6 +15,7 @@ export async function deckCommand(ctx: Ctx, files: string[], o: DeckOptions, usa
     ctx.error(t('carto deck needs -o <file>.pptx or -o <file>.pdf'));
     return 1;
   }
+  documentFlags(o);
   const drawings: Drawing[] = [];
   let theme: RenderResult['theme'];
   let ok = true;
@@ -29,7 +30,7 @@ export async function deckCommand(ctx: Ctx, files: string[], o: DeckOptions, usa
   }
   if (!drawings.length) return 1;
   fs.mkdirSync(path.dirname(o.out), { recursive: true });
-  fs.writeFileSync(o.out, await document(ctx, o, format, drawings, theme, files[0]));
+  fs.writeFileSync(o.out, await document(ctx, o, format, drawings, theme, files[0], o.out));
   const count = pages(drawings, stepsFlag(o)).length;
   ctx.log(`${t('{count} diagram|{count} diagrams', { count: drawings.length })}${count > drawings.length ? `, ${format === 'pdf' ? t('{count} page|{count} pages', { count }) : t('{count} slide|{count} slides', { count })}` : ''} → ${o.out}`);
   return ok ? 0 : 1;
