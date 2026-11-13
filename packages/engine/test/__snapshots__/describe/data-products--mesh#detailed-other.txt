@@ -7,7 +7,7 @@ Elements
 - Revenue (Finance · Consumer-aligned)
 
 Connections
-- Exchange rates.out:rates-api connects to Revenue.
+- Exchange rates.Rates API connects to Revenue.
 
 Key
 - Teal filled pill: Source-aligned

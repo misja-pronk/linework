@@ -12,8 +12,8 @@ Groups and elements
 - Sales dashboard (Dashboard)
 
 Connections
-- ERP connects to Orders.in:0.
-- Orders.out:orders connects to Demand forecast, connects to Revenue, connects to Sales dashboard and is linked with orders.
+- ERP connects to Orders.
+- Orders connects to Demand forecast, connects to Revenue, connects to Sales dashboard and is linked with orders.
 
 Key
 - Teal filled pill: Source-aligned

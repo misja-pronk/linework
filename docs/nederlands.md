@@ -27,15 +27,22 @@ nodes:
   als App Service, S3 of BigQuery blijven), "stap 3 van 7", vertrouwensgrenzen,
   rij- en kolomkoppen van journeys en roadmaps (ook de maanden: Mrt, Mei, Okt), de kopjes in een
   dataproduct en datacontract (Inputports, Outputports, Schema, Garanties, Kwaliteitscontroles),
-  de hoek en de soorten in een toegangsmatrix (Wie \ waar), aantallen (5 mensen), de namen die een
-  type zelf aan zijn weergaven geeft (Overzicht, Hele sequence, *Orders in detail*; ook in de
-  weergavekiezer), de tekstbeschrijving (`carto describe`, alt-tekst) en de knoppen van de
-  interactieve HTML-viewer.
+  de hoek en de soorten in een toegangsmatrix (Wie \ waar), wat een toegangsdiagram zelf schrijft
+  over PIM (In aanmerking, max. 4 h, goedkeuring door …), over Conditional Access (Alleen rapporteren,
+  vereist MFA) en bij een vergelijking met een eerdere stand (+ erbij, − kwijt, ~ gewijzigd, Nieuw,
+  Weg), de systemen op een capabilitymap (1 systeem, geen systeem), aantallen (5 mensen), de namen
+  die een type zelf aan zijn weergaven geeft (Overzicht, Hele sequence, Klantreis, *Orders in
+  detail*), de tekstbeschrijving (`carto describe`, alt-tekst) en de knoppen van de interactieve
+  HTML-viewer. Een naam die gelijk is aan zijn sleutel in de YAML (een klasse `Member`) is van jou en
+  blijft staan.
 - **Bewust Engels in de tekening**: de vaste woorden van een notatie, zoals ALT, LOOP en REF in een
   sequence, «interface» en «enumeration» in UML, entry / do in een toestandsdiagram, de patronen van
   een context map (Customer/Supplier, Partnership, ACL) en Flow of change uit Team Topologies.
 - **In de editor**: werkbalk, panelen, menu's, dialogen, meldingen, het commandopalet, het overzicht
-  van sneltoetsen en de inspector.
+  van sneltoetsen en de inspector. De weergavekiezer, het commandopalet, de melding bij V en de
+  alleen-lezen-viewer van een deellink noemen de weergaven die een type zelf maakt in de taal van de
+  editor; de tekening en de exports houden de `lang:` van het diagram. Een naam die je zelf aan een
+  weergave gaf, blijft zoals je hem schreef.
 - **In de CLI**: de help en de eigen foutmeldingen.
 
 Niet vertaald: meldingen over de inhoud van een diagram (validatie van de YAML), de namen van

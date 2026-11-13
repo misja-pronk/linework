@@ -14,9 +14,9 @@ Groups and elements
 - Webshop events (Event Hubs)
 
 Connections
-- ERP connects to Orders.in:0.
+- ERP connects to Orders.erp-orders.
 - Orders connects to Revenue, connects to Demand forecast, connects to Sales dashboard, connects to Loyalty app and is linked with orders.
-- Webshop events connects to Orders.in:1.
+- Webshop events connects to Orders.web-events.
 
 Walkthrough
 1. One product, one team: Orders belongs to the order management team. They run it, version it and answer for it.

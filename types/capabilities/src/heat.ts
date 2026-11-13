@@ -1,7 +1,7 @@
 // Heatmaps on a capability map: one property of the capabilities (maturity, investment, fit, a
 // cost) on a scale, with a legend. Numbers go on a sequential or a diverging scale, words on a
 // categorical one; every capability with a value says it in a tag as well, so the colour only helps.
-import type { BlockHeat, LegendItem, Tone } from '@cartography/core';
+import { english, type BlockHeat, type LegendItem, type Tone, type Word } from '@cartography/core';
 
 export interface HeatEntry {
   /** The property the map is coloured by. */
@@ -21,8 +21,9 @@ export interface HeatEntry {
   /** What the numbers are in: €, $, %, FTE. Left out, it is read from the values (€220k → €). */
   unit?: string;
   /**
-   * The numbers count something (systems): the key says "1 system", "2 systems", a capability with
-   * none is drawn plain and the key says "none", and the shades stay light (a count is no alarm).
+   * The numbers count something (systems), said as '{count} system|{count} systems': the key says
+   * "1 system", "2 systems", a capability with none is drawn plain and the key says "none", and the
+   * shades stay light (a count is no alarm).
    */
   count?: string;
 }
@@ -36,7 +37,7 @@ const PRESETS: Record<string, Omit<HeatEntry, 'by'>> = {
   risk: { scale: 'sequential', tone: 'rose' },
   cost: { scale: 'sequential', tone: 'orange' },
   spend: { scale: 'sequential', tone: 'orange' },
-  systems: { scale: 'sequential', tone: 'violet', title: 'Systems', count: 'system' },
+  systems: { scale: 'sequential', tone: 'violet', title: 'Systems', count: '{count} system|{count} systems' },
 };
 
 /** Words that usually come with a heatmap, and how they read. Gartner's TIME and the usual investment calls. */
@@ -137,8 +138,8 @@ export interface HeatScale {
   missing: string;
 }
 
-/** A heat entry, preset filled in, read against the values the map has. */
-export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
+/** A heat entry, preset filled in, read against the values the map has; its own words (1 system, none) in the drawing's language. */
+export function heatScale(entry: HeatEntry, values: unknown[], word: Word = english): HeatScale {
   const preset = PRESETS[entry.by.toLowerCase()] ?? {};
   const e: HeatEntry = { ...preset, ...entry, labels: entry.labels ?? preset.labels };
   const title = e.title ?? preset.title ?? titleCase(e.by);
@@ -173,7 +174,7 @@ export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
         const l = look(k);
         return { label: l.label, swatch: 'block', block: { form: 'chip', heat: { scale: 'categorical', tone: l.tone, text: l.label, ...(l.pattern ? { pattern: l.pattern } : {}) } } };
       }),
-      missing: 'No value',
+      missing: word('No value'),
     };
   }
 
@@ -200,7 +201,7 @@ export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
     return e.reverse ? 1 - t : t;
   };
   const heat = (n: number, text: string): BlockHeat => ({ scale, at: binned(n), tone, text });
-  const label = (i: number, s: string) => (e.count ? `${s} ${e.count}${s === '1' ? '' : 's'}` : i === 0 ? `${title}: ${s}` : s);
+  const label = (i: number, s: string) => (e.count ? word(e.count, { count: s }) : i === 0 ? `${title}: ${s}` : s);
   if (e.labels && Object.keys(e.labels).length) {
     const keys = Object.keys(e.labels).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
     keys.forEach((k, i) => legend.push({ label: label(i, `${short(k)} ${e.labels![String(k)]}`), swatch: 'block', block: { form: 'chip', heat: heat(k, String(k)) } }));
@@ -223,6 +224,6 @@ export function heatScale(entry: HeatEntry, values: unknown[]): HeatScale {
       return heat(n, typeof v === 'number' ? withUnit(v, unit) : String(v).trim());
     },
     legend,
-    missing: e.count ? 'none' : 'No value',
+    missing: e.count ? word('none@count') : word('No value'),
   };
 }

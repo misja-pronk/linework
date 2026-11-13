@@ -10,9 +10,9 @@ Groups and elements
 - CFO dashboard (Dashboard)
 
 Connections
-- General ledger connects to Revenue.in:1.
-- Revenue.out:daily connects to CFO dashboard.
-- Payments connects to Revenue.in:0.
+- General ledger connects to Revenue.
+- Revenue.revenue per day connects to CFO dashboard.
+- Payments connects to Revenue.settlements.
 
 Key
 - Teal filled pill: Source-aligned

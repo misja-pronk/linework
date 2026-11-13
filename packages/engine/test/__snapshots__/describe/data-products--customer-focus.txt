@@ -17,11 +17,11 @@ Groups and elements
 
 Connections
 - Webshop connects to orders (CDC).
-- orders connects to Customer 360.in:0 and connects to Sales dashboard.
-- Customer 360.out:profile connects to Sales dashboard and connects to Churn risk.
+- orders connects to Customer 360 and connects to Sales dashboard.
+- Customer 360.profiles connects to Sales dashboard and connects to Churn risk.
 - Churn risk connects to Campaign tool.
 - Salesforce connects to customers (daily).
-- customers connects to Customer 360.in:1.
+- customers connects to Customer 360.
 
 Key
 - Teal filled pill: Source-aligned

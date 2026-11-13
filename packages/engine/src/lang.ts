@@ -25,19 +25,20 @@ const written = (data: unknown, path: Path, field: string) => {
 
 export function translateGraph(graph: Graph, lang: Lang, source: unknown): Graph {
   if (lang === 'en') return graph;
-  const own = (x: { path: Path }, field: string) => written(source, x.path, field);
+  // A name that is the entry's own key is the author's too: a class called Member stays Member.
+  const own = (x: { path: Path }, field: string, text?: string) => written(source, x.path, field) || (text !== undefined && x.path.at(-1) === text);
   const word = (s: string | undefined) => (s === undefined ? s : term(lang, s));
   const group = (g: GraphGroup): GraphGroup => ({
     ...g,
-    ...(own(g, 'label') ? {} : { label: word(g.label)! }),
+    ...(own(g, 'label', g.label) ? {} : { label: word(g.label)! }),
     ...(g.caption && !own(g, 'caption') ? { caption: word(g.caption) } : {}),
   });
   const node = (n: GraphNode): GraphNode => {
     const s = n.shape;
     if (s.kind !== 'card' && s.kind !== 'flow' && s.kind !== 'table' && s.kind !== 'block') return n;
     const shape = { ...s } as typeof s & { label?: string; title?: string; caption?: string };
-    if ('label' in shape && typeof shape.label === 'string' && !own(n, 'label')) shape.label = word(shape.label)!;
-    if (shape.kind === 'table' && !own(n, 'label') && !own(n, 'title')) shape.title = word(shape.title)!;
+    if ('label' in shape && typeof shape.label === 'string' && !own(n, 'label', shape.label)) shape.label = word(shape.label)!;
+    if (shape.kind === 'table' && !own(n, 'label', shape.title) && !own(n, 'title')) shape.title = word(shape.title)!;
     if (shape.caption && !own(n, 'caption')) shape.caption = word(shape.caption);
     return { ...n, shape };
   };

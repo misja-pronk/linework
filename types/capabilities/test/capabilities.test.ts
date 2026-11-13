@@ -68,6 +68,19 @@ capabilities:
     expect(r.views!.map((v) => v.name)).toEqual(['map', 'maturity', 'investment', 'systems']);
   });
 
+  it('says its own words in Dutch: the fit scale, the systems it counts, what has none', async () => {
+    const fit = 'type: capabilities\nheat: fit\ncapabilities:\n  Sales: { fit: 2 }\n';
+    const key = async (text: string, view?: string) => (await render(text, { fonts: 'none', view })).graph!.legend!.map((l) => l.label);
+    expect(await key(`lang: nl\n${fit}`)).toEqual(['Geschiktheid: 1 Slecht', '2 Zwak', '3 Voldoende', '4 Goed', '5 Uitstekend']);
+    const r = await render(`lang: nl\n${example('enterprise.yaml')}`, { fonts: 'none', view: 'systems' });
+    expect(r.graph!.legend!.map((l) => l.label)).toEqual(['1 systeem', '2 systemen', 'geen']);
+    expect(block(r.graph!.nodes.find((n) => n.id === 'Treasury')).lines).toEqual(['geen systeem']);
+    // In English as before.
+    expect(await key(fit)).toEqual(['Fit: 1 Poor', '2 Weak', '3 Adequate', '4 Good', '5 Excellent']);
+    const en = await render(example('enterprise.yaml'), { fonts: 'none', view: 'systems' });
+    expect(en.graph!.legend!.map((l) => l.label)).toEqual(['1 system', '2 systems', 'none']);
+  });
+
   it('colours by words as categories, with a pattern for what goes', async () => {
     const r = await render(example('enterprise.yaml'), { fonts: 'none', view: 'investment' });
     const payroll = block(r.graph!.nodes.find((n) => n.id === 'Payroll'));

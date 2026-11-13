@@ -9,8 +9,8 @@ Groups and elements
 - Campaign tool (Application)
 
 Connections
-- Customer 360 connects to Churn risk.in:0.
-- Churn risk.out:scores connects to Campaign tool.
+- Customer 360 connects to Churn risk.profiles.
+- Churn risk.churn scores connects to Campaign tool.
 
 Key
 - Indigo filled pill: Aggregate

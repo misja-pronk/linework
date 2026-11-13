@@ -215,6 +215,12 @@ export interface RenderResult {
    * one too (a mesh written `view: detailed`): what the drawing is while no view is asked for.
    */
   asWritten?: { name: string; title?: string };
+  /**
+   * The titles the type gives the views above (and asWritten) in another language than the drawing's,
+   * by view name: the editor names them in its own language, while the drawing keeps the diagram's
+   * `lang:`. Titles the author wrote (a model's views) are not in it.
+   */
+  viewTitles?: (lang: Lang) => Record<string, string>;
   /** The diagram has nothing drawn as written, only views: without a view it draws its first. */
   onlyViews?: boolean;
   /**
@@ -349,9 +355,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   let includes: string[] | undefined;
   let onlyViews = false;
   // A type that draws its source in several ways (a journey as map or storyboard) takes the view asked for itself.
-  // The titles the type gives its views, in the drawing's language (the picker shows them, a view's title is its subtitle).
-  // A context mark (public@exposure) only tells two meanings of one English word apart: never drawn.
-  const word: Word = (text, params) => format(term(lang, text).replace(/@[\w-]+$/, ''), lang, params);
+  // The titles the type gives its views, in the drawing's language (a view's title is its subtitle); the
+  // editor names them in its own language through viewTitles.
+  const word = wordIn(lang);
   const allViews = type.views?.(rest, word);
   const ownView = opts.view && allViews?.some((v) => v.name === opts.view) ? opts.view : undefined;
   // A hidden view is drawn when asked for by name, and offered nowhere.
@@ -518,6 +524,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const writtenView = !model?.views.size && ownViews?.length ? allViews!.find((v) => v.name === written) : undefined;
   const typeViews = ownViews?.map(({ name, title }) => ({ name, ...(title ? { title } : {}) }));
   const views = model?.views.size ? [...[...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })), ...(typeViews?.slice(1) ?? [])] : typeViews?.length ? typeViews : undefined;
+  // The type's views among those, and the one the file is written for: their titles in another language.
+  const titled = new Set([...(model?.views.size ? (typeViews?.slice(1) ?? []) : (typeViews ?? [])).map((v) => v.name), ...(!model?.view && writtenView ? [writtenView.name] : [])]);
+  const viewTitles = (other: Lang) => Object.fromEntries((type.views?.(rest, wordIn(other)) ?? []).filter((v) => v.title && titled.has(v.name)).map((v) => [v.name, v.title!]));
   return {
     svg: out.svg,
     width: out.width,
@@ -535,6 +544,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(model?.view ? { view: model.view.name } : ownView ? { view: ownView } : {}),
     ...(onlyViews ? { onlyViews } : {}),
     ...(!model?.view && writtenView ? { asWritten: { name: writtenView.name, ...(writtenView.title ? { title: writtenView.title } : {}) } } : {}),
+    ...(titled.size ? { viewTitles } : {}),
     ...(!model?.view && ownViews?.find((v) => v.name === (ownView ?? written))?.scroll ? { scroll: true } : {}),
     ...(includes?.length ? { includes } : {}),
     ...(steps.length ? { steps } : {}),
@@ -547,6 +557,12 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(faded ? { faded } : {}),
   };
 }
+
+/** The words a type writes itself (a view's title), in a language. A context mark (public@exposure) only tells two meanings of one English word apart: never drawn. */
+const wordIn =
+  (lang: Lang): Word =>
+  (text, params) =>
+    format(term(lang, text).replace(/@[\w-]+$/, ''), lang, params);
 
 /** Where a drawing of only some layers keeps its own layout note in the sidecar: "view@security+data" ("@security" for the diagram as written). */
 export const layerKey = (view: string | undefined, layers: string[]) => `${view ?? ''}@${layers.join('+')}`;

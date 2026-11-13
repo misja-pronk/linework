@@ -314,7 +314,7 @@ class Model {
 
   /** How an eligible assignment is activated, in words: "max 4 h, approval by sg-platform-admins". */
   activation(a: Assignment): string | undefined {
-    const parts = [a.activation && `max ${a.activation}`, list(a.approval).length && `approval by ${this.approvers(a.approval)}`].filter(Boolean);
+    const parts = [a.activation && this.word('max {time}', { time: a.activation }), list(a.approval).length && this.word('approval by {names}', { names: this.approvers(a.approval) })].filter(Boolean);
     return parts.length ? parts.join(', ') : undefined;
   }
 
@@ -399,7 +399,7 @@ class Model {
     const add = (scope: string, r: Reach) => out.set(scope, [...(out.get(scope) ?? []), r]);
     const appRoles: { scope: string; role: string; via: string }[] = [];
     for (const [, pkg] of this.packages.filter(([, x]) => (x.holders ?? []).some((h) => h === p || groups.has(h)))) {
-      const via = pkg.label ?? 'access package';
+      const via = pkg.label ?? this.word('access package');
       for (const g of this.grants(pkg)) {
         if (this.principal(g.target)) {
           sources.push({ id: g.target, via });
@@ -416,7 +416,7 @@ class Model {
           const pim = a.eligible ? this.activation(a) : undefined;
           add(scope, {
             role: a.role,
-            text: a.eligible ? `${text} (eligible)` : text,
+            text: a.eligible ? this.word('{role} (eligible)', { role: text }) : text,
             direct: !s.via && !from,
             via: s.via,
             from,
@@ -501,7 +501,7 @@ function graphView(m: Model): Graph {
   const tagged = (t: string[] | undefined) => (t?.length ? { tags: t } : {});
 
   for (const [id, c] of m.catalogs)
-    groups.push({ id: `catalog:${id}`, label: c.label ?? id, caption: 'Catalog', icon: 'layout-grid', tone: 'violet', border: 'dashed', path: ['catalogs', id] });
+    groups.push({ id: `catalog:${id}`, label: c.label ?? id, caption: m.word('Catalog'), icon: 'layout-grid', tone: 'violet', border: 'dashed', path: ['catalogs', id] });
 
   // Resources with children become groups, so a role on a subscription visibly covers what is in it.
   const parents = new Set(m.resources.map(([, r]) => r.in).filter(Boolean));
@@ -524,7 +524,7 @@ function graphView(m: Model): Graph {
     nodes.push({
       id,
       parent: p.catalog ? `catalog:${p.catalog}` : undefined,
-      shape: { kind: 'card', label: p.label ?? id, caption: p.caption ?? 'Access package', icon: 'package', tone: 'violet' },
+      shape: { kind: 'card', label: p.label ?? id, caption: p.caption ?? m.word('Access package'), icon: 'package', tone: 'violet' },
       ...tagged(p.tags),
       path: ['packages', id],
     });
@@ -575,7 +575,7 @@ function graphView(m: Model): Graph {
   }
   for (const a of m.assignments) {
     // On the line, PIM's settings in short: how long at most, and whether someone approves (who, the matrix and describe say).
-    const pim = a.eligible ? [a.activation, list(a.approval).length && 'approval'].filter(Boolean).join(' · ') : '';
+    const pim = a.eligible ? [a.activation, list(a.approval).length && m.word('approval')].filter(Boolean).join(' · ') : '';
     edge(a.principal, a.scope, a.eligible ? 'eligible' : 'role', pim ? `${m.label(a.role)} · ${pim}` : m.label(a.role), a.path, a.tags);
   }
 
@@ -593,12 +593,12 @@ function controlCaption(m: Model, c: Control): string {
   const apps = words(c.apps);
   const needs = words(c.requires);
   const parts = [
-    c.state === 'report-only' ? 'Report-only' : c.state === 'off' ? 'Off' : undefined,
+    c.state === 'report-only' ? m.word('Report-only') : c.state === 'off' ? m.word('Off@state') : undefined,
     apps.length ? apps.join(', ') : undefined,
-    c.block ? 'blocks access' : needs.length ? `requires ${needs.join(' and ')}` : undefined,
+    c.block ? m.word('blocks access') : needs.length ? m.word('requires {names}', { names: needs.join(` ${m.word('and')} `) }) : undefined,
   ].filter(Boolean);
   const text = parts.join(' · ');
-  return text ? text.charAt(0).toUpperCase() + text.slice(1) : (k?.label ?? 'Conditional Access policy');
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : m.word(k?.label ?? 'Conditional Access policy');
 }
 
 // ---------------------------------------------------------------- matrix views
@@ -720,23 +720,26 @@ function compareModels(was: Model, now: Model): { rows: Side[]; columns: Side[];
 
 const header = (s: Side, principal: boolean): MatrixHeader => {
   const h = principal ? principalHeader(s.of, s.id) : resourceHeader(s.of, s.id);
-  return s.state === 'same' ? h : { ...h, change: s.state, caption: `${s.state === 'added' ? 'New' : 'Gone'}${h.caption ? ` · ${h.caption}` : ''}` };
+  const state = s.of.word(s.state === 'added' ? 'New@access' : 'Gone@access');
+  return s.state === 'same' ? h : { ...h, change: s.state, caption: `${state}${h.caption ? ` · ${h.caption}` : ''}` };
 };
 
 /** The who × where matrix of what changed: gained with a +, lost with a − and struck through, changed with a ~; the rest of those rows and columns quietly. */
 function compareView(was: Model, now: Model): Graph {
   const c = compareModels(was, now);
+  const word = now.word;
+  const cell = (r: Reach) => cellOf(r, word);
   const cells = c.rows.map((_, i) =>
     c.columns.map((_, j): MatrixCell | undefined => {
       const d = c.delta(i, j);
       if (!d) return undefined;
-      if (!d.gained.length && !d.lost.length) return cellOf(d.after[0]!);
-      if (!d.before.length) return { ...cellOf(d.after[0]!), text: `+ ${d.after[0]!.text}`, tone: 'green', change: 'added' };
-      if (!d.after.length) return { ...cellOf(d.before[0]!), text: `− ${d.before[0]!.text}`, tone: 'rose', change: 'removed' };
+      if (!d.gained.length && !d.lost.length) return cell(d.after[0]!);
+      if (!d.before.length) return { ...cell(d.after[0]!), text: `+ ${d.after[0]!.text}`, tone: 'green', change: 'added' };
+      if (!d.after.length) return { ...cell(d.before[0]!), text: `− ${d.before[0]!.text}`, tone: 'rose', change: 'removed' };
       // Still something there, but not what it was: the strongest role now, and what came or went.
       const top = d.after[0]!;
-      const note = d.gained.includes(top) && d.lost.length === 1 ? `was ${d.lost[0]!.text}` : [...d.gained.filter((r) => r !== top).map((r) => `+ ${r.text}`), ...d.lost.map((r) => `− ${r.text}`)].join(', ');
-      return { ...cellOf(top), text: `~ ${top.text}`, tone: 'amber', change: 'changed', note: note || reachNote(top) };
+      const note = d.gained.includes(top) && d.lost.length === 1 ? word('was {role}', { role: d.lost[0]!.text }) : [...d.gained.filter((r) => r !== top).map((r) => `+ ${r.text}`), ...d.lost.map((r) => `− ${r.text}`)].join(', ');
+      return { ...cell(top), text: `~ ${top.text}`, tone: 'amber', change: 'changed', note: note || reachNote(top, word) };
     }),
   );
   // Only the rows and columns something changed in: a tenant is large, a change is small.
@@ -746,20 +749,20 @@ function compareView(was: Model, now: Model): Graph {
     now,
     {
       kind: 'matrix',
-      corner: 'Who \\ where',
+      corner: word('Who \\ where'),
       compare: true,
       rows: rows.map((i) => header(c.rows[i]!, true)),
       columns: columns.map((j) => header(c.columns[j]!, false)),
       cells: rows.map((i) => columns.map((j) => cells[i]![j])),
     },
     [
-      { label: '+ gained', swatch: 'fill', tone: 'green' },
-      { label: '− lost', swatch: 'outline', tone: 'rose' },
-      { label: '~ changed', swatch: 'fill', tone: 'amber' },
-      { label: 'as it was', swatch: 'outline', tone: 'slate', muted: true },
+      { label: word('+ gained'), swatch: 'fill', tone: 'green' },
+      { label: word('− lost'), swatch: 'outline', tone: 'rose' },
+      { label: word('~ changed'), swatch: 'fill', tone: 'amber' },
+      { label: word('as it was'), swatch: 'outline', tone: 'slate', muted: true },
     ],
   );
-  if (!rows.length) graph.nodes = [{ id: 'matrix', shape: { kind: 'card', label: 'No access gained or lost', caption: 'Everyone reaches what they reached before', icon: 'shield-check', tone: 'green' }, path: [] }];
+  if (!rows.length) graph.nodes = [{ id: 'matrix', shape: { kind: 'card', label: word('No access gained or lost'), caption: word('Everyone reaches what they reached before'), icon: 'shield-check', tone: 'green' }, path: [] }];
   return graph;
 }
 
@@ -900,7 +903,7 @@ function build(src: AccessSource, ctx: BuildContext): Graph {
   check(m, ctx);
   switch (src.view ?? 'graph') {
     case 'access':
-      return accessView(m, src.was ? new Model(src.was, silent) : undefined);
+      return accessView(m, src.was ? new Model(src.was, { ...silent, word: m.word }) : undefined);
     case 'packages':
       return packagesView(m);
     case 'roles':

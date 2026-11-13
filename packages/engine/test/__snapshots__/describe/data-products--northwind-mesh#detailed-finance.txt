@@ -12,10 +12,10 @@ Groups and elements
 - Customers (Sales · Source-aligned)
 
 Connections
-- General ledger connects to Revenue.in:0.
-- Revenue.out:revenue connects to CFO dashboard and is linked with revenue.
-- Orders connects to Revenue.in:1.
-- Customers connects to Revenue.in:2.
+- General ledger connects to Revenue.
+- Revenue.revenue by month connects to CFO dashboard and is linked with revenue.
+- Orders connects to Revenue.
+- Customers connects to Revenue.
 
 Key
 - Teal filled pill: Source-aligned

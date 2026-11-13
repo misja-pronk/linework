@@ -11,9 +11,9 @@ Groups and elements
 - Sales dashboard (Dashboard)
 
 Connections
-- orders connects to Customer 360.in:0.
-- Customer 360.out:profile connects to Churn risk and connects to Sales dashboard.
-- customers connects to Customer 360.in:1.
+- orders connects to Customer 360.
+- Customer 360.profiles connects to Churn risk and connects to Sales dashboard.
+- customers connects to Customer 360.
 
 Key
 - Teal filled pill: Source-aligned

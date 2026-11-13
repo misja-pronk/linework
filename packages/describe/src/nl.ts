@@ -164,7 +164,6 @@ export const nl = {
   "{name}'s journey": 'De klantreis van {name}',
   '{n} of {max}': '{n} van {max}',
   '{n}% done': '{n}% klaar',
-  '{tone}{icon} symbol': '{tone}symbool {icon}',
   '{who} through {phases} and {steps}': '{who} door {phases} en {steps}',
   // Lines that say who may do what (access, github's members, the azure type's role assignments).
   'holds {to}|hold {to}': 'heeft {to}|hebben {to}',
@@ -326,6 +325,7 @@ export const words: Record<string, string> = {
   'line:dotted': 'gestippelde',
   'tone:blue': 'blauwe',
   'tone:sky': 'lichtblauwe',
+  'tone:indigo': 'indigo',
   'tone:teal': 'blauwgroene',
   'tone:green': 'groene',
   'tone:amber': 'oranjegele',
@@ -333,6 +333,17 @@ export const words: Record<string, string> = {
   'tone:rose': 'rode',
   'tone:violet': 'paarse',
   'tone:slate': 'grijze',
+  // The same before a het-word: een blauw icoon, een paars symbool.
+  'tone:blue@het': 'blauw',
+  'tone:sky@het': 'lichtblauw',
+  'tone:indigo@het': 'indigo',
+  'tone:teal@het': 'blauwgroen',
+  'tone:green@het': 'groen',
+  'tone:amber@het': 'oranjegeel',
+  'tone:orange@het': 'oranje',
+  'tone:rose@het': 'rood',
+  'tone:violet@het': 'paars',
+  'tone:slate@het': 'grijs',
   // What each type draws, as the summary starts ("Architectuurdiagram.")
   'type:systems': 'Architectuurdiagram',
   'type:c4': 'C4-model',
