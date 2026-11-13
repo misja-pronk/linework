@@ -139,6 +139,20 @@ if (!(await yaml()).includes('title: Payments')) fail('title not renamed in plac
   const names = await p2.locator('.template-card .template-title').allInnerTexts();
   if (new Set(names).size !== names.length) fail('two starts with the same name: ' + names.join(' | '));
   await p2.screenshot({ path: `${out}/start-azure.png` });
+  // The list of types beside the templates: ↓ ↑ move through it, Enter opens the type.
+  await p2.locator('.atlas-index button[aria-current="true"]').focus();
+  const focused = () => p2.evaluate(() => document.activeElement?.querySelector('.atlas-name')?.textContent);
+  const from = await focused();
+  await p2.keyboard.press('ArrowDown');
+  const next = await focused();
+  if (!next || next === from) fail(`↓ in the type list did not move on from ${from}`);
+  await p2.keyboard.press('ArrowUp');
+  if ((await focused()) !== from) fail('↑ in the type list did not move back');
+  await p2.keyboard.press('ArrowDown');
+  await p2.keyboard.press('Enter');
+  await p2.waitForTimeout(300);
+  if (!(await p2.locator('.start h2').innerText()).includes(next)) fail(`Enter did not open ${next}: ${await p2.locator('.start h2').innerText()}`);
+  await p2.screenshot({ path: `${out}/start-type-keys.png` });
   await p2.click('button[aria-label="Close"]').catch(() => p2.keyboard.press('Escape'));
   await p2.waitForTimeout(300);
   if (await p2.locator('.start').count()) await p2.keyboard.press('Escape');

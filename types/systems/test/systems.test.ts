@@ -37,7 +37,7 @@ describe('systems', () => {
   it('names a line without a style in the key as the diagram says (key:)', async () => {
     const r = await render(shop.replace(/^edges:/m, 'key: { dashed: Replication }\nedges:'), { fonts: 'none' });
     expect(r.diagnostics).toEqual([]);
-    expect(r.graph!.legend[0]).toEqual({ label: 'Replication', line: 'dashed' });
+    expect(r.graph!.legend![0]).toEqual({ label: 'Replication', line: 'dashed' });
   });
 
   it('draws flow shapes: pill terminals, pointed decisions, plain steps, all without captions', async () => {

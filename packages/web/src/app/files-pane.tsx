@@ -4,6 +4,7 @@ import './files-pane.css';
 import { useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
+import { moveInList } from '../keys.ts';
 import { diagrams, type Workspace } from '../files.ts';
 import type { Panes } from '../pane-layout.ts';
 
@@ -39,7 +40,11 @@ export function FilesPane({ ws, mode, listFits, setFilesPref, openPath, dirty, o
         </nav>
       )}
       {(mode === 'list' || filesOver) && (
-        <nav className={mode === 'list' ? 'files' : 'files over'} aria-label={t('Diagrams in {folder}', { folder: ws.name })} onKeyDown={(e) => e.key === 'Escape' && filesOver && (setFilesOver(false), e.stopPropagation())}>
+        <nav className={mode === 'list' ? 'files' : 'files over'} aria-label={t('Diagrams in {folder}', { folder: ws.name })} onKeyDown={(e) => {
+            if (e.key === 'Escape' && filesOver) return (setFilesOver(false), e.stopPropagation());
+            moveInList(e, [...e.currentTarget.querySelectorAll<HTMLElement>('.file')]);
+          }}
+        >
           <header>
             <Icon name="folder-open" size={14} /> <span className="files-name">{ws.name}</span>
             <button className="icon-button small" onClick={() => (filesOver ? setFilesOver(false) : setFilesPref('rail'))} title={filesOver ? t('Close the file list') : t('Fold the file list to the side')} aria-label={t('Fold the file list')}>
