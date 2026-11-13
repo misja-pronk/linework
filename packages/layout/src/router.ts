@@ -86,8 +86,9 @@ const SOFT = 4; // per pixel inside a group header
 const PASSES = 3;
 const LABEL_AIR = 6; // a label keeps this far from every other line: nearer, it seems to belong to that one
 const LABEL_NEAR = 16; // and keeps this far when it can
-const CROWD = 1; // per pixel nearer than that, per line
+const CROWD = 2; // per pixel nearer than that, per line
 const STRUCK = 56; // a label wider than this on a vertical line reads as crossed out: beside the line is better
+const STRUCK_COST = 50; // so much worse a pill like that is than one beside the line (that costs 30 more than one on it)
 const PART = 48; // siblings part at least this far from the end they do not share
 const SHARE = 0.5; // per pixel of running on a sibling's line: cheaper than a lane of its own
 const FLOW = 150; // per end on a side across the flow, for a line into a later layer
@@ -1611,7 +1612,9 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
             const box = { x: c.x - width / 2, y: c.y - height / 2, width, height };
             const covers = horizontal && alone && len < width + 28 ? 100 : 0;
             // Words across a vertical line read as struck through: a short label may sit on it, a long one goes beside it.
-            const struck = horizontal ? 0 : Math.max(0, width - aside - STRUCK) * 0.5;
+            // (Beside it, where that is clear, always reads better: a pill there costs more than any spot beside.)
+            const over = width - aside - STRUCK;
+            const struck = horizontal || over <= 0 ? 0 : STRUCK_COST + over * 0.5;
             found.push({ box, score: (horizontal ? 0 : 60) + struck + covers + hangs + middle * 10 + Math.abs(t - 0.5) * 40 - Math.min(len, 300) * 0.1 + hits(box) });
           }
           // Above or below a horizontal line too short for a pill on it (a short hop between layers),
