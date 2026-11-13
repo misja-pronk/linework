@@ -418,7 +418,7 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     const key = `${e.id}|${pair[0]}${pair[1]}`;
     const known = weighed.get(key);
     if (known && (known.cost != null || known.limit >= limit)) return known.cost;
-    const cost = search(grid, probe.get(key)!, strange(e), SHARE, limit, [e.from.node, e.to.node])?.cost;
+    const cost = search(grid, probe.get(key)!, strange(e), SHARE, limit, [e.from.node, e.to.node], true)?.cost;
     weighed.set(key, { cost, limit });
     return cost;
   };
@@ -1148,7 +1148,7 @@ interface Found {
   cost: number;
 }
 
-function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = Infinity, ends: [string, string] = ['', '']): Found | undefined {
+function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = Infinity, ends: [string, string] = ['', ''], bends = false): Found | undefined {
   const [ownA, ownB] = ends.map((id) => g.cards.get(id) ?? 0);
   // What is left to go is guessed at full price, which finds a line of its own fast. For a line that
   // is to run on its siblings' the guess must not be dearer than running there, or the search stops
@@ -1169,11 +1169,23 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = In
   const ty = ys[gy]!;
   const heap = new Heap();
 
+  // With `bends`, the bends still to come are guessed too: however free the way, a line heading off
+  // from the goal has to turn, and every turn costs a bend. That is never more than the way costs, so
+  // the cost found is the same, sooner; but of two ways that cost the same another may come out. So
+  // only where the cost alone counts (weighing sides); a line that is drawn keeps the way it had.
+  const ahead = (x: number, y: number, d: number) => {
+    const dx = tx - xs[x]!;
+    const dy = ty - ys[y]!;
+    const along = dx * DX[d]! + dy * DY[d]!;
+    const aside = DX[d] ? dy : dx;
+    const turns = aside ? (along >= 0 ? 1 : 2) : along >= 0 ? 0 : 3;
+    return guess * (Math.abs(dx) + Math.abs(dy)) + (bends ? BEND * turns : 0);
+  };
   const s = (sy * W + sx) * 4 + startDir;
   stamp[s] = gen;
   cost[s] = 0;
   prev[s] = -1;
-  heap.push(s, guess * (Math.abs(xs[sx]! - tx) + Math.abs(ys[sy]! - ty)));
+  heap.push(s, ahead(sx, sy, startDir));
 
   // A walled-in end (a stub ending in another box's margin) would make the search sweep the whole
   // grid; well before that it is cheaper to give up and use the fallback.
@@ -1189,7 +1201,7 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = In
     if (x === gx && y === gy && d !== ((goalDir + 2) & 3)) return unwind(g, k, p, cost[k]!);
     const base = cost[k]!;
     // Nothing still to come is cheaper than this: a caller that knows a better way already has its answer.
-    if (base + guess * (Math.abs(xs[x]! - tx) + Math.abs(ys[y]! - ty)) >= limit) return undefined;
+    if (base + ahead(x, y, d) >= limit) return undefined;
     for (let nd = 0; nd < 4; nd++) {
       if (nd === ((d + 2) & 3)) continue; // no U-turns
       const nx: number = x + DX[nd]!;
@@ -1224,7 +1236,7 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = In
         stamp[nk] = gen;
         cost[nk] = c;
         prev[nk] = k;
-        heap.push(nk, c + guess * (Math.abs(xs[nx]! - tx) + Math.abs(ys[ny]! - ty)));
+        heap.push(nk, c + ahead(nx, ny, nd));
       }
     }
   }
