@@ -143,6 +143,8 @@ export function App() {
     group: () => sketching.group(),
     undo,
     redo,
+    canUndo: document_.history.undo,
+    canRedo: document_.history.redo,
     steps: nav.stepList.length,
     step: drawn?.step,
     stepBy: nav.stepBy,
@@ -274,6 +276,7 @@ export function App() {
           onChange={document_.onChange}
           onCursor={sel.onCursor}
           onPins={document_.onPins}
+          onHistory={document_.onHistory}
           split={prefs.split}
           setSplit={prefs.setSplit}
           setYamlFolded={prefs.setYamlFolded}
@@ -383,11 +386,11 @@ export function App() {
         warnings={drawing.warnings}
         ms={rendered?.ms}
         graph={result?.graph}
-        typeId={type?.id}
         pinCount={drawing.pinCount}
         selection={selection}
         selected={selected}
         theme={theme}
+        onTheme={toggleTheme}
         onProblems={() => setModal('problems')}
         onShortcuts={() => setModal('shortcuts')}
       />

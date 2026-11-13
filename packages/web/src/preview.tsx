@@ -143,6 +143,8 @@ interface Props {
   describe?(s: Selection): string;
   control?: React.Ref<PreviewControl>;
   children?: React.ReactNode;
+  /** A word for people about how the drawing works (said once, where it helps). */
+  onHint?(message: string): void;
   /** Pixels at the bottom a fit keeps clear (a session: the toolbar and the keys over it); outgrowing the rest fits it again. */
   clearBottom?: number;
 }
@@ -183,6 +185,9 @@ interface Drag {
   /** What a dragged node or group may go no further than (pin space): the drawing as it was, and a margin round it. */
   bounds?: Box;
 }
+
+/** How to move the view has been said this visit. */
+let panSaid = false;
 
 /** Screen pixels within which a drag snaps to a guide. */
 const SNAP = 6;
@@ -605,7 +610,9 @@ export function Preview(p: Props) {
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const r = f.getBoundingClientRect();
-      if (e.ctrlKey || e.metaKey) zoomAt(Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
+      // A pinch sends small steps and zooms as the fingers go; a mouse wheel's notch (100 or more) is
+      // one gentle step of about 20%, not ×2.7.
+      if (e.ctrlKey || e.metaKey) zoomAt(Math.exp(-Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY) * 0.01, 0.2)), e.clientX - r.left, e.clientY - r.top);
       else byHand((v) => ({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }));
     };
     f.addEventListener('wheel', onWheel, { passive: false });
@@ -947,7 +954,15 @@ export function Preview(p: Props) {
         if (!d.many) p.onSelect({ kind: 'node', id: d.node! });
         requestAnimationFrame(keepInView);
       }
-      if (d.mode === 'marquee') p.onSelectMany(inMarquee(d.x, d.y, e.clientX, e.clientY), !!d.shiftKey || e.shiftKey);
+      if (d.mode === 'marquee') {
+        const got = inMarquee(d.x, d.y, e.clientX, e.clientY);
+        p.onSelectMany(got, !!d.shiftKey || e.shiftKey);
+        // A drag over empty canvas that caught nothing was most likely meant to move the view: say how, once.
+        if (!got.length && !panSaid) {
+          panSaid = true;
+          p.onHint?.(t('To move the view: hold Space and drag, or scroll. Dragging over empty canvas selects.'));
+        }
+      }
       return;
     }
     if (e.button !== 0) return;

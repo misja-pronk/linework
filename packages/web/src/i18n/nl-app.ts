@@ -230,6 +230,7 @@ export const nlApp = {
   'Fold the panel to the side: more room for the drawing': 'Paneel opzij vouwen: meer ruimte voor de tekening',
   'Fold the panel': 'Paneel invouwen',
   'Show the outline': 'Overzicht tonen',
+  'To move the view: hold Space and drag, or scroll. Dragging over empty canvas selects.': 'De weergave verschuiven: houd Spatie ingedrukt en sleep, of scroll. Slepen over een leeg vlak selecteert.',
   'Show the shapes': 'Vormen tonen',
   'Resize editor': 'Editorbreedte aanpassen',
   '{item} cannot go in {group}: placed outside it': '{item} kan niet in {group}: ernaast geplaatst',

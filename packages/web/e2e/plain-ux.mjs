@@ -106,6 +106,45 @@ try {
     await wait(300);
     if (!(await page.locator('.toast').innerText().catch(() => '')).includes(yaml.suggestedFilename())) fail('no word after downloading the YAML');
   }
+
+  // 4. Undo and Redo greyed out with nothing to undo or redo; the theme in the status bar switches it;
+  //    a mouse wheel notch with ⌃ zooms gently; a drag over empty canvas says how to move the view.
+  await open('Azure network');
+  {
+    const undoOff = () => page.locator('.canvas-tools button[aria-label="Undo"]').isDisabled();
+    const redoOff = () => page.locator('.canvas-tools button[aria-label="Redo"]').isDisabled();
+    if (!(await undoOff()) || !(await redoOff())) fail('Undo or Redo is not greyed out on a diagram just opened');
+    const b = await box('router');
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+    await page.keyboard.press('ArrowRight');
+    await wait(400);
+    if (await undoOff()) fail('Undo is greyed out after a nudge');
+    await page.keyboard.press('ControlOrMeta+z');
+    await wait(400);
+    if (!(await undoOff()) || (await redoOff())) fail('after ⌘Z Undo should be greyed out and Redo not');
+    const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
+    const was = await theme();
+    await page.locator('.statusbar .status-theme').click();
+    if ((await theme()) === was) fail('the theme in the status bar does not switch it');
+    await page.locator('.statusbar .status-theme').click();
+    const zoom = async () => Number((await page.locator('.zoom-level').innerText()).replace('%', ''));
+    const z = await zoom();
+    await page.mouse.move(500, 350);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -100);
+    await page.keyboard.up('Control');
+    await wait(300);
+    if ((await zoom()) / z > 1.3) fail(`one ⌃-wheel notch zoomed from ${z}% to ${await zoom()}%`);
+    await page.locator('button[aria-label="Fit to screen"]').click();
+    await wait(300);
+    const pane = await page.locator('.preview').boundingBox();
+    await page.mouse.move(pane.x + 12, pane.y + pane.height - 80);
+    await page.mouse.down();
+    await page.mouse.move(pane.x + 40, pane.y + pane.height - 60, { steps: 4 });
+    await page.mouse.up();
+    await wait(300);
+    if (!/Space/.test(await page.locator('.toast').innerText().catch(() => ''))) fail('a drag over empty canvas does not say how to move the view');
+  }
 } catch (e) {
   fail(String(e?.stack ?? e));
 }
