@@ -5,7 +5,7 @@ import { render, slideTextPt, textPtAt, type RenderResult } from '@cartography/e
 import { themes } from '@cartography/theme';
 import { bundledFontFiles, fontFiles } from '@cartography/theme/node';
 import { pages, pdfFamilies, slideScale, svgOnPage, toPdf, toPptx, type FamilyBytes, type FontBytes, type SlideText } from '../src/index.ts';
-import { clean, fitConnector } from '../src/slide.ts';
+import { clean, evenly, fitConnector, polygonPreset, simplify, subpaths, underCurve } from '../src/slide.ts';
 
 const example = (f: string) => fs.readFileSync(new URL(`../../../examples/${f}`, import.meta.url), 'utf8');
 const draw = async (f: string, theme?: string): Promise<RenderResult> => render(example(f), { fonts: 'none', theme, load: (rel) => example(`${f.split('/')[0]}/${rel}`) });
@@ -194,6 +194,105 @@ describe('connectors', () => {
   });
 });
 
+// Apple's importer (Quick Look, Mail, an iPhone) leaves out a freeform in a group, draws a three-bend
+// connector as one straight stroke, leaves out the presets with one or two corners cut or rounded, and
+// draws a picture above every other shape in its group: the drawing is written in what it does draw.
+describe('shapes Quick Look draws', () => {
+  const P = (x: number, y: number) => ({ x, y });
+  const shapes = (xml: string) => [...xml.matchAll(/<p:sp>[^]*?<\/p:sp>/g)].map((m) => m[0]);
+  const named = (xml: string, name: string) => shapes(xml).filter((s) => s.includes(`name="${name}"`));
+  const group = (xml: string, name: string) => {
+    const m =new RegExp(`<p:grpSp><p:nvGrpSpPr><p:cNvPr id="\\d+" name="${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`).exec(xml);
+    if (!m) return undefined;
+    // The group runs to its matching end.
+    let depth = 0;
+    for (const t of xml.slice(m.index).matchAll(/<\/?p:grpSp>/g)) {
+      depth += t[0] === '<p:grpSp>' ? 1 : -1;
+      if (!depth) return xml.slice(m.index, m.index + t.index! + t[0].length);
+    }
+    return undefined;
+  };
+
+  it('finds the preset of an outline: a box, an arrow, a chevron, a cut corner, an octagon, triangles and diamonds turned any way', () => {
+    expect(polygonPreset([P(0, 0), P(10, 0), P(10, 5), P(0, 5)])).toMatchObject({ prst: 'rect', x: 0, y: 0, w: 10, h: 5 });
+    const arrow = polygonPreset([P(0, 0), P(80, 0), P(100, 15), P(80, 30), P(0, 30), P(0, 0)])!;
+    expect(arrow).toMatchObject({ prst: 'homePlate', w: 100, h: 30 });
+    expect(arrow.adj!.adj).toBeCloseTo((20 / 30) * 100000);
+    expect(polygonPreset([P(0, 0), P(80, 0), P(100, 15), P(80, 30), P(0, 30), P(20, 15)])?.prst).toBe('chevron');
+    expect(polygonPreset([P(0, 0), P(22, 0), P(30, 8), P(30, 40), P(0, 40)])?.prst).toBe('snip1Rect');
+    expect(polygonPreset([P(5, 0), P(45, 0), P(50, 5), P(50, 25), P(45, 30), P(5, 30), P(0, 25), P(0, 5)])?.prst).toBe('octagon');
+    // A UML end pointing left along a line: the triangle's point (up in the preset) turned to the left.
+    expect(polygonPreset([P(0, 0), P(13, -7.5), P(13, 7.5)])).toMatchObject({ prst: 'triangle', w: 15, h: 13, rot: 270 });
+    expect(polygonPreset([P(0, 10), P(-3.5, 4), P(3.5, 4)])).toMatchObject({ prst: 'triangle', rot: 180 });
+    expect(polygonPreset([P(0, 0), P(5.5, 8), P(0, 16), P(-5.5, 8)])).toMatchObject({ prst: 'diamond', w: 16, h: 11, rot: 90 });
+    expect(polygonPreset([P(0, 0), P(10, 0), P(3, 7)])).toBeUndefined();
+    expect(polygonPreset([P(0, 0), P(10, 0), P(12, 9), P(1, 6)])).toBeUndefined();
+  });
+
+  it('finds the tint between a curve and a level line, and nothing else', () => {
+    const tint = underCurve([P(0, 50), P(0, 40), P(10, 30), P(20, 35), P(30, 50), P(30, 50), P(0, 50)]);
+    expect(tint).toEqual({ base: 50, curve: [P(0, 40), P(10, 30), P(20, 35), P(30, 50)] });
+    expect(underCurve([P(0, 50), P(0, 40), P(20, 30), P(10, 35), P(30, 50)])).toBeUndefined();
+    expect(underCurve([P(0, 50), P(0, 40), P(10, 60), P(30, 50)])).toBeUndefined();
+  });
+
+  it('flattens curves, keeps the fewest points, and cuts a line in even pieces', () => {
+    const [arc] = subpaths([['M', 0, 0], ['C', 0, 10, 10, 20, 20, 20]]);
+    expect(arc!.curved).toBe(true);
+    expect(arc!.pts.at(-1)).toEqual(P(20, 20));
+    expect(subpaths([['M', 0, 0], ['L', 10, 0], ['L', 10, 10], ['Z']])[0]!.pts).toEqual([P(0, 0), P(10, 0), P(10, 10), P(0, 0)]);
+    const few = simplify(arc!.pts, 0.15);
+    expect(few.length).toBeLessThan(arc!.pts.length / 2);
+    expect(few[0]).toEqual(P(0, 0));
+    expect(simplify([P(0, 0), P(5, 0), P(10, 0), P(10, 10)], 0.1)).toEqual([P(0, 0), P(10, 0), P(10, 10)]);
+    const even = evenly([P(0, 0), P(10, 0), P(10, 10)], 7);
+    expect(even.map((p) => [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10])).toEqual([[0, 0], [7, 0], [10, 4], [10, 10]]);
+  });
+
+  it('writes no freeform: a long line is straight pieces in a group, its arrowheads only at its ends', async () => {
+    const r = await draw('azure/hub-spoke.yaml');
+    const slide = parts(await toPptx(r, { rasterize: () => PNG })).text('ppt/slides/slide1.xml');
+    expect(wellFormed(slide)).toBe(true);
+    expect(slide).not.toContain('<a:custGeom>');
+    expect(slide).not.toContain('prst="bentConnector4"');
+    const line = group(slide, 'Line: afw → erp-vm (peering)')!;
+    expect(line).toBeTruthy();
+    const pieces = shapes(line);
+    expect(pieces.length).toBeGreaterThan(5);
+    expect(pieces.every((s) => s.includes('prst="line"'))).toBe(true);
+    // Every piece the line's colour, width and dashes; one arrowhead, on the last piece.
+    expect(new Set(pieces.map((s) => /<a:ln [^]*?<\/a:ln>/.exec(s)![0].replace(/<a:(head|tail)End[^>]*\/>/g, ''))).size).toBe(1);
+    expect(line.match(/<a:tailEnd /g)).toHaveLength(1);
+    expect(pieces.at(-1)).toContain('<a:tailEnd type="triangle"');
+    expect(line).not.toContain('<a:headEnd ');
+  });
+
+  it('turns a piece so it runs the way the line does, and its arrowhead points the right way', async () => {
+    // SNAT runs up from the firewall to the Internet: its pieces upward are flipped.
+    const slide = parts(await toPptx(await draw('azure/hub-spoke.yaml'), { rasterize: () => PNG })).text('ppt/slides/slide1.xml');
+    const snat = shapes(group(slide, 'Line: afw → internet (SNAT)') ?? '');
+    expect(snat.length).toBeGreaterThan(5);
+    expect(snat.some((s) => s.includes('flipV="1"'))).toBe(true);
+    expect(snat.at(-1)).toContain('<a:tailEnd ');
+  });
+
+  it('builds what no preset draws of ones that are drawn: a table header, a document, the tints under a feeling curve', async () => {
+    const erd = parts(await toPptx(await draw('erd/saas.yaml'), { rasterize: () => PNG })).text('ppt/slides/slide1.xml');
+    expect(erd).not.toContain('round2SameRect');
+    expect(named(erd, 'Header').length).toBeGreaterThan(1);
+    const process = parts(await toPptx(await draw('process/order-to-cash.yaml'), { rasterize: () => PNG })).text('ppt/slides/slide1.xml');
+    expect(process).not.toContain('snip1Rect');
+    const doc = group(process, 'Invoice')!;
+    expect(doc).toContain('prst="rtTriangle"');
+    expect(doc).not.toContain('<p:pic>');
+    const journey = parts(await toPptx(await draw('journey/developer-onboarding.yaml'), { rasterize: () => PNG })).text('ppt/slides/slide1.xml');
+    const tint = group(journey, 'Below neutral')!;
+    expect(tint).toContain('prst="rtTriangle"');
+    expect(journey).not.toMatch(/<p:pic><p:nvPicPr><p:cNvPr id="\d+" name="(Below|Above) neutral"/);
+    expect(journey).not.toContain('<a:custGeom>');
+  });
+});
+
 /** Text a PDF shows, read through each font's ToUnicode map (uncompressed PDFs only). */
 function pdfText(pdf: string): string[] {
   const objects = new Map([...pdf.matchAll(/(\d+) 0 obj([\s\S]*?)endobj/g)].map((m) => [m[1]!, m[2]!]));
@@ -332,6 +431,9 @@ describe('steps', () => {
     expect(slide).toContain(`<a:t>${wide.steps![2]!.title}</a:t>`);
     expect(slide).not.toContain('name="Subtitle"');
     expect(at(slide, 'Step number')![1]).toBe(titleY);
+    // The caption wraps in its box, as its rows were planned, with no indent a template's text style would hang its second line on.
+    expect(/name="Step caption"[^]*?<a:bodyPr wrap="(\w+)"/.exec(slide)![1]).toBe('square');
+    expect(/name="Step caption"[^]*?<a:pPr ([^>]*)>/.exec(slide)![1]).toContain('marL="0" indent="0"');
     const [flat] = await scales(wide, false);
     for (const s of await scales(wide)) expect(s).toBeGreaterThanOrEqual(flat!);
     // The subtitle is not lost: it is in the speaker notes.
@@ -367,7 +469,7 @@ describe('steps', () => {
 describe('journey', () => {
   const slideCount = (zip: Uint8Array) => Object.keys(parts(zip).files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p)).length;
 
-  it('pptx: native shapes and text you can edit, the feeling curve a real curve', async () => {
+  it('pptx: native shapes and text you can edit, the feeling curve in straight pieces Quick Look draws', async () => {
     for (const view of ['map', 'storyboard', 'blueprint']) {
       const r = await render(example('journey/first-deploy.yaml'), { fonts: 'none', view });
       const zip = await toPptx(r, { rasterize: () => PNG });
@@ -378,11 +480,13 @@ describe('journey', () => {
       const shape = r.graph!.nodes[0]!.shape as { steps: { label: string }[]; phases: { label: string }[] };
       for (const p of shape.phases) expect(texts, view).toContain(p.label.split(' ')[0]);
       for (const s of shape.steps) expect(texts, `${view}: ${s.label}`).toContain(s.label.split(' ')[0]);
-      // The curve is a custom shape with bezier segments, not a picture.
+      // The curve is a group of line pieces, not a picture and not a freeform (which Quick Look leaves out of a group);
+      // the phases are preset arrows.
       if (view === 'map') {
-        expect(slide).toContain('<a:cubicBezTo>');
-        expect(slide).toMatch(/<p:cNvPr id="\d+" name="Feeling/);
+        expect(slide).toMatch(/<p:grpSp><p:nvGrpSpPr><p:cNvPr id="\d+" name="Feeling"/);
+        expect(slide).toContain('prst="chevron"');
       }
+      expect(slide, view).not.toContain('<a:custGeom>');
       expect(slide, view).toContain('prst="ellipse"');
       expect(slide, view).not.toContain('NaN');
     }

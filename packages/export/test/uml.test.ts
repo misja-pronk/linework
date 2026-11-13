@@ -15,9 +15,11 @@ describe('class diagrams and mind maps on a slide', () => {
   it('a class diagram: boxes, members with their visibility, compartments and UML ends', async () => {
     const xml = await slide('class/domain-model.yaml');
     for (const word of ['Item', '«abstract»', 'loanPeriod()', 'MAX_LOANS', 'Visibility', 'Damaged']) expect(xml).toContain(word);
-    // The hollow triangle and the filled diamond: closed shapes named End.
+    // The hollow triangle and the filled diamond: preset shapes named End, turned along the line (Quick Look leaves out a freeform).
     expect(xml.match(/name="End"/g)!.length).toBeGreaterThanOrEqual(3);
-    expect(xml).toContain('<a:close/>');
+    expect(xml).toMatch(/name="End"\/>[^]*?prst="triangle"/);
+    expect(xml).toMatch(/name="End"\/>[^]*?prst="diamond"/);
+    expect(xml).not.toContain('<a:custGeom>');
   });
   it('a mind map: every topic a shape with its words', async () => {
     const xml = await slide('mindmap/capability-brainstorm.yaml');
