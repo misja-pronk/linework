@@ -403,7 +403,9 @@ export function Present(p: PresentProps) {
       else full = false;
     };
     document.addEventListener('fullscreenchange', on);
-    void el?.requestFullscreen?.().catch(() => {});
+    // Only with the key or click that opened it still fresh: asking a second time (a development build
+    // runs this twice, the first ask used the click up) only puts a warning in the console.
+    if (!document.fullscreenElement && navigator.userActivation?.isActive !== false) void el?.requestFullscreen?.().catch(() => {});
     return () => document.removeEventListener('fullscreenchange', on);
   }, []);
 

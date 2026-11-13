@@ -272,6 +272,18 @@ try {
     const rows = await page.locator('.outline [role="treeitem"]').allInnerTexts();
     if (rows.some((r) => /^(sequence|matrix)$/.test(r.trim()))) fail(`the outline lists "${rows.join(', ')}"`);
   }
+  // 8. Present, Esc, P at once: presenting again, and no warning about full screen in the console.
+  {
+    await page.locator('.preview').focus();
+    await page.keyboard.press('p');
+    await wait(900);
+    await page.keyboard.press('Escape');
+    await wait(50);
+    await page.keyboard.press('p');
+    await wait(900);
+    if (!(await page.locator('.present').count())) fail('P right after Esc from presenting did not present again');
+    await page.keyboard.press('Escape');
+  }
 } catch (e) {
   fail(String(e?.stack ?? e));
 }
