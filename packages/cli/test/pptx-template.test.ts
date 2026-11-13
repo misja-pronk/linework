@@ -52,7 +52,7 @@ describe('carto render -o x.pptx --template', () => {
     const d = deck('content.pptx');
     expect(Object.keys(d.files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p))).toHaveLength(3);
     expect(d.text('ppt/slides/_rels/slide3.xml.rels')).toContain('slideLayout2.xml');
-    expect(d.text('ppt/slides/slide3.xml')).toContain('typeface="Instrument Sans"');
+    expect(d.text('ppt/slides/slide3.xml')).toContain('typeface="Courier New"');
   }, 60000);
 
   it('says which layouts there are when the one asked for is not there, and what a template is', async () => {

@@ -127,9 +127,12 @@ describe('pptx', () => {
     const survey = parts(await toPptx(await Promise.all(['systems/web-shop.yaml', 'erd/orders.yaml'].map((f) => draw(f)))));
     const slide = survey.text('ppt/slides/slide1.xml');
     const t = themes.survey!;
-    // Text in the theme's own face, with a sans named as the substitute's shape; type columns in the monospace face.
-    expect(slide).toContain('<a:latin typeface="Instrument Sans" panose="020B0604020202020204" pitchFamily="34"');
-    expect(survey.text('ppt/slides/slide2.xml')).toContain('<a:latin typeface="Geist Mono" panose="020B0609020204030204" pitchFamily="49"');
+    // The faces Cartography brings along are on few machines: named as faces every Mac and PC has (Apple's importer sets a missing one in Times).
+    expect(slide).toContain('<a:latin typeface="Arial" panose="020B0604020202020204" pitchFamily="34"');
+    expect(survey.text('ppt/slides/slide2.xml')).toContain('<a:latin typeface="Courier New" panose="020B0609020204030204" pitchFamily="49"');
+    expect(slide).not.toContain('Instrument Sans');
+    // Asked for by name, a face is named as it is.
+    expect(parts(await toPptx(await draw('systems/web-shop.yaml'), { font: 'Instrument Sans', monoFont: 'Geist Mono' })).text('ppt/slides/slide1.xml')).toContain('typeface="Instrument Sans"');
     // Groups lie on the paper tints, with their names in spaced capitals; flat cards, no tile behind the icons.
     expect(slide.toUpperCase()).toContain(`<A:SRGBCLR VAL="${t.group!.tints![0]!.slice(1).toUpperCase()}"/>`);
     expect(slide).toMatch(/spc="\d+"/);
@@ -138,21 +141,21 @@ describe('pptx', () => {
     // The legend is a KEY under a rule.
     expect(slide).toContain('<a:t>KEY</a:t>');
 
-    // Classic keeps its soft shadow, tinted tiles and Inter.
+    // Classic keeps its soft shadow and tinted tiles; its Inter is named Arial too.
     const classic = parts(await toPptx(await draw('systems/web-shop.yaml', 'classic'), { theme: themes.classic })).text('ppt/slides/slide1.xml');
     expect(classic).toContain('<a:outerShdw');
     expect(classic).toContain('name="Tile"');
-    expect(classic).toContain('typeface="Inter"');
+    expect(classic).toContain('typeface="Arial"');
     expect(classic).not.toContain('<a:t>KEY</a:t>');
 
     // Transit: slim arrowheads, roundels, labels in capitals. Drafting: open arrowheads.
     const transit = parts(await toPptx(await draw('systems/web-shop.yaml', 'transit'), { theme: themes.transit })).text('ppt/slides/slide1.xml');
     expect(transit).toContain('<a:tailEnd type="triangle" w="med" len="lg"/>');
-    expect(transit).toContain('typeface="Barlow"');
+    expect(transit).toContain('typeface="Arial"');
     expect(transit).toContain('<a:t>ORDERPLACED</a:t>');
     const drafting = parts(await toPptx(await draw('systems/web-shop.yaml', 'drafting'), { theme: themes.drafting })).text('ppt/slides/slide1.xml');
     expect(drafting).toContain('<a:tailEnd type="arrow"');
-    expect(drafting).toContain('typeface="IBM Plex Mono"');
+    expect(drafting).toContain('typeface="Courier New"');
     // A font of your own choosing wins.
     expect(parts(await toPptx(await draw('systems/web-shop.yaml'), { font: 'Arial' })).text('ppt/slides/slide1.xml')).toContain('typeface="Arial"');
   });

@@ -37,9 +37,10 @@ describe('slides', () => {
     expect(pdf).not.toMatch(/\/Subtype \/Image/);
   });
 
-  it('in the sketch look name its handwriting face', async () => {
+  it('in the sketch look name a face every machine has for its handwriting (Kalam is on few)', async () => {
     const r = await render(shop.replace('icons: official\n', ''), { fonts: 'none', theme: 'sketch' });
     const files = unzipSync(await toPptx(r, { theme: themes.sketch }));
-    expect(strFromU8(files['ppt/slides/slide1.xml']!)).toContain('typeface="Kalam"');
+    expect(strFromU8(files['ppt/slides/slide1.xml']!)).toContain('typeface="Arial"');
+    expect(strFromU8(await toPptx(r, { theme: themes.sketch, font: 'Kalam' }).then((d) => unzipSync(d)['ppt/slides/slide1.xml']!))).toContain('typeface="Kalam"');
   });
 });

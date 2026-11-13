@@ -4,7 +4,7 @@
 import { zipSync, strToU8 } from 'fflate';
 import type { Faded, Graph, Placed, StepState } from '@cartography/core';
 import { icon } from '@cartography/icons';
-import { inThemeFonts, isDark, look, themes, type Theme } from '@cartography/theme';
+import { bundledFamily, inThemeFonts, isDark, look, themes, type Theme } from '@cartography/theme';
 import * as ox from './ooxml.ts';
 import { group, shape, type Run } from './shapes.ts';
 import { describe } from '@cartography/describe';
@@ -50,12 +50,13 @@ export interface PptxOptions {
   theme?: 'light' | 'dark' | Theme;
   aspect?: '16:9' | '4:3';
   /**
-   * Typeface for the text; by default the theme's own (Instrument Sans for Survey, Inter for classic).
-   * Slides hold native text, so the face is not embedded: where it is not installed the app
-   * substitutes a sans (Arial, Helvetica). Name one here to choose it yourself, e.g. 'Arial'.
+   * Typeface for the text. By default the theme's own, unless it is one Cartography brings along
+   * (Instrument Sans, Inter, Geist Mono…): those are on few machines, so the slides name Arial
+   * instead (see slideFace). Name one here to choose it yourself, e.g. 'Instrument Sans' where it is
+   * installed on every machine that shows the deck.
    */
   font?: string;
-  /** Typeface for what the theme sets in monospace; by default the theme's (Geist Mono for Survey). Substituted by a fixed-pitch face (Consolas, Menlo, Courier New) where it is not installed. */
+  /** Typeface for what the theme sets in monospace; by default the theme's, or Courier New for one Cartography brings along (Geist Mono). */
   monoFont?: string;
   /** Adds a title slide in front. */
   title?: string;
@@ -95,6 +96,19 @@ export interface SlideText {
   scale: number;
 }
 
+/**
+ * The face a slide names for a theme's face. Slides hold native text, and an app shows a face only
+ * where it is installed: PowerPoint then substitutes a similar one, but Apple's importer (Quick Look,
+ * Keynote, Mail, an iPhone) sets the text in Times. Embedding the face does not help there (Apple's
+ * importer leaves embedded fonts out), so the faces Cartography brings along (Instrument Sans, Inter,
+ * Geist Mono and the others), which few machines have, are named as faces every Mac and Windows
+ * machine has: Arial, no wider than Instrument Sans or Inter, and Courier New, as wide as Geist Mono.
+ * A brand theme's own face is the brand's: it stays.
+ */
+export function slideFace(family: string, kind: 'sans' | 'mono'): string {
+  return bundledFamily(family) ? (kind === 'mono' ? 'Courier New' : 'Arial') : family;
+}
+
 /** The first name of a CSS font stack. */
 const firstFamily = (stack: string | undefined) => stack?.split(',')[0]?.trim().replace(/^['"]|['"]$/g, '') || undefined;
 
@@ -130,8 +144,8 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     if (isDark(page) === (theme.mode === 'dark')) theme = { ...theme, canvas: page };
     else opts.onWarning?.(`The template's slides are ${isDark(page) ? 'dark' : 'light'} (${page}) and the diagram's theme is ${theme.mode}: leave out --keep-look, or pick a ${isDark(page) ? 'dark' : 'light'} theme`);
   }
-  const font = opts.font ?? (tpl && !opts.keepLook ? tpl.fonts.minor : (theme.font.sans ?? 'Inter'));
-  const fonts = { sans: font, mono: opts.monoFont ?? (tpl && !opts.keepLook ? font : (theme.font.monoFace ?? firstFamily(theme.font.mono) ?? 'Courier New')) };
+  const font = opts.font ?? (tpl && !opts.keepLook ? tpl.fonts.minor : slideFace(theme.font.sans ?? 'Inter', 'sans'));
+  const fonts = { sans: font, mono: opts.monoFont ?? (tpl && !opts.keepLook ? font : slideFace(theme.font.monoFace ?? firstFamily(theme.font.mono) ?? 'Courier New', 'mono')) };
   // The title as the theme sets it: in capitals or the monospace face where asked.
   const tl = look(theme).title;
   const titleRun = (text: string): Run => ({ text: tl.caps ? text.toUpperCase() : text, size: 24, bold: tl.weight >= 600, color: theme.text, ...(tl.mono ? { font: fonts.mono, mono: true } : {}), ...(tl.tracking ? { spacing: tl.tracking } : {}), ...(tpl ? { font: tpl.fonts.major } : {}) });

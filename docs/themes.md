@@ -48,9 +48,8 @@ export), so a redraw comes out exactly the same and a card you drag keeps its ow
 ![sketch-dark](themes/png/sketch-dark-process.png)
 
 The look is plain SVG paths, no filters, so PNG, PDF and Office-safe SVG keep it. A PowerPoint deck keeps the
-layout, colours and the Kalam typeface name but draws ruled native shapes: editable shapes in Office cannot wobble.
-Where Kalam is not installed PowerPoint substitutes another face; install Kalam (free, Google Fonts) or pass
-`--font` for the deck.
+layout and colours but draws ruled native shapes in Arial: editable shapes in Office cannot wobble. Where Kalam is
+installed on every machine that shows the deck, `--font Kalam` names it.
 
 A theme file can make any look hand-drawn, or a sketch ruled again:
 
@@ -241,10 +240,13 @@ Per export:
 - **SVG** embeds the faces the theme uses as woff2. Instrument Sans, Geist Mono, Barlow and Inter are Latin
   subsets. IBM Plex declares the Reserved Font Name "Plex", so its files are embedded whole and unmodified.
 - **PNG and PDF** use the TTF files directly.
-- **PowerPoint** keeps text as real, editable text and names the theme's families. Fonts are not embedded in a
-  .pptx. Where a face is not installed, PowerPoint and Keynote pick a sans-serif (or a fixed-pitch face for the
-  monospace text) from the hints in the file. `carto render --format pptx --font Arial` names another typeface
-  for the whole deck.
+- **PowerPoint** keeps text as real, editable text. Fonts are not embedded in a .pptx: Apple's importer (Quick
+  Look, Keynote, Mail, an iPhone) leaves embedded fonts out and sets a face it does not have in Times. So for the
+  faces Cartography brings along (Instrument Sans, Inter, Geist Mono, Barlow, IBM Plex, Kalam), which few
+  machines have, a deck names faces every Mac and Windows machine has: Arial (no wider than Instrument Sans or
+  Inter, so text still fits) and Courier New for the monospace text (as wide as Geist Mono). A brand theme's own
+  face is named as it is. `carto render --format pptx --font "Instrument Sans"` names another typeface for the
+  whole deck, where it is installed.
 - **In a client's PowerPoint template:** `pptx: template.potx` in a theme file makes every deck in that template,
   its layouts, master, colours and fonts; see [powerpoint-templates.md](powerpoint-templates.md).
 
