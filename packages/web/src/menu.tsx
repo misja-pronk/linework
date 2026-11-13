@@ -65,7 +65,10 @@ export function useRestoreFocus(box?: React.RefObject<HTMLElement | null>) {
       // Only when nothing else took focus meanwhile (a command may have focused the drawing).
       requestAnimationFrame(() => {
         const now = document.activeElement;
-        if ((!now || now === document.body) && back.current?.isConnected) back.current.focus?.();
+        if (now && now !== document.body) return;
+        // Nothing opened it (the start screen on a first visit): the drawing has the keys then.
+        if (back.current?.isConnected) back.current.focus?.();
+        else document.querySelector<HTMLElement>('.preview')?.focus({ preventScroll: true });
       });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

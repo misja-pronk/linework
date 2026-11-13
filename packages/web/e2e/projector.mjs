@@ -285,5 +285,18 @@ await page.setViewportSize({ width: 1280, height: 720 });
   fs.rmSync(`${out}/projector-chain.pptx`, { force: true });
 }
 
+// 15. Esc on the start screen of a first visit: the drawing has the keys, not the page.
+await cold();
+{
+  await page.keyboard.press('Escape');
+  await wait(300);
+  const on = await page.evaluate(() => document.activeElement?.className ?? '');
+  if (!/\bpreview\b/.test(on)) fail(`after Esc on the start screen the keys go to "${on || 'the page'}", not the drawing`);
+  await page.keyboard.press('p');
+  await wait(600);
+  if (!(await page.locator('.present').count())) fail('P right after closing the start screen does not present');
+  await page.keyboard.press('Escape');
+}
+
 console.log(problems.length ? `PROBLEMS:\n${problems.join('\n')}` : 'projector OK');
 await browser.close();
