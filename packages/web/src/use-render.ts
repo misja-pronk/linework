@@ -1,7 +1,7 @@
 // Renders on every change, newest wins: a slow render never overwrites a newer one. The drawing is
 // made in a worker (render-client.ts): one that takes long says so, and can be stopped.
 import { useEffect, useRef, useState } from 'react';
-import type { RenderResult } from '@cartography/engine';
+import type { LayoutAbout, RenderResult } from '@cartography/engine';
 import { Cancelled, draw } from './render-client.ts';
 import { viewPins, type LayoutMemory, type LayoutSidecar, type Point } from '@cartography/core';
 import { useBrand } from './brand.ts';
@@ -25,6 +25,8 @@ export interface Rendered {
 export interface Busy {
   since: number;
   view?: string;
+  /** What is being laid out, once the drawing is built. */
+  about?: LayoutAbout;
   stop(): void;
 }
 
@@ -88,10 +90,16 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
     const exact = `${key}\n${step ?? ''}\n${JSON.stringify(viewPins(sidecar, view) ?? null)}\n${text}`;
     const previous = seen.current.get(exact) ?? unpinned(m.views.get(key), key, new Set(Object.keys(viewPins(sidecar, view)?.nodes ?? {})), pinned.current, before.current);
     // Nothing remembered yet (a file just opened): the note in its sidecar says where things were.
-    const job = draw(text, { theme, themeOverride, ...icons, sidecar, load, view, file, step, fonts: 'none', interactive: true, idPrefix: 'live', previous, ...(focus !== undefined ? { focus } : {}), ...layers });
-    let again: ReturnType<typeof draw> | undefined;
     const since = Date.now();
-    const busyNow: Busy = { since, view, stop: () => (job.cancel(true), again?.cancel(true), setBusy(undefined)) };
+    let busyNow: Busy = { since, view, stop: () => (job.cancel(true), again?.cancel(true), setBusy(undefined)) };
+    // What is being laid out: the note says it (a whole canvas of 90 elements takes minutes).
+    const onLayout = (about: LayoutAbout) => {
+      const was = busyNow;
+      busyNow = { ...busyNow, about };
+      setBusy((b) => (b === was ? busyNow : b));
+    };
+    const job = draw(text, { theme, themeOverride, ...icons, sidecar, load, view, file, step, fonts: 'none', interactive: true, idPrefix: 'live', previous, onLayout, ...(focus !== undefined ? { focus } : {}), ...layers });
+    let again: ReturnType<typeof draw> | undefined;
     // Still saying a drawing is under way (a view picked while the last one lays out): it is this one now.
     setBusy((b) => (b ? busyNow : b));
     const slow = setTimeout(() => setBusy(busyNow), BUSY_AFTER_MS);

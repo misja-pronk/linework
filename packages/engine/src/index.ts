@@ -182,7 +182,23 @@ export interface RenderOptions extends SvgOptions {
   layers?: string | string[] | null;
   /** Only the layers (laid out on their own) or everything with the rest faded; by default as the layers say. */
   layerMode?: LayerMode;
+  /**
+   * Called once the drawing is built and before it is laid out (most of what it costs): how many
+   * elements and lines it has, and whether it is the whole of a working canvas (view '' of a
+   * diagram that says present: views). The CLI and the editor say so when that will take long.
+   */
+  onLayout?(about: LayoutAbout): void;
 }
+
+/** What is about to be laid out (RenderOptions.onLayout). */
+export interface LayoutAbout {
+  nodes: number;
+  edges: number;
+  whole: boolean;
+}
+
+/** Elements past which laying out the whole of a working canvas is said to take long. */
+export const BIG_CANVAS = 40;
 
 /** The layers of a diagram, and which are drawn: what the editor's Layers control and exports read. */
 export interface LayersInfo {
@@ -528,6 +544,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const previous = only ? (opts.previous ?? unpackLayout(viewPins(opts.sidecar, layerKey(model?.view?.name, lens.info!.active))?.layout) ?? null) : before;
   const place = async (at: Sized, previous: LayoutMemory | null | undefined) =>
     type.layout ? await type.layout(at, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(at, spacing, pins, { autoDirection, ...(steady ? { wrap: false as const } : {}), ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
+  // Told before laying out, which is most of what a drawing costs: a big one (a canvas's whole) can take minutes.
+  opts.onLayout?.({ nodes: graph.nodes.length, edges: graph.edges.length, whole: canvas && opts.view === '' });
   let placed = await place(sized, previous);
   // Ports that may stand in any order (a data product's) follow where what feeds them was placed, so
   // their lines do not cross; drawn once more from there, everything else holding where it was.

@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import { keyHint } from '../keys.ts';
+import { BIG_CANVAS } from '@cartography/engine';
 import { AddMenu } from '../add-menu.tsx';
 import { FocusChip } from '../focus-chip.tsx';
 import { Preview, type DeckTemplate, type PreviewControl, type Selection } from '../preview.tsx';
@@ -300,11 +301,20 @@ function BusyNote({ busy, whole, onStop }: { busy: Busy; whole: boolean; onStop(
     return () => clearInterval(i);
   }, []);
   const s = Math.max(1, Math.round((Date.now() - busy.since) / 1000));
+  const a = busy.about;
   return (
     <div className="canvas-note">
       <div className="busy-note" role="status" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
         <span className="busy-spinner" aria-hidden="true" />
-        <span>{whole ? t('Laying out the whole canvas: {s} s. It holds every view at once and can take a minute.', { s }) : t('Laying out the drawing: {s} s', { s })}</span>
+        <span>
+          {whole
+            ? a && a.nodes > BIG_CANVAS
+              ? t('Laying out the whole canvas, {nodes} elements and {edges} lines: {s} s. Every view at once can take minutes; its views draw in seconds.', { nodes: a.nodes, edges: a.edges, s })
+              : t('Laying out the whole canvas: {s} s. It holds every view at once and can take a minute.', { s })
+            : a
+              ? t('Laying out the drawing, {nodes} elements and {edges} lines: {s} s', { nodes: a.nodes, edges: a.edges, s })
+              : t('Laying out the drawing: {s} s', { s })}
+        </span>
         <button onClick={onStop}>
           {t('Stop')}
         </button>

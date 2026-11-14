@@ -8,14 +8,18 @@ import { loaderOver, type Ask, type Answer } from './render-client.ts';
 const folders = new Map<number, ReadonlyMap<string, string>>();
 
 self.onmessage = async (e: MessageEvent<Ask>) => {
-  const { id, text, opts, files } = e.data;
+  const { id, text, opts, files, tell } = e.data;
   try {
     if (files?.entries) {
       folders.clear();
       folders.set(files.key, new Map(files.entries));
     }
     const folder = files && folders.get(files.key);
-    const options: RenderOptions = { ...opts, ...(files && folder ? { load: loaderOver(files.base, (p) => folder.get(p), files.missing) } : {}) };
+    const options: RenderOptions = {
+      ...opts,
+      ...(files && folder ? { load: loaderOver(files.base, (p) => folder.get(p), files.missing) } : {}),
+      ...(tell ? { onLayout: (about) => self.postMessage({ id, about } satisfies Answer) } : {}),
+    };
     const r = await render(text, options);
     // What does not cross to the page: the type (found again there by its id) and the titles of its
     // views in each language, worked out here.

@@ -17,10 +17,13 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 page.on('pageerror', (e) => fail(e.message));
 const wait = (ms = 300) => page.waitForTimeout(ms);
 await page.addInitScript((seed) => {
-  if (sessionStorage.getItem('seeded')) return;
+  // The first load opens the governance example; a later one what sessionStorage's "next" says.
+  const next = sessionStorage.getItem('next');
+  if (sessionStorage.getItem('seeded') && !next) return;
   sessionStorage.setItem('seeded', '1');
+  sessionStorage.removeItem('next');
   localStorage.clear();
-  const doc = { text: seed, doc: { name: 'governance.yaml', starter: 'example:databricks/governance.yaml' } };
+  const doc = next ? JSON.parse(next) : { text: seed, doc: { name: 'governance.yaml', starter: 'example:databricks/governance.yaml' } };
   for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
 }, text);
 await page.goto(url);
@@ -60,7 +63,7 @@ const note = page.locator('.busy-note');
 if (!(await note.count())) fail('no note says the whole canvas is being laid out');
 else {
   const said = await note.innerText();
-  if (!/Laying out the whole canvas: \d+ s/.test(said)) fail(`the note says: ${said}`);
+  if (!/Laying out the whole canvas(, \d+ elements and \d+ lines)?: \d+ s/.test(said)) fail(`the note says: ${said}`);
 }
 // The editor answers meanwhile: the shortcuts sheet opens and closes.
 await page.locator('.preview').focus();
@@ -94,9 +97,31 @@ const took = Date.now() - t0;
 if (took > 10000) fail(`${other} took ${took} ms after the whole was given up`);
 await page.screenshot({ path: `${out}/heavy-other.png` });
 
+// 4. Twenty domains (databricks-at-scale): its whole canvas does not finish in minutes. The note says
+// how big it is and that it takes minutes; the page answers meanwhile, and Stop brings the view back.
+const scale = fs.readFileSync(path.join(repo, 'examples/databricks-at-scale/governance.yaml'), 'utf8');
+await page.evaluate((text) => {
+  sessionStorage.setItem('next', JSON.stringify({ text, doc: { name: 'governance.yaml', starter: 'example:databricks-at-scale/governance.yaml' } }));
+}, scale);
+await page.reload();
+await page.waitForSelector('.drawing svg', { timeout: 60000 });
+await page.waitForFunction(() => !document.querySelector('.busy-note'), null, { timeout: 60000 }).catch(() => fail('the first view of the large file does not finish'));
+const big = await picker.inputValue();
+await picker.selectOption('');
+await page.waitForFunction(() => /elements and \d+ lines/.test(document.querySelector('.busy-note')?.textContent ?? ''), null, { timeout: 15000 }).catch(() => fail('the note on the large canvas does not say how big it is'));
+const said = (await note.count()) ? await note.innerText() : '';
+if (!/9\d elements/.test(said) || !/can take minutes/.test(said)) fail(`the note on the large canvas says: ${said}`);
+const worstBig = await heldUp(3000);
+if (worstBig > 400) fail(`the page was held up ${worstBig} ms while the large canvas laid out`);
+await page.screenshot({ path: `${out}/heavy-scale.png` });
+await page.locator('.busy-note button').click();
+await wait(600);
+if (await note.count()) fail('the note stays after Stop on the large canvas');
+if ((await picker.inputValue()) !== big) fail('after Stop on the large canvas the picker is not back on its first view');
+
 await browser.close();
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);
 }
-console.log(`heavy: ok (held up at most ${worst} ms; another view in ${took} ms)`);
+console.log(`heavy: ok (held up at most ${worst} ms, ${worstBig} ms on the large canvas; another view in ${took} ms)`);

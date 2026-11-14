@@ -243,6 +243,8 @@ export const nlApp = {
   'Compare with an earlier version': 'Vergelijken met een eerdere versie',
   'Laying out the whole canvas: {s} s. It holds every view at once and can take a minute.': 'Het hele werkvlak wordt opgemaakt: {s} s. Het bevat alle weergaven tegelijk en kan een minuut duren.',
   'Laying out the drawing: {s} s': 'De tekening wordt opgemaakt: {s} s',
+  'Laying out the whole canvas, {nodes} elements and {edges} lines: {s} s. Every view at once can take minutes; its views draw in seconds.': 'Het hele werkvlak wordt opgemaakt, {nodes} elementen en {edges} lijnen: {s} s. Alle weergaven tegelijk kan minuten duren; de weergaven zijn in seconden getekend.',
+  'Laying out the drawing, {nodes} elements and {edges} lines: {s} s': 'De tekening wordt opgemaakt, {nodes} elementen en {edges} lijnen: {s} s',
   'Back to where the link was followed from (⌘[)': 'Terug naar waar de link gevolgd werd (⌘[)',
   'Back to': 'Terug naar',
   'No link followed yet: ⌘-click a linked element to go there, and ⌘[ comes back': 'Nog geen link gevolgd: ⌘-klik op een element met een link om erheen te gaan, en ⌘[ komt terug',

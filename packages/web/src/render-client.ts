@@ -2,7 +2,7 @@
 // working canvas) can take a minute, and the page goes on answering meanwhile. A drawing nobody waits
 // for any more is stopped there; where a worker cannot run (tests, a page opened from disk) the
 // drawing is made here, as before.
-import { findType, render, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { findType, render, type LayoutAbout, type RenderOptions, type RenderResult } from '@cartography/engine';
 import type { Lang } from '@cartography/i18n';
 
 /** Where a loader reads: the folder's (or the examples') files and the diagram's place among them. */
@@ -45,13 +45,15 @@ const sameFiles = (a: ReadonlyMap<string, string>, b: ReadonlyMap<string, string
 export interface Ask {
   id: number;
   text: string;
-  opts: Omit<RenderOptions, 'load'>;
+  opts: Omit<RenderOptions, 'load' | 'onLayout'>;
+  /** Say what is about to be laid out (RenderOptions.onLayout), as an Answer with `about`. */
+  tell?: boolean;
   /** The loader's files: `entries` only when they are not the ones sent last. */
   files?: { key: number; base: string[]; missing: string; entries?: [string, string][] };
 }
 
 /** What comes back: the result without its type (by id) and with its views' titles in each language. */
-export type Answer = { id: number; result: Omit<RenderResult, 'type' | 'viewTitles'>; type?: string; titles?: Record<Lang, Record<string, string>> } | { id: number; error: string };
+export type Answer = { id: number; about: LayoutAbout } | { id: number; result: Omit<RenderResult, 'type' | 'viewTitles'>; type?: string; titles?: Record<Lang, Record<string, string>> } | { id: number; error: string };
 
 /** A drawing on its way. */
 export interface Drawing {
@@ -107,8 +109,9 @@ function start(): Worker | undefined {
     answered = true;
     const job = running;
     if (!job || job.id !== e.data.id) return;
-    running = undefined;
     const a = e.data;
+    if ('about' in a) return void job.opts.onLayout?.(a.about);
+    running = undefined;
     if (job.dropped) job.reject(new Cancelled());
     else if ('error' in a) job.reject(new Error(a.error));
     else {
@@ -149,7 +152,7 @@ function pump() {
     render(job.text, job.opts).then(job.resolve, job.reject);
     return pump();
   }
-  const { load, ...opts } = job.opts as RenderOptions & { load?: Loader };
+  const { load, onLayout, ...opts } = job.opts as RenderOptions & { load?: Loader };
   const source = load?.source;
   let files: Ask['files'];
   if (source) {
@@ -163,7 +166,7 @@ function pump() {
     render(job.text, job.opts).then(job.resolve, job.reject);
     return pump();
   }
-  const ask: Ask = { id: job.id, text: job.text, opts, ...(files ? { files } : {}) };
+  const ask: Ask = { id: job.id, text: job.text, opts, ...(files ? { files } : {}), ...(onLayout ? { tell: true } : {}) };
   try {
     w.postMessage(ask);
   } catch {
