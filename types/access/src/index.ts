@@ -206,10 +206,18 @@ interface Package {
   tags?: string[];
 }
 
+/**
+ * A permission that applies only on some kinds of scope (Unity Catalog's USE CATALOG on a catalog,
+ * an Entra role on a directory or an administrative unit): `{ USE CATALOG: { on: catalog } }`.
+ */
+type Permission = string | Record<string, { on?: string | string[] } | null>;
+
 interface Role {
   label?: string;
   inherits?: string | string[];
-  permissions?: string[];
+  permissions?: Permission[];
+  /** The kinds of resource it may be granted on (key-vault, catalog): granted anywhere else, validate warns. */
+  on?: string | string[];
   tone?: Tone;
   /** The role definition's id, for imports. */
   'role-id'?: string;
@@ -249,7 +257,9 @@ class Model {
   principals: [string, Principal][];
   resources: [string, Resource][];
   packages: [string, Package][];
-  roles: [string, Role][];
+  roles: [string, Omit<Role, 'permissions'> & { permissions?: string[] }][];
+  /** The kinds of scope a permission applies on, where its role says (`on:`). */
+  applies = new Map<string, string[]>();
   catalogs: [string, Catalog][];
   controls: [string, Control][];
   assignments: (Assignment & { eligible: boolean; path: (string | number)[] })[] = [];
@@ -267,7 +277,18 @@ class Model {
     this.principals = norm<Principal>(src.principals, 'kind');
     this.resources = norm<Resource>(src.resources, 'kind');
     this.packages = Object.entries(src.packages ?? {});
-    this.roles = Object.entries(src.roles ?? {}).map(([id, r]) => [id, r ?? {}]);
+    // Permissions by name; where one applies only on some kinds of scope (`- USE CATALOG: { on: catalog }`), that is noted.
+    this.roles = Object.entries(src.roles ?? {}).map(([id, r]) => {
+      const names = (r?.permissions ?? []).flatMap((p) => {
+        if (typeof p === 'string') return [p];
+        return Object.entries(p ?? {}).map(([name, v]) => {
+          if (v?.on != null && !this.applies.has(name)) this.applies.set(name, list(v.on));
+          return name;
+        });
+      });
+      const { permissions, ...rest } = r ?? {};
+      return [id, { ...rest, ...(permissions ? { permissions: names } : {}) }] as [string, Omit<Role, 'permissions'> & { permissions?: string[] }];
+    });
     this.catalogs = norm<Catalog>(src.catalogs, 'label');
     this.controls = norm<Control>(src.policies, 'kind');
 
@@ -314,6 +335,18 @@ class Model {
       for (const w of list(r.bound)) if (!this.resource(w)) ctx.error(['resources', id, 'bound'], `There is no workspace "${w}" under resources`);
     }
     for (const [id, r] of this.roles) for (const p of list(r.inherits)) if (!this.role(p)) ctx.error(['roles', id, 'inherits'], `There is no role "${p}"`);
+    // A role, or a permission in it, granted on a kind of scope it does not apply on (USE CATALOG on a schema).
+    for (const a of this.assignments) {
+      const kind = this.resource(a.scope)?.kind;
+      if (!kind) continue;
+      const on = list(this.role(a.role)?.on);
+      if (on.length && !on.includes(kind)) {
+        ctx.warn(a.path, `${a.role} is granted on ${on.join(' or ')}, and ${a.scope} is a ${kind}`);
+        continue;
+      }
+      const wrong = [...this.permissions(a.role).keys()].filter((p) => this.applies.has(p) && !this.applies.get(p)!.includes(kind));
+      if (wrong.length) ctx.warn(a.path, `${a.role} holds ${wrong.map((p) => `${p} (on ${this.applies.get(p)!.join(' or ')})`).join(', ')}, and ${a.scope} is a ${kind}: grant it where that applies, or take it out of the role`);
+    }
     for (const [id, p] of this.packages) {
       if (p.catalog && !this.catalogs.some(([c]) => c === p.catalog)) ctx.error(['packages', id, 'catalog'], `There is no catalog "${p.catalog}"`);
       for (const [i, g] of this.grants(p).entries())
@@ -1381,7 +1414,17 @@ export const access: DiagramType<AccessSource> = {
               properties: {
                 label: { type: 'string' },
                 inherits: strings,
-                permissions: { type: 'array', items: { type: 'string' } },
+                permissions: {
+                  type: 'array',
+                  description: 'What the role allows: names, or { name: { on: kinds } } for one that applies only on some kinds of scope (USE CATALOG: { on: catalog })',
+                  items: {
+                    anyOf: [
+                      { type: 'string' },
+                      { type: 'object', minProperties: 1, maxProperties: 1, additionalProperties: { anyOf: [{ type: 'null' }, { type: 'object', properties: { on: { ...strings, description: 'The kinds of resource it applies on, e.g. catalog' } }, additionalProperties: false }] } },
+                    ],
+                  },
+                },
+                on: { ...strings, description: 'The kinds of resource the role may be granted on, e.g. key-vault; granted elsewhere, validate warns' },
                 tone: { enum: tones },
                 'role-id': { type: 'string', description: 'The role definition id, for imports' },
                 part: { type: 'boolean', description: 'Held somewhere inside the scope, not on all of it' },

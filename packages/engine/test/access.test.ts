@@ -171,6 +171,39 @@ describe('access checks', () => {
     expect(await warnings(source('graph'))).toEqual(['alice is Owner on rg directly, where sg-ops holds the same role: membership of the group would do']);
   });
 
+  it('names a role granted on a kind of scope where it, or a permission in it, does not apply', async () => {
+    const text = `type: access
+principals:
+  analysts: group
+  ops: group
+resources:
+  sales: { kind: catalog }
+  gold: { kind: schema, in: sales }
+  kv: { kind: key-vault }
+  rg: { kind: resource-group }
+roles:
+  browse: { permissions: [BROWSE] }
+  read: { inherits: browse, permissions: [{ USE CATALOG: { on: catalog } }, { USE SCHEMA: { on: [catalog, schema] } }, SELECT] }
+  schema-read: { permissions: [{ USE SCHEMA: { on: [catalog, schema] } }, SELECT] }
+  secrets: { on: key-vault, permissions: [get secret] }
+assignments:
+  - analysts is read on sales
+  - analysts is read on gold
+  - analysts is schema-read on gold
+  - ops is secrets on kv
+  - ops is secrets on rg
+`;
+    const r = await render(text, { fonts: 'none' });
+    expect(r.diagnostics.filter((d) => d.severity === 'warning').map((d) => [d.line, d.message])).toEqual([
+      [17, 'read holds USE CATALOG (on catalog), and gold is a schema: grant it where that applies, or take it out of the role'],
+      [20, 'secrets is granted on key-vault, and rg is a resource-group'],
+    ]);
+    // The roles table names the permissions as ever, the inherited ones too.
+    const roles = await render(text.replace('type: access', 'type: access\nview: roles'), { fonts: 'none' });
+    expect(roles.svg).toContain('USE CATALOG');
+    expect(roles.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+  });
+
   it('names a guest with an owner-level role on a broad scope, also through a group', async () => {
     const text = `type: access
 principals:
