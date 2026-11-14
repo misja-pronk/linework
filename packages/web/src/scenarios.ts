@@ -56,6 +56,18 @@ export const SCENARIOS: Scenario[] = [
     also: [['One data product', 'data-products/northwind-orders-product.yaml']],
   },
   {
+    title: 'Databricks',
+    text: 'A lakehouse on Azure Databricks: network, Unity Catalog and data.',
+    example: 'databricks/overview.yaml',
+    also: [
+      ['Deployment', 'databricks/deployment.yaml'],
+      ['Environments', 'databricks/environments.yaml'],
+      ['Governance', 'databricks/governance.yaml'],
+      ['Medallion', 'databricks/medallion.yaml'],
+      ['Data mesh', 'databricks/mesh.yaml'],
+    ],
+  },
+  {
     title: 'From PR to production',
     text: 'A change from pull request, through checks and review, to main.',
     example: 'process/pull-request.yaml',

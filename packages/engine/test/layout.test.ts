@@ -86,6 +86,9 @@ const crossingBudget: Record<string, number> = {
   'databricks/governance.yaml': 4, // one domain through three environments next to prod-wide grants: the prod service principal's and the analysts' lines pass the teams' MANAGE lines
   'databricks/medallion.yaml': 0,
   'databricks/mesh.yaml': 1, // the ERP's line to Revenue passes Orders' line down to the demand forecast
+  'databricks/overview.yaml': 0,
+  'databricks/deployment.yaml': 0,
+  'databricks/environments.yaml': 0,
   'workspace/access.yaml': 0,
   'workspace/containers.yaml': 0,
   'workspace/containers.yaml#payments': 1, // wrapped for a slide (text 5.6 → 7 pt): the interbank payments pass the nightly extract
@@ -254,6 +257,7 @@ const returns: Record<string, number> = {
   'workspace/context.yaml': 1, // wrapped into two columns for a slide: the line on to the second runs back
   'systems/data-pipeline.yaml': 1, // wrapped into two rows for a slide: the line down to the second row runs back to its start
   'azure/data-platform.yaml': 1, // wrapped for a slide: serving stands under the ingest, so gold's line down to the warehouse runs back
+  'databricks/overview.yaml': 1, // the lakehouse writes to Unity Catalog and reads gold back: one of the two runs back
   // Wrapped into rows (columns, top-down) for a slide, as slideReadability weighs it: the lines on to the next row run back.
   'cloud/multi-cloud.yaml': 3,
   'deployment/azure.yaml': 1,
