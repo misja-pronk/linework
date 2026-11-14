@@ -163,7 +163,7 @@ export function Present(p: PresentProps) {
         if (r.svg && r.steps?.length) first = r;
         else (d.doc = doc), (d.auto = false);
       }
-      const views = first.views?.length ? [...(first.onlyViews ? [] : [undefined]), ...first.views.map((v) => v.name)] : [undefined];
+      const views = first.views?.length ? [...(first.onlyViews || first.canvas ? [] : [undefined]), ...first.views.map((v) => v.name)] : [undefined];
       for (const view of views) {
         const r = view === first.view ? first : await whole(view);
         if (!r.svg) continue;

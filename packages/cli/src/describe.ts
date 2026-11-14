@@ -17,7 +17,9 @@ export async function describedPng(r: RenderResult, file: string, bytes: Uint8Ar
 export async function describeFile(file: string, o: { view?: string; allViews?: boolean; format: 'text' | 'md' | 'html'; options: RenderOptions; text?: string }): Promise<{ text: string; ok: boolean; problems: string[] }> {
   const source = o.text ?? fs.readFileSync(file, 'utf8');
   const first = await render(source, { ...o.options, fonts: 'none', view: o.view });
-  const runs = [first, ...(o.allViews && !o.view ? await Promise.all((first.views ?? []).filter((v) => v.name !== first.view).map((v) => render(source, { ...o.options, fonts: 'none', view: v.name }))) : [])].filter((r) => r.graph && !r.empty);
+  // A canvas (present: views) is told by its views, as it is presented: all of them, unless one is asked for.
+  const all = (o.allViews || !!first.canvas) && o.view === undefined;
+  const runs = [first, ...(all ? await Promise.all((first.views ?? []).filter((v) => v.name !== first.view).map((v) => render(source, { ...o.options, fonts: 'none', view: v.name }))) : [])].filter((r) => r.graph && !r.empty);
   const problems = [first, ...runs].flatMap((r) => r.diagnostics.filter((d) => d.severity === 'error').map((d) => d.message));
   const parts = runs.map((r, i) => {
     const d = told(r, file);

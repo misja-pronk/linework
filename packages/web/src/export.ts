@@ -34,6 +34,9 @@ export interface ExportInput {
  */
 export const presentedBy = (r: Pick<RenderResult, 'scroll' | 'views' | 'view' | 'asWritten'>) => (r.scroll ? (r.views ?? []).filter((v) => v.name !== (r.view ?? r.asWritten?.name)) : []);
 
+/** The whole drawing of a canvas (present: views), on screen when "Whole diagram" is picked: exports take its views instead. */
+export const wholeCanvas = (r: Pick<RenderResult, 'canvas' | 'view'>) => !!r.canvas && r.view === undefined;
+
 /** Browsers refuse canvases above roughly 16.7 million pixels (Safari); stay under it. */
 const MAX_PIXELS = 16_000_000;
 
@@ -137,7 +140,8 @@ export async function exportPptx(input: ExportInput, name?: string, template?: P
   const shown = r.layers?.active.join('+');
   const layered = await Promise.all((r.layers?.list ?? []).filter((l) => l.name !== shown).map((l) => render(input.text, { ...options(input), layers: [l.name], layerMode: undefined, previous: undefined, step: undefined, fonts: 'none' })));
   const layerSlides = layered.filter((x) => x.graph && x.placed && !x.empty && x.layers?.kept).map((x) => ({ ...x, steps: undefined }));
-  const shownFirst = !(template?.withoutScroll && by.length);
+  // A canvas's whole drawing (present: views) is never a slide: its views are the deck.
+  const shownFirst = !(template?.withoutScroll && by.length) && !wholeCanvas(r);
   const drawings = [...(shownFirst ? [r] : []), ...rest.filter((x) => x.graph && x.placed && !x.empty), ...layerSlides].map((x) => ({ ...x, name }));
   const { toPptx } = await import('@cartography/export');
   const small: SlideText[] = [];
@@ -162,7 +166,8 @@ export async function exportPptx(input: ExportInput, name?: string, template?: P
 export async function exportPdf(input: ExportInput, name?: string, opts: { withoutScroll?: boolean } = {}): Promise<Blob> {
   const r = await render(input.text, { ...options(input), step: undefined, fonts: 'none' });
   if (!r.graph || !r.placed) throw new Error(t('Nothing to export: fix the problems first'));
-  const by = presentedBy(r);
+  // A canvas's whole drawing (present: views) is not a page: a page per view instead.
+  const by = wholeCanvas(r) ? (r.views ?? []) : presentedBy(r);
   const rest = (await Promise.all(by.map((v) => render(input.text, { ...options(input), view: v.name, previous: undefined, step: undefined, fonts: 'none' })))).filter((x) => x.graph && x.placed && !x.empty);
   const [{ toPdf, pdfFamilies }, { fontFiles, bundledFontFiles }] = await Promise.all([import('@cartography/export'), import('@cartography/theme/node')]);
   // The TTFs are assets of their own, fetched only now; PDF subsetting cannot use the WOFF2 the SVG embeds.
@@ -175,7 +180,7 @@ export async function exportPdf(input: ExportInput, name?: string, opts: { witho
   }
   // On the drawing's page (a 16:9 slide unless aspect: says otherwise), 1 px = 0.75 pt.
   const page = r.page ? { width: r.page.width * 0.75, height: r.page.height * 0.75 } : undefined;
-  const drawings = [...(opts.withoutScroll && rest.length ? [] : [r]), ...rest].map((x) => ({ ...x, name }));
+  const drawings = [...((opts.withoutScroll || wholeCanvas(r)) && rest.length ? [] : [r]), ...rest].map((x) => ({ ...x, name }));
   const data = await toPdf(drawings, { theme, fonts: { 400: regular!, 500: medium!, 600: semibold! }, families, ...(page ? { page } : {}) });
   return new Blob([data as BlobPart], { type: 'application/pdf' });
 }

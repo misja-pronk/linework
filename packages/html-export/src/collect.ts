@@ -241,7 +241,7 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
     // hidden one (a mesh written view: detailed) comes first, as the drawing a link to the file opens.
     const written = first.asWritten;
     const offered = (first.views ?? []).map((v) => v.name);
-    const views: (string | undefined)[] = written ? (offered.includes(written.name) ? offered : [written.name, ...offered]) : first.onlyViews ? offered : [undefined, ...offered];
+    const views: (string | undefined)[] = written ? (offered.includes(written.name) ? offered : [written.name, ...offered]) : first.onlyViews || first.canvas ? offered : [undefined, ...offered];
     for (const [vi, view] of views.entries()) {
       const idPrefix = `${prefix}v${vi}`;
       const asWritten = view === undefined || view === written?.name;

@@ -1,0 +1,33 @@
+Secure deployment
+
+Azure infrastructure diagram: Northwind lakehouse · test · built as production, in its own spoke, workspace and NCC. 11 elements in 5 groups, with 10 connections.
+
+Groups and elements
+- Northwind offices (ExpressRoute)
+  - Data engineer (Browser)
+- vnet-hub-weu (10.0.0.0/22 · sub-connectivity)
+  - pep-dbw-lakehouse-test-ui (front-end · snet-pep)
+  - pep-dbw-webauth-weu (browser_authentication)
+  - afw-hub (Premium · 10.0.0.68 · SNAT out)
+- Databricks control plane (West Europe)
+  - dbw-lakehouse-test (Web app · REST API)
+  - dbw-webauth-weu (Browser sign-in only): Holds the region's browser_authentication endpoint; delete lock
+- vnet-lakehouse-test (10.1.12.0/22 · sub-lakehouse-test)
+  - Cluster VMs (SCC · no public IP)
+  - pep-dbw-lakehouse-test (back-end · snet-pep)
+  - pep-storderstest-dfs (dfs · snet-pep)
+- storderstest (ADLS Gen2 · one per domain)
+- Serverless compute plane (Run by Databricks)
+  - ncc-lakehouse-test (Private endpoint rules)
+
+Connections
+- Data engineer connects to pep-dbw-lakehouse-test-ui (Private network: HTTPS) and connects to pep-dbw-webauth-weu (Private network: SSO).
+- pep-dbw-lakehouse-test-ui connects to dbw-lakehouse-test (Private network: front-end).
+- pep-dbw-webauth-weu connects to dbw-webauth-weu (Private network: browser sign-in).
+- Cluster VMs connects to pep-dbw-lakehouse-test (Private network), connects to pep-storderstest-dfs (Private network) and connects to afw-hub (Private network: 0.0.0.0/0).
+- pep-dbw-lakehouse-test connects to dbw-lakehouse-test (Private network: back-end).
+- pep-storderstest-dfs connects to storderstest (Private network).
+- ncc-lakehouse-test connects to storderstest (Private network: serverless).
+
+Key
+- Dashed teal line: Private network

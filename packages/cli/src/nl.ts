@@ -80,6 +80,7 @@ export const nl = {
   '--all-layers: this diagram has no layers: (see docs/layers.md)': '--all-layers: dit diagram heeft geen layers: (zie docs/layers.md)',
   'nothing on this layer, not written': 'niets op deze laag, niet geschreven',
   '{all} drawings: the whole and {count} layer|{all} drawings: the whole and {count} layers': '{all} tekeningen: het geheel en {count} laag|{all} tekeningen: het geheel en {count} lagen',
+  '{count} drawing: its view; the whole is a working canvas|{count} drawings: its views; the whole is a working canvas': '{count} tekening: de weergave; het geheel is een werkvlak|{count} tekeningen: de weergaven; het geheel is een werkvlak',
   '{count} drawing: a view of the whole, which is read scrolling|{count} drawings: the views of the whole, which is read scrolling': '{count} tekening: een weergave van het geheel, dat scrollend gelezen wordt|{count} tekeningen: de weergaven van het geheel, dat scrollend gelezen wordt',
   '{all} drawings: the whole and {count} view|{all} drawings: the whole and {count} views': '{all} tekeningen: het geheel en {count} weergave|{all} tekeningen: het geheel en {count} weergaven',
   '{all} drawings: the whole, its views and layers': '{all} tekeningen: het geheel, de weergaven en de lagen',
@@ -153,6 +154,7 @@ export const nlHelp: Record<string, string> = {
   [`  carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
                [--view name | --all-views]      one of the diagram's views, or each to <file>--<view>.svg; pptx, pdf: a slide (page) each
+                                                present: views: pptx, pdf and --all-views are the views; --view '' the canvas
                [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
                                                 pptx and pdf get a slide (page) per step by themselves
                [--icons official|lucide]        the vendor's official icons (carto icons import) or our line icons,
@@ -174,6 +176,7 @@ export const nlHelp: Record<string, string> = {
     `  carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme gaat voor theme: in het diagram; -o x.pptx of x.pdf kiest ook het formaat
                [--view name | --all-views]      één weergave van het diagram, of elk naar <file>--<view>.svg; pptx, pdf: een dia (pagina) per weergave
+                                                present: views: pptx, pdf en --all-views zijn de weergaven; --view '' het werkvlak
                [--step 3 | --all-steps]         de tekening bij een van zijn steps:, of elke stap naar <file>-step-01.svg;
                                                 pptx en pdf krijgen vanzelf een dia (pagina) per stap
                [--icons official|lucide]        de officiële iconen van de leverancier (carto icons import) of onze lijniconen,

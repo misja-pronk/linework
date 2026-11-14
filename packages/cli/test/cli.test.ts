@@ -516,6 +516,36 @@ describe('carto errors and help', () => {
     expect((await carto('render', path.join(root, 'examples/sequence/entra-sign-in.yaml'), '--all-views', '-o', 'seq.pdf')).out).toContain('3 drawings: the whole and 2 views');
   }, 120_000);
 
+  it('takes the views of a canvas (present: views) and never its whole drawing', async () => {
+    // Three environments side by side are no slide; each environment is.
+    const envs = ['prod', 'test', 'dev', 'qa'];
+    const fan = Array.from({ length: 7 }, (_, i) => i);
+    const text = `type: azure\npresent: views\ngroups:\n${envs.map((e) => `  ${e}: { kind: vnet, env: ${e} }`).join('\n')}\nnodes:\n  fw: firewall\n${envs.flatMap((e) => fan.map((i) => `  ${e}-${i}: { kind: app-service, label: App service ${i}, in: ${e} }`)).join('\n')}\nedges:\n${envs.flatMap((e) => [...fan.slice(1).map((i) => `  - ${e}-0 -> ${e}-${i}: calls`), `  - ${e}-6 -> fw`]).join('\n')}\nviews:\n${envs.map((e) => `  ${e}: { environment: ${e} }`).join('\n')}\n`;
+    write('canvas.yaml', text);
+    const whole = await render(text, { fonts: 'none', view: '' });
+    expect(whole.canvas).toBe(true);
+    const v = await carto('validate', 'canvas.yaml');
+    expect(v.code).toBe(0);
+    expect(v.err).toBe('');
+    // The same file as one slide: the whole is checked, and too small.
+    write('one.yaml', text.replace('present: views\n', ''));
+    expect((await carto('validate', 'one.yaml')).err).toMatch(/warning {2}On a 16:9 slide its smallest text is [\d.]+ pt/);
+    // Each format and command: the views, a slide (page, picture) each.
+    const pptx = await carto('render', 'canvas.yaml', '-o', 'canvas.pptx');
+    expect(pptx.out).toContain('4 drawings: its views; the whole is a working canvas');
+    expect(new Set(fs.readFileSync(path.join(tmp, 'canvas.pptx'), 'latin1').match(/ppt\/slides\/slide\d+\.xml/g)).size).toBe(4);
+    expect((await carto('render', 'canvas.yaml', '--all-views', '-o', 'canvas.pdf')).code).toBe(0);
+    expect(fs.readFileSync(path.join(tmp, 'canvas.pdf'), 'latin1').match(/\/Type \/Page\b/g)).toHaveLength(4);
+    expect((await carto('render', 'canvas.yaml', '--all-views', '-o', 'cv/')).code).toBe(0);
+    expect(fs.readdirSync(path.join(tmp, 'cv')).sort()).toEqual(['canvas--dev.svg', 'canvas--prod.svg', 'canvas--qa.svg', 'canvas--test.svg']);
+    expect((await carto('deck', 'canvas.yaml', '-o', 'cdeck.pptx')).out).toContain('4 diagrams');
+    const told = await carto('describe', 'canvas.yaml');
+    expect(told.out.match(/Azure infrastructure diagram/g)).toHaveLength(4);
+    // --view '' draws the canvas itself.
+    expect((await carto('render', 'canvas.yaml', '--view', '', '-o', 'whole.svg')).code).toBe(0);
+    expect(read('whole.svg')).toContain('29 elements in 4 groups');
+  }, 120_000);
+
   it('leaves empty views out of --all-views', async () => {
     write('access.yaml', 'type: access\nprincipals:\n  ops: { kind: group }\nresources:\n  rg: { kind: resource-group }\nroles:\n  reader: { permissions: [read] }\nassignments:\n  - ops is reader on rg\n');
     const r = await carto('render', 'access.yaml', '--all-views', '-o', 'acc/');

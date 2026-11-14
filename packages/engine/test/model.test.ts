@@ -193,6 +193,157 @@ describe('views', () => {
   });
 });
 
+describe('present: views', () => {
+  const canvas = `type: azure
+present: views
+groups:
+  prod: { kind: vnet, env: prod }
+  dev: { kind: vnet, env: dev }
+nodes:
+  fw: firewall
+  app-prod: { kind: app-service, in: prod }
+  app-dev: { kind: app-service, in: dev }
+edges:
+  - app-prod -> fw
+  - app-dev -> fw
+steps:
+  - title: Whole
+views:
+  prod: { environment: prod }
+  dev: { environment: dev }
+`;
+
+  it('draws the first view without one asked for, the whole drawing only with view ""', async () => {
+    const r = await render(canvas, { fonts: 'none' });
+    expect(r.canvas).toBe(true);
+    expect(r.view).toBe('prod');
+    expect(ids(r).nodes).toEqual(['fw', 'app-prod']);
+    // The views are listed as ever; the whole drawing is not one of them.
+    expect(r.views).toEqual([{ name: 'prod' }, { name: 'dev' }]);
+    const whole = await render(canvas, { fonts: 'none', view: '' });
+    expect(whole.canvas).toBe(true);
+    expect(whole.view).toBeUndefined();
+    expect(ids(whole).nodes).toEqual(['fw', 'app-prod', 'app-dev']);
+    expect((await render(canvas, { fonts: 'none', view: 'dev' })).view).toBe('dev');
+  });
+
+  it('says that steps of the drawing as written are not presented, and that it needs views', async () => {
+    const r = await render(canvas, { fonts: 'none' });
+    expect(r.diagnostics).toEqual([expect.objectContaining({ line: 13, severity: 'warning', message: expect.stringContaining('put steps inside a view') })]);
+    const none = await render('type: azure\npresent: views\nnodes:\n  fw: firewall\n', { fonts: 'none' });
+    expect(none.canvas).toBeUndefined();
+    expect(none.diagnostics).toEqual([expect.objectContaining({ line: 2, severity: 'warning', message: expect.stringContaining('present: views needs views:') })]);
+    // present: whole is the default, said out loud.
+    const said = await render(canvas.replace('present: views', 'present: whole').replace(/steps:\n.*\n/, ''), { fonts: 'none' });
+    expect(said.canvas).toBeUndefined();
+    expect(said.view).toBeUndefined();
+    expect((await render('type: azure\npresent: slides\nnodes:\n  fw: firewall\n', { fonts: 'none' })).diagnostics[0]!.severity).toBe('error');
+  });
+});
+
+describe('view selectors for one file of several environments', () => {
+  const text = `type: azure
+groups:
+  hub: vnet
+  spoke-prod: { kind: vnet, env: prod }
+  snet-prod: { kind: subnet, in: spoke-prod }
+  spoke-dev: { kind: vnet, env: dev }
+nodes:
+  fw: { kind: firewall, in: hub }
+  pep-prod: { kind: private-endpoint, in: snet-prod }
+  app-prod: { kind: app-service, in: spoke-prod }
+  st-prod: { kind: storage, env: prod, tags: [data] }
+  app-dev: { kind: app-service, in: spoke-dev }
+  st-dev: { kind: storage, env: [dev, test] }
+edges:
+  - app-prod -> pep-prod
+  - pep-prod -> st-prod
+  - app-dev -> st-dev
+views:
+  spoke: { include: [spoke-prod] }
+  but: { include: [hub, spoke-prod], exclude: [snet-prod] }
+  env: { include: ['env:prod'] }
+  dev: { include: ['env:dev'] }
+`;
+  const view = async (name: string) => ids(await render(text, { fonts: 'none', view: name }));
+
+  it('a group picks everything written in it, at any depth, and exclude takes it out the same way', async () => {
+    expect(await view('spoke')).toEqual({ nodes: ['pep-prod', 'app-prod'], groups: ['spoke-prod', 'snet-prod'], edges: ['app-prod>pep-prod'] });
+    expect(await view('but')).toEqual({ nodes: ['fw', 'app-prod'], groups: ['hub', 'spoke-prod'], edges: [] });
+  });
+
+  it('env:x picks what is written for that environment, by its own env: or a group around it', async () => {
+    expect((await view('env')).nodes).toEqual(['pep-prod', 'app-prod', 'st-prod']);
+    // st-dev is in dev and test: in dev.
+    expect((await view('dev')).nodes).toEqual(['app-dev', 'st-dev']);
+  });
+});
+
+describe('model parts in a view', () => {
+  const net = `type: model
+elements:
+  sub-prod:
+    kind: subscription
+    elements:
+      vnet:
+        kind: vnet
+        technology: 10.1.0.0/16
+        elements:
+          snet-pep: { kind: subnet, technology: 10.1.1.0/24 }
+          snet-app: { kind: subnet }
+  st: { kind: storage }
+relations:
+  - sub-prod.vnet.snet-pep -> st: dfs
+`;
+  const load = files({ 'model.yaml': net });
+
+  it('an element drawn with parts of it is their boundary, as if expanded', async () => {
+    const r = await render(`type: azure\ninclude: [model.yaml]\nviews:\n  v: { include: [sub-prod, sub-prod.vnet, sub-prod.vnet.snet-pep, st] }\n`, { load, fonts: 'none' });
+    expect(r.diagnostics).toEqual([]);
+    // The subnet has nothing in it here: a card, inside its VNet, inside its subscription.
+    expect(ids(r)).toEqual({ nodes: ['sub-prod.vnet.snet-pep', 'st'], groups: ['sub-prod', 'sub-prod.vnet'], edges: ['sub-prod.vnet.snet-pep>st:dfs'] });
+    expect(r.graph!.groups.find((g) => g.id === 'sub-prod.vnet')!.parent).toBe('sub-prod');
+    expect(r.graph!.nodes[0]!.parent).toBe('sub-prod.vnet');
+    // Only the parts shown: snet-app is not in this drawing.
+    expect(ids(r).groups).not.toContain('sub-prod.vnet.snet-app');
+  });
+
+  it('an element drawn alone stays one card', async () => {
+    const r = await render(`type: azure\ninclude: [model.yaml]\nviews:\n  v: { include: [sub-prod, st] }\n`, { load, fonts: 'none' });
+    expect(ids(r)).toEqual({ nodes: ['sub-prod', 'st'], groups: [], edges: ['sub-prod>st:dfs'] });
+  });
+});
+
+describe('exclude: at the top', () => {
+  const load = files({ 'model.yaml': model });
+
+  it('leaves relations of the model out of the drawing as written and of every view; written lines stay', async () => {
+    const text = `type: systems
+include: [model.yaml]
+exclude: ['shop -> stripe', 'customer -> *']
+nodes:
+  customer:
+  shop:
+  stripe:
+edges:
+  - customer -> shop: Visits
+views:
+  v: { include: ['*'] }
+`;
+    const r = await render(text, { load, fonts: 'none' });
+    expect(r.diagnostics).toEqual([]);
+    expect(ids(r).edges).toEqual(['customer>shop:Visits']);
+    expect(ids(await render(text, { load, fonts: 'none', view: 'v' })).edges).toEqual(['customer>shop:Visits']);
+    expect(ids(await render(text.replace(/exclude:.*\n/, ''), { load, fonts: 'none' })).edges).toEqual(['customer>shop:Visits', 'shop>stripe:Charges']);
+  });
+
+  it('takes relations only: a node is left out by not writing it', async () => {
+    const r = await render(`type: systems\ninclude: [model.yaml]\nexclude: [stripe]\nnodes:\n  shop:\n  stripe:\n`, { load, fonts: 'none' });
+    expect(r.diagnostics).toEqual([expect.objectContaining({ line: 3, severity: 'warning', message: expect.stringContaining('exclude: at the top leaves relations of the model out') })]);
+    expect(ids(r).nodes).toEqual(['shop', 'stripe']);
+  });
+});
+
 describe('links', () => {
   it('parse URLs, files and views', () => {
     expect(parseLink('https://x.org')).toEqual({ kind: 'url', target: 'https://x.org' });

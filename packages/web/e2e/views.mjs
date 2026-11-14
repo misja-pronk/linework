@@ -236,6 +236,46 @@ await open(`lang: nl\n${mesh}`, 'mesh-nl.yaml');
   await page.evaluate(() => localStorage.removeItem('cartography:lang'));
 }
 
+// 6. A canvas (present: views): the editor opens on its first view, the whole drawing is still in the
+// picker as "Whole diagram", and a deck made while the whole is on screen holds the views, not the whole.
+{
+  const canvas = `type: azure
+present: views
+groups:
+  spoke-prod: { kind: vnet, label: vnet-prod, env: prod }
+  spoke-dev: { kind: vnet, label: vnet-dev, env: dev }
+nodes:
+  fw: { kind: firewall, label: afw-hub }
+  app-prod: { kind: app-service, label: app-prod, in: spoke-prod }
+  app-dev: { kind: app-service, label: app-dev, in: spoke-dev }
+edges:
+  - app-prod -> fw
+  - app-dev -> fw
+views:
+  prod: { title: Production, environment: prod }
+  dev: { title: Development, environment: dev }
+`;
+  await open(canvas, 'canvas.yaml');
+  check('the view a canvas opens on', await picked(), 'Production');
+  check('the views of a canvas in the picker', JSON.stringify(await options()), JSON.stringify(['Whole diagram', 'Production', 'Development']));
+  const drawing = () => page.locator('.drawing svg').first().innerHTML();
+  if ((await drawing()).includes('app-dev')) fail('the first view of a canvas should not draw dev');
+  await page.selectOption('.view-picker select', '');
+  await wait(800);
+  check('the picker on the whole canvas', await picked(), 'Whole diagram');
+  if (!(await drawing()).includes('app-dev') || !(await drawing()).includes('app-prod')) fail('Whole diagram should draw every environment of the canvas');
+  const pptx = unzipSync(new Uint8Array(await save('PowerPoint')));
+  check('slides of a canvas exported from its whole drawing', Object.keys(pptx).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p)).length, 2);
+  const deck = Object.entries(pptx).filter(([p]) => /^ppt\/slides\/slide\d+\.xml$/.test(p)).map(([, b]) => strFromU8(b)).join('');
+  if (!deck.includes('Production') || !deck.includes('Development')) fail('the deck of a canvas should hold its views');
+  const pdf = (await save('PDF')).toString('latin1');
+  check('pages of a canvas exported from its whole drawing', pdf.match(/\/Type \/Page\b/g)?.length, 2);
+  await page.selectOption('.view-picker select', 'dev');
+  await wait(800);
+  check('a view picked after the whole', await picked(), 'Development');
+  await page.screenshot({ path: `${out}/views-canvas.png` });
+}
+
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'all views steps ok');
 await browser.close();
 process.exit(problems.length ? 1 : 0);
