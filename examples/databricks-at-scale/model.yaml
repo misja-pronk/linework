@@ -1,8 +1,10 @@
-# Northwind's lakehouse at full scale: twenty domains through dev, test and prod, written once with each:.
+# Northwind's lakehouse at full scale: every domain of the company through dev, test and prod, written once with each:.
 # The same platform as examples/databricks (one VNet-injected workspace per environment, one Unity Catalog
-# metastore, a catalog and a storage account per domain and environment), here for every domain of the company.
-#   each:      domain (twenty, with the team that owns each) and env (three, with the spoke's address space)
-#   <domain>_<env> in a name writes the entry once per domain and environment: 60 catalogs from one line.
+# metastore, a catalog and a storage account per domain and environment).
+#   each:      domain (with the team that owns each), env (with the spoke's address space) and staging (the
+#              environments between dev and prod, whose service principal owns the catalogs)
+#   <domain>_<env> in a name writes the entry once per domain and environment. A domain is one more line under
+#   domain:; an environment one more under env: (and under staging: when it comes before prod).
 # Diagrams in this folder include it; governance.yaml grants Unity Catalog privileges on these catalogs.
 type: model
 title: Northwind lakehouse at scale
@@ -34,6 +36,7 @@ each:
     dev: { cidr: 10.1.8.0/22, host: 10.1.8.0/24, container: 10.1.9.0/24, pep: 10.1.10.0/26 }
     test: { cidr: 10.1.12.0/22, host: 10.1.12.0/24, container: 10.1.13.0/24, pep: 10.1.14.0/26 }
     prod: { cidr: 10.1.16.0/21, host: 10.1.16.0/23, container: 10.1.18.0/23, pep: 10.1.20.0/26 }
+  staging: [test]
 
 elements:
   # Teams: a team per domain, and the platform team that runs the workspaces and Unity Catalog
@@ -61,23 +64,21 @@ elements:
       nightly: { kind: lakeflow-job, label: nightly, technology: 02:00 · serverless }
       bi-warehouse: { kind: sql-warehouse, label: bi-warehouse, technology: Serverless SQL warehouse }
 
-  # Unity Catalog: one metastore for the region. Per domain and environment a catalog (bronze, silver, gold),
-  # its storage credential and two external locations, on the containers catalog and landing of st<domain><env>.
+  # Unity Catalog: one metastore for the region. Per domain and environment a catalog (bronze, silver, gold), its
+  # storage credential and its managed location on the catalog container of st<domain><env>. The owner: the domain
+  # team in dev, the environment's service principal after (governance.yaml); three lines, as a list's field
+  # cannot hold <domain>.
   uc-weu:
     kind: metastore
     label: uc-weu
     technology: Unity Catalog · West Europe
     owner: platform-team
     elements:
-      <domain>_<env>:
-        kind: catalog
-        label: <domain>_<env>
-        owner: <domain>-team
-        tags: [<env>]
-        elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } }
+      <domain>_dev: { kind: catalog, label: <domain>_dev, owner: <domain>-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      <domain>_<staging>: { kind: catalog, label: <domain>_<staging>, owner: sp-lakehouse-<staging>, tags: [<staging>], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      <domain>_prod: { kind: catalog, label: <domain>_prod, owner: sp-lakehouse-prod, tags: [prod], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
       cred_<domain>_<env>: { kind: storage-credential, label: cred_<domain>_<env>, tags: [<env>] }
       <domain>_<env>_catalog: { kind: external-location, label: <domain>_<env>_catalog, technology: catalog@st<domain><env>, tags: [<env>] }
-      <domain>_<env>_landing: { kind: external-location, label: <domain>_<env>_landing, technology: landing@st<domain><env>, tags: [<env>] }
 
   # Hub (the network team's Connectivity subscription)
   vnet-hub-weu: { kind: vnet, label: vnet-hub-weu, technology: 10.0.0.0/22 }
@@ -94,11 +95,11 @@ elements:
       snet-dbw-host: { kind: subnet, label: snet-dbw-host, technology: <env.host> }
       snet-dbw-container: { kind: subnet, label: snet-dbw-container, technology: <env.container> }
       snet-pep: { kind: subnet, label: snet-pep, technology: <env.pep> }
-  rt-lakehouse-<env>: { kind: route-table, label: rt-lakehouse-<env>, technology: 0.0.0.0/0 → 10.0.0.68, tags: [<env>] }
+  rt-lakehouse-<env>: { kind: route-table, label: rt-lakehouse-<env>, technology: 0.0.0.0/0 → 10.0.0.68 · gateway routes off, tags: [<env>] }
   dbw-lakehouse-<env>: { kind: databricks, label: dbw-lakehouse-<env>, technology: Premium · VNet-injected · no public access, owner: platform-team, tags: [<env>] }
   dbac-lakehouse-<env>: { kind: access-connector, label: dbac-lakehouse-<env>, technology: System-assigned identity, tags: [<env>] }
   ncc-lakehouse-<env>: { kind: ncc, label: ncc-lakehouse-<env>, technology: Private endpoints to the <env> accounts, tags: [<env>] }
-  st<domain><env>: { kind: storage, label: st<domain><env>, technology: ADLS Gen2 · catalog · landing, owner: <domain>-team, tags: [<env>] }
+  st<domain><env>: { kind: storage, label: st<domain><env>, technology: ADLS Gen2 · catalog, owner: <domain>-team, tags: [<env>] }
   pep-st<domain><env>-dfs: { kind: private-endpoint, label: pep-st<domain><env>-dfs, technology: dfs, tags: [<env>] }
 
   # Consumers
@@ -123,7 +124,6 @@ relations:
   # Storage, per domain and environment: catalog → external location → credential → access connector → storage account
   - uc-weu.<domain>_<env> -> uc-weu.<domain>_<env>_catalog: Managed location
   - uc-weu.<domain>_<env>_catalog -> uc-weu.cred_<domain>_<env>: Uses
-  - uc-weu.<domain>_<env>_landing -> uc-weu.cred_<domain>_<env>: Uses
   - uc-weu.cred_<domain>_<env> -> dbac-lakehouse-<env>: { label: Managed identity, style: identity }
   - dbac-lakehouse-<env> -> st<domain><env>: { label: Storage Blob Data Contributor, style: role }
   - pep-st<domain><env>-dfs -> st<domain><env>: { style: private }
@@ -136,13 +136,13 @@ views:
   # Where the data comes from, where it lives and who reads it: the lakehouse and Unity Catalog closed
   landscape:
     title: Northwind lakehouse at scale
-    subtitle: Twenty domains, each a pipeline in the bundle and a catalog per environment in uc-weu
+    subtitle: Northwind lakehouse · every domain a pipeline in the bundle and a catalog per environment in uc-weu
     direction: right
     include: [erp, salesforce, lakehouse, uc-weu, power-bi, analysts]
     exclude: ['uc-weu -> lakehouse']
   # One domain's storage, through its environments: what a catalog stands on
   orders-storage:
     title: What a catalog stands on
-    subtitle: orders through dev, test and prod; the other nineteen domains are written the same way, once
+    subtitle: Northwind lakehouse · orders through every environment; every other domain is written the same way, once
     direction: down
     include: [uc-weu.orders_<env>, uc-weu.orders_<env>_catalog, uc-weu.cred_orders_<env>, dbac-lakehouse-<env>, storders<env>]
