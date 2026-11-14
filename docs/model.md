@@ -257,7 +257,7 @@ views:
 - `carto validate` measures the views (and their steps) on their slides, never the whole.
 - The type's own drawings of the whole (an access diagram's who × where of everything) are part of the canvas too: a view with `show:` presents one, cut.
 - `carto render x.yaml -o x.pptx` (or `.pdf`), `--all-views` and `carto deck` write the views, a slide (page, picture) each; `carto describe` describes each view; the HTML export and presenting in the editor show the views. A PowerPoint or PDF exported in the editor while the whole is on screen holds the views.
-- The editor opens the file on its first view; V goes round the views.
+- The editor opens the file on its first view; V goes round the views. The whole of a large canvas can take a minute or more to lay out: the editor keeps the last one it finished, so "Whole diagram" picked again for the same text (after a look at a view) is there at once. It keeps only that one, and an edit lets it go.
 - Steps belong in the views: steps written at the top get a warning, since the whole is not presented. `present: whole` is the default. Without views, `present: views` gets a warning and the drawing is the slide.
 
 Examples: [examples/databricks/deployment.yaml](../examples/databricks/deployment.yaml), dev, test and production of one lakehouse, a spoke each; [examples/databricks/governance.yaml](../examples/databricks/governance.yaml), its Unity Catalog grants, a view per concern.

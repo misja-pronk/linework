@@ -62,10 +62,22 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
   const seen = useRef(new Map<string, LayoutMemory>());
   /** What the drawing on screen was drawn from: asked for again (a view given up on, Stop), it is not drawn again. */
   const done = useRef<unknown[]>(undefined);
+  // The last finished drawing of a canvas's whole (view ''), which can take minutes: picked again for
+  // the same text (after a look at a view), it is shown at once. One only, and gone with an edit.
+  const whole = useRef<{ asked: unknown[]; result: RenderResult; ms: number }>(undefined);
   useEffect(() => {
     const n = ++seq.current;
     const asked = [text, theme, themeOverride, icons, sidecar, load, docKey, view, file, step, fresh, focus, layers];
-    if (done.current?.length === asked.length && asked.every((x, i) => Object.is(x, done.current![i]))) return setBusy(undefined);
+    const same = (was: unknown[] | undefined) => was?.length === asked.length && asked.every((x, i) => Object.is(x, was[i]));
+    if (same(done.current)) return setBusy(undefined);
+    if (whole.current && (whole.current.asked[0] !== text || whole.current.asked[6] !== docKey)) whole.current = undefined;
+    if (view === '' && whole.current && same(whole.current.asked)) {
+      const { result, ms } = whole.current;
+      done.current = asked;
+      doc.current = docKey;
+      setBusy(undefined);
+      return setOut((prev) => ({ result, drawn: result.svg ? result : prev?.drawn, ms, text, docKey }));
+    }
     const t0 = performance.now();
     const m = memory.current;
     if (m.doc !== docKey) {
@@ -116,7 +128,7 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
           if (s.size > 40) s.delete(s.keys().next().value!);
         }
         // Another document starts without the old drawing behind it.
-        const same = doc.current === docKey;
+        const sameDoc = doc.current === docKey;
         doc.current = docKey;
         // The last text that drew, kept per file: a document that opens with errors (after a reload, on a
         // phone) still shows its last good drawing, greyed, instead of nothing.
@@ -133,7 +145,9 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
           if (!fallback?.svg) fallback = undefined;
         }
         done.current = asked;
-        setOut((prev) => ({ result, drawn: result.svg ? result : same && prev?.drawn ? prev.drawn : fallback, ms: Math.round(performance.now() - t0), text, docKey }));
+        const ms = Math.round(performance.now() - t0);
+        if (view === '' && result.svg) whole.current = { asked, result, ms };
+        setOut((prev) => ({ result, drawn: result.svg ? result : sameDoc && prev?.drawn ? prev.drawn : fallback, ms, text, docKey }));
       })
       .catch((e: unknown) => {
         // Given up on: a newer drawing, or stopped on purpose.

@@ -97,6 +97,28 @@ const took = Date.now() - t0;
 if (took > 10000) fail(`${other} took ${took} ms after the whole was given up`);
 await page.screenshot({ path: `${out}/heavy-other.png` });
 
+// 3b. The whole, laid out to the end: picked again after a look at a view, it is there at once,
+// for the same text; an edit lays it out again.
+await picker.selectOption('');
+const w0 = Date.now();
+await page.waitForFunction(() => document.querySelector('.view-picker select')?.value === '' && !document.querySelector('.busy-note'), null, { timeout: 300000 }).catch(() => fail('the whole canvas did not finish'));
+const wholeMs = Date.now() - w0;
+await picker.selectOption(other);
+await page.waitForFunction((v) => document.querySelector('.view-picker select')?.value === v && !document.querySelector('.busy-note'), other, { timeout: 15000 }).catch(() => fail(`${other} was not drawn after the whole`));
+await wait(400);
+const r0 = Date.now();
+await picker.selectOption('');
+await page.waitForFunction(() => document.querySelector('.view-picker select')?.value === '' && !document.querySelector('.busy-note') && document.querySelectorAll('.drawing [data-node]').length > 40, null, { timeout: 15000 }).catch(() => fail('the whole canvas picked again was not shown'));
+const again = Date.now() - r0;
+if (again > 2500) fail(`the whole canvas picked again took ${again} ms (it took ${wholeMs} ms the first time)`);
+await page.screenshot({ path: `${out}/heavy-whole-again.png` });
+await page.click('.cm-content');
+await page.keyboard.press('Meta+End');
+await page.keyboard.type('\n# edited');
+await page.waitForSelector('.busy-note', { timeout: 15000 }).catch(() => fail('after an edit the whole canvas was not laid out again'));
+await page.locator('.busy-note button').click();
+await wait(600);
+
 // 4. Twenty domains (databricks-at-scale): its whole canvas does not finish in minutes. The note says
 // how big it is and that it takes minutes; the page answers meanwhile, and Stop brings the view back.
 const scale = fs.readFileSync(path.join(repo, 'examples/databricks-at-scale/governance.yaml'), 'utf8');
@@ -124,4 +146,4 @@ if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);
 }
-console.log(`heavy: ok (held up at most ${worst} ms, ${worstBig} ms on the large canvas; another view in ${took} ms)`);
+console.log(`heavy: ok (held up at most ${worst} ms, ${worstBig} ms on the large canvas; another view in ${took} ms; the whole in ${wholeMs} ms, again in ${again} ms)`);
