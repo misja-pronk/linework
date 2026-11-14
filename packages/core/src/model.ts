@@ -447,6 +447,8 @@ export interface LayoutMemory {
   groups?: Map<string, Box>;
   /** How many pairs of groups stood against the order they were written in (not kept in the sidecar). */
   disorder?: number;
+  /** The lines it drew, by their ends ("from>to"; not kept in the sidecar). */
+  lines?: Set<string>;
   /**
    * What the drawing was made of, without sizes or words (its nodes, groups and lines, in source
    * order, its direction and page): while it stays the same, the way it was drawn is kept and the
