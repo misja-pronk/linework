@@ -32,3 +32,4 @@ export * from './edit.ts';
 export * from './questions.ts';
 export * from './line-diff.ts';
 export * from './live.ts';
+export * from './slide-room.ts';
