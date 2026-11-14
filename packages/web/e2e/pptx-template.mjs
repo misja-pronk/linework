@@ -153,7 +153,8 @@ await menu();
 await page.click('[role=menuitemcheckbox]:has-text("Keep the diagram")');
 await page.keyboard.press('Escape');
 d = await savePptx('dutch-keep-look');
-if (!d.text('ppt/slides/slide1.xml').includes('typeface="Instrument Sans"')) fail('keep look: not in the diagram\'s own face');
+// The diagram's own face, as slides name it: a face Cartography brings along becomes Arial, which every machine has.
+if (!d.text('ppt/slides/slide1.xml').includes('typeface="Arial"')) fail('keep look: not in the diagram\'s own face');
 
 // 5. Let go of it: our own deck again.
 await menu();
