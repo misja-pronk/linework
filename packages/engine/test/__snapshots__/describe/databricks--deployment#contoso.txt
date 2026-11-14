@@ -1,0 +1,25 @@
+Sharing with Contoso
+
+Azure infrastructure diagram: Northwind lakehouse · OpenSharing from storage behind private endpoints, through SecureConnect. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- Contoso Retail (Recipient · Databricks-to-Databricks): Retail partner; reads sell-through in its own Databricks account
+- Serverless compute plane (Run by Databricks)
+  - SecureConnect (Databricks-managed proxy)
+  - ncc-opensharing-weu (Attached to the metastore)
+- uc-weu (Metastore · West Europe): No metastore storage; every catalog has its own managed location
+- stsalesprod (ADLS Gen2 · sell_through)
+
+Connections
+- Contoso Retail connects to SecureConnect (Private network: OpenSharing).
+- SecureConnect connects to ncc-opensharing-weu (Private network).
+- ncc-opensharing-weu connects to uc-weu (Attached) and connects to stsalesprod (Private network: blob · dfs).
+
+Walkthrough
+1. Sharing with Contoso: stsalesprod accepts private endpoints only, so a recipient cannot read the shared files directly.
+2. SecureConnect: Contoso's requests go through Databricks' proxy, which reads through an NCC with a blob and a dfs rule.
+3. On the metastore: That NCC is attached to uc-weu, not to a workspace, and serves every share in the metastore.
+
+Key
+- Solid line: Connection
+- Dashed teal line: Private network

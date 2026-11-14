@@ -12,7 +12,7 @@ Groups and elements
     - revenue (Table)
 - bi-warehouse (Serverless SQL warehouse)
 - Power BI (Fabric capacity F64): Reports on gold through the SQL warehouse
-- Business analysts (Users): Read gold data in Power BI and Genie
+- Business analysts (Power BI · Genie): Read gold data in Power BI and Genie
 - finance-pipeline (Lakeflow pipeline)
 
 Connections

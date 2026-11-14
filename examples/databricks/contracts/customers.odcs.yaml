@@ -1,7 +1,8 @@
-# Open Data Contract Standard v3.1 — https://bitol-io.github.io/open-data-contract-standard/
+# Open Data Contract Standard v3.2.0 — https://bitol-io.github.io/open-data-contract-standard/
+# host: the workspace URL of dbw-lakehouse-prod (adb-<workspace id>.<n>.azuredatabricks.net), reached over Private Link
 # The Customers product's output port: customers_prod.gold.customers. Columns tagged pii carry the governed tag
 # pii in Unity Catalog; an ABAC column mask hides them from everyone outside customers-team.
-apiVersion: v3.1.0
+apiVersion: v3.2.0
 kind: DataContract
 id: northwind-customers
 name: customers
@@ -10,11 +11,11 @@ status: active
 domain: Customers
 dataProduct: Customers
 description:
-  purpose: One row per customer account, matched across Salesforce and the ERP.
+  purpose: One row per customer account from Salesforce, with duplicates merged.
 servers:
   - server: prod
     type: databricks
-    host: dbw-lakehouse-prod
+    host: adb-2718281828459045.5.azuredatabricks.net
     catalog: customers_prod
     schema: gold
 schema:

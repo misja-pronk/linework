@@ -90,7 +90,7 @@ const crossingBudget: Record<string, number> = {
   'databricks/governance.yaml#sharing': 0,
   'databricks/governance.yaml#landing': 0,
   'databricks/medallion.yaml': 0,
-  'databricks/mesh.yaml': 1, // the ERP's line to Revenue passes Orders' line down to the demand forecast
+  'databricks/mesh.yaml': 2, // the ERP's line to Revenue passes Orders' line down to the demand forecast; Web sessions' line down to Power BI passes the forecast's to replenishment
   'databricks/overview.yaml': 0,
   'databricks/deployment.yaml': 0,
   'databricks/environments.yaml': 0,
@@ -193,7 +193,7 @@ const jogBudget: Record<string, number> = {
   'systems/data-pipeline.yaml': 1, // two lines into one side
   'systems/saas-platform.yaml': 1, // the overview: the host dashboard's way in steps aside past the guest app's
   'databricks/governance.yaml#orders': 1, // two grants into orders_dev's side: one steps a lane aside
-  'databricks/mesh.yaml': 1, // the web shop's two sources join one line into Web sessions
+  'databricks/mesh.yaml': 2, // the web shop's two sources join one line into Web sessions; three lines into Power BI's side: one steps aside
 };
 
 // Labels sitting on a corner of their line: none, but for the ones named here.

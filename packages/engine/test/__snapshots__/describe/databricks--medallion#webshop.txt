@@ -12,7 +12,7 @@ Groups and elements
     - sessions (Table)
 - evhns-webshop-prod (Event Hubs · clickstream): Clickstream events of the web shop
 - clickstream (Streaming · Kafka API)
-- webshop-pipeline (Lakeflow pipeline)
+- webshop-pipeline (Continuous)
 
 Connections
 - sqldb-webshop-prod sends data to webshop-ingest (CDC).

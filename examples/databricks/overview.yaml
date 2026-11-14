@@ -1,9 +1,10 @@
-# The Northwind lakehouse on one slide, and the way into the other five drawings (double-click, or ⌘-click):
-#   lakehouse      → medallion.yaml     how a record goes from source to gold and on to its readers
-#   uc-weu         → governance.yaml    account groups from Entra, grants per domain and environment
-#   domain teams   → mesh.yaml          the domains, their data products and contracts
-#   workspaces     → deployment.yaml    the network: Private Link, the hub firewall, the NCC
-#   GitHub Actions → environments.yaml  one bundle through dev, test and production
+# The Northwind lakehouse on one slide, and the way into the other five drawings (in the editor ⌘-click, Ctrl-click
+# elsewhere, follows a card's link; double-click renames the card):
+#   sources, lakehouse      → medallion.yaml     how a record goes from source to gold and on to its readers
+#   uc-weu, account groups  → governance.yaml    account groups from Entra, grants per domain and environment
+#   domain teams            → mesh.yaml          the domains, their data products and contracts
+#   workspaces              → deployment.yaml    the network: Private Link, the hub firewall, the NCCs
+#   GitHub Actions          → environments.yaml  one bundle through dev, test and production
 type: systems
 title: Northwind lakehouse
 subtitle: Azure Databricks in West Europe · six domains, three environments, one Unity Catalog metastore
@@ -19,12 +20,14 @@ groups:
   readers: { kind: boundary, label: Who uses the data, caption: Production }
 
 nodes:
-  sources: { kind: external, label: Sources, caption: ERP · web shop · Salesforce, links: [medallion.yaml] }
-
-  github: { kind: service, label: GitHub Actions, caption: Declarative Automation Bundles, in: platform, links: [environments.yaml] }
-  workspaces: { kind: server, label: Workspaces, caption: dbw-lakehouse-dev · test · prod, in: platform, links: [deployment.yaml] }
+  sources: { kind: external, label: Sources, caption: ERP · web shop · Salesforce · SFTP, links: [medallion.yaml] }
   lakehouse: { ref: lakehouse, caption: Lakeflow · jobs · serving · app, in: platform, links: [medallion.yaml] }
-  uc-weu: { ref: uc-weu, caption: Unity Catalog · 18 catalogs, in: platform, links: [governance.yaml] }
+  uc-weu: { ref: uc-weu, caption: Unity Catalog · 18 catalogs, icon: library-big, in: platform, links: [governance.yaml] }
+  workspaces: { kind: server, label: Workspaces, caption: dbw-lakehouse-dev · test · prod, in: platform, links: [deployment.yaml] }
+  github: { kind: service, label: GitHub Actions, caption: Declarative Automation Bundles, icon: rocket, in: platform, links: [environments.yaml] }
+
+  entra-id: { ref: entra-id, caption: Users and groups }
+  groups: { kind: users, label: Account groups, caption: Automatic identity management, icon: user-cog, links: [governance.yaml] }
   domains: { kind: users, label: Domain teams, caption: A catalog per environment each, links: [mesh.yaml] }
 
   power-bi: { ref: power-bi, in: readers }
@@ -33,8 +36,10 @@ nodes:
   contoso-retail: { ref: contoso-retail, caption: Retail partner, in: readers }
 
 edges:
-  - sources -> lakehouse: { label: CDC · Kafka · API, style: data }
+  - sources -> lakehouse: { label: CDC · Kafka · API · files, style: data }
   - github -> workspaces: Deploys
   - workspaces -> uc-weu: Attached
   - lakehouse -> uc-weu: { label: bronze to gold, style: data }
-  - domains -> uc-weu: Own
+  - domains -> uc-weu: Publish from
+  - entra-id -> groups: Synced
+  - groups -> uc-weu: Granted
