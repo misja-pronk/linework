@@ -83,6 +83,8 @@ export function alignPorts(p: Placement, graph: Graph, sizes: Map<string, NodeSi
 /** A loner moves only for a line this long across, and this share of the drawing's extent across. */
 const LONER_MIN = 240;
 const LONER_SHARE = 0.3;
+/** A line keeps this far from the corners of the card it leaves or enters. */
+const CORNER = 12;
 
 export function alignLoners(p: Placement, graph: Graph, gap: number): Placement {
   const down = graph.direction === 'down';
@@ -121,10 +123,16 @@ export function alignLoners(p: Placement, graph: Graph, gap: number): Placement 
     const block = boxOf(top);
     if (!far || !near || !block) continue;
     const by = Math.round((far[at] + far[size] / 2 - (near[at] + near[size] / 2)) / 8) * 8;
-    // Only a line that runs a good part of the drawing's width (height, top-down) across: a short
-    // step aside is the router's to draw.
-    if (Math.abs(by) < Math.max(LONER_MIN, LONER_SHARE * extent)) continue;
     const clear = (b: Box) => [...nodes, ...groups].every(([id, o]) => inside.has(id) || b.x >= o.x + o.width + GAP || o.x >= b.x + b.width + GAP || b.y >= o.y + o.height + GAP || o.y >= b.y + b.height + GAP);
+    // Only a line that runs a good part of the drawing's width (height, top-down) across: a short
+    // step aside is the router's to draw. Unless a group of its own (an office with its router) and
+    // the card it joins, nested deeper, overlap too little for a straight line: then it would jog
+    // right at one of them. In line, where that is free and the drawing grows no larger across, it runs straight.
+    if (Math.abs(by) < Math.max(LONER_MIN, LONER_SHARE * extent)) {
+      const overlap = Math.min(near[at] + near[size], far[at] + far[size]) - Math.max(near[at], far[at]);
+      const moved = { ...block, [at]: block[at] + by };
+      if (!by || !groups.has(top) || overlap >= 2 * CORNER || !clear(moved) || moved[at] < Math.min(...everything.map((b) => b[at])) || moved[at] + moved[size] > Math.max(...everything.map((b) => b[at] + b[size]))) continue;
+    }
     let shift = { [at]: by, [along]: 0 } as Record<'x' | 'y', number>;
     if (!clear({ ...block, [at]: block[at] + by })) {
       // No room in line where it stands: past the end of the drawing (what the lines run into), or
