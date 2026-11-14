@@ -1,6 +1,6 @@
 One domain through its environments
 
-Roles, groups and access packages diagram: orders-team owns dev, reads test, reads and MANAGEs prod; only the service principals write. 8 elements, with 8 connections.
+Roles, groups and access packages diagram: Northwind lakehouse · orders-team owns dev and reads test and prod; there the service principal owns and writes. 8 elements, with 8 connections.
 
 Elements
 - orders-team (Account group)
@@ -8,16 +8,16 @@ Elements
 - orders_dev (Bound to dbw-lakehouse-dev)
 - orders_test (Bound to dbw-lakehouse-test)
 - orders_prod (Bound to dbw-lakehouse-prod)
-- sp-lakehouse-dev (Runs the jobs in dev)
-- sp-lakehouse-test (Runs the jobs in test)
-- sp-lakehouse-prod (Runs the jobs in prod)
+- sp-lakehouse-dev (Deploys and runs dev)
+- sp-lakehouse-test (Deploys and runs test)
+- sp-lakehouse-prod (Deploys and runs prod)
 
 Connections
-- orders-team is a member of engineers, is Owner on orders_dev, is Read on orders_test and is MANAGE on orders_prod.
+- orders-team is a member of engineers, is Owner on orders_dev, is Read catalog on orders_test and is Read catalog on orders_prod.
 - engineers is BROWSE on orders_prod.
-- sp-lakehouse-dev is Write on orders_dev.
-- sp-lakehouse-test is Write on orders_test.
-- sp-lakehouse-prod is Write on orders_prod.
+- sp-lakehouse-dev is Pipeline on orders_dev.
+- sp-lakehouse-test is Owner on orders_test.
+- sp-lakehouse-prod is Owner on orders_prod.
 
 Layers
 Ways to look at this drawing by tag.

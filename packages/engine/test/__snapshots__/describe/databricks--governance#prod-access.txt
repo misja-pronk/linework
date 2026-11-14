@@ -1,17 +1,16 @@
 Who × where in production
 
-Roles, groups and access packages diagram: Data only; every engineer may also BROWSE the six catalogs (names and comments, no rows). A table of 8 rows by 10 columns.
+Roles, groups and access packages diagram: Northwind lakehouse · each team reads its own catalog, sp-lakehouse-prod owns all six; no one holds MANAGE. A table of 7 rows by 6 columns.
 
 By row (Who by where)
-Columns: orders_prod, orders_prod.gold, webshop_prod, finance_prod, finance_prod.gold, sales_prod, sales_prod.gold, customers_prod, customers_prod.gold and supply_prod.
-- orders-team (Account group): orders_prod: MANAGE; orders_prod.gold: MANAGE, inherited (from orders_prod)
-- webshop-team (Account group): webshop_prod: MANAGE
-- finance-team (Account group): finance_prod: MANAGE; finance_prod.gold: MANAGE, inherited (from finance_prod)
-- sales-team (Account group): sales_prod: MANAGE; sales_prod.gold: MANAGE, inherited (from sales_prod)
-- customers-team (Account group): customers_prod: MANAGE; customers_prod.gold: MANAGE, inherited (from customers_prod)
-- supply-team (Account group): supply_prod: MANAGE
-- analysts (Power BI and Genie): orders_prod.gold: Read; finance_prod.gold: Read; sales_prod.gold: Read; customers_prod.gold: Read (columns tagged pii masked)
-- sp-lakehouse-prod (Runs the jobs in prod): orders_prod: Write; orders_prod.gold: Write, inherited (from orders_prod); webshop_prod: Write; finance_prod: Write; finance_prod.gold: Write, inherited (from finance_prod); sales_prod: Write; sales_prod.gold: Write, inherited (from sales_prod); customers_prod: Write; customers_prod.gold: Write, inherited (from customers_prod); supply_prod: Write
+Columns: orders_prod, webshop_prod, finance_prod, sales_prod, customers_prod and supply_prod.
+- orders-team (Account group): orders_prod: Read catalog
+- webshop-team (Account group): webshop_prod: Read catalog
+- finance-team (Account group): finance_prod: Read catalog
+- sales-team (Account group): sales_prod: Read catalog
+- customers-team (Account group): customers_prod: Read catalog
+- supply-team (Account group): supply_prod: Read catalog
+- sp-lakehouse-prod (Deploys and runs prod): orders_prod: Owner; webshop_prod: Owner; finance_prod: Owner; sales_prod: Owner; customers_prod: Owner; supply_prod: Owner
 
 Layers
 Ways to look at this drawing by tag.
@@ -21,4 +20,3 @@ Ways to look at this drawing by tag.
 
 Key
 - Indigo filled pill: Assigned directly
-- Indigo outlined pill: From a parent scope

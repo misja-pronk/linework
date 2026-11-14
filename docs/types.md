@@ -290,7 +290,7 @@ views:
     show: roles
 ```
 
-Name a view other than `graph`, `access`, `packages` or `roles`: asked for by that name, the type's own drawing of the whole is drawn. [examples/databricks/governance.yaml](../examples/databricks/governance.yaml) has eight views of one lakehouse.
+Name a view other than `graph`, `access`, `packages` or `roles`: asked for by that name, the type's own drawing of the whole is drawn. [examples/databricks/governance.yaml](../examples/databricks/governance.yaml) has eleven views of one lakehouse.
 
 Not for: where the resources run (use `azure`), GitHub teams and repository permissions (use `github`).
 
