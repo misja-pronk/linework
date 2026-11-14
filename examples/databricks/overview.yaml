@@ -1,10 +1,11 @@
 # The Northwind lakehouse on one slide, and the way into the other five drawings (in the editor ⌘-click, Ctrl-click
 # elsewhere, follows a card's link; double-click renames the card):
-#   sources, lakehouse      → medallion.yaml     how a record goes from source to gold and on to its readers
-#   uc-weu, account groups  → governance.yaml    account groups from Entra, grants per domain and environment
-#   domain teams            → mesh.yaml          the domains, their data products and contracts
-#   workspaces              → deployment.yaml    the network: Private Link, the hub firewall, the NCCs
-#   GitHub Actions          → environments.yaml  one bundle through dev, test and production
+#   sources, lakehouse  → medallion.yaml#journey     one order from the ERP through bronze, silver and gold
+#   uc-weu              → governance.yaml#orders     one domain's catalogs through dev, test and prod, and who owns them
+#   account groups      → governance.yaml#production who reads production, from the groups synced from Entra
+#   domain teams        → mesh.yaml#products         the domains, their data products and contracts
+#   workspaces          → deployment.yaml#hub        the network: Private Link, the hub firewall, the gateway
+#   GitHub Actions      → environments.yaml          one bundle through dev, test and production
 type: systems
 title: Northwind lakehouse
 subtitle: Northwind lakehouse · Azure Databricks in West Europe, a catalog per domain and environment, one metastore
@@ -20,15 +21,15 @@ groups:
   readers: { kind: boundary, label: Who uses the data, caption: Production }
 
 nodes:
-  sources: { kind: external, label: Sources, caption: ERP · web shop · Salesforce · SFTP, icon: database, links: [medallion.yaml] }
-  lakehouse: { ref: lakehouse, caption: Lakeflow · jobs · serving · app, in: platform, links: [medallion.yaml] }
-  uc-weu: { ref: uc-weu, caption: Unity Catalog metastore, icon: library-big, in: platform, links: [governance.yaml] }
-  workspaces: { kind: server, label: Workspaces, caption: dbw-lakehouse-dev · test · prod, in: platform, links: [deployment.yaml] }
+  sources: { kind: external, label: Sources, caption: ERP · web shop · Salesforce · SFTP, icon: database, links: ['medallion.yaml#journey'] }
+  lakehouse: { ref: lakehouse, caption: Lakeflow · jobs · serving · app, in: platform, links: ['medallion.yaml#journey'] }
+  uc-weu: { ref: uc-weu, caption: Unity Catalog metastore, icon: library-big, in: platform, links: ['governance.yaml#orders'] }
+  workspaces: { kind: server, label: Workspaces, caption: dbw-lakehouse-dev · test · prod, in: platform, links: ['deployment.yaml#hub'] }
   github: { kind: service, label: GitHub Actions, caption: Declarative Automation Bundles, icon: rocket, links: [environments.yaml] }
 
   entra-id: { ref: entra-id, caption: Users and groups }
-  groups: { kind: users, label: Account groups, caption: Automatic identity management, icon: user-cog, links: [governance.yaml] }
-  domains: { kind: users, label: Domain teams, caption: A catalog per environment each, links: [mesh.yaml] }
+  groups: { kind: users, label: Account groups, caption: Automatic identity management, icon: user-cog, links: ['governance.yaml#production'] }
+  domains: { kind: users, label: Domain teams, caption: A catalog per environment each, links: ['mesh.yaml#products'] }
 
   power-bi: { ref: power-bi, in: readers }
   sales-reps: { ref: sales-reps, caption: Look up customers, in: readers }
