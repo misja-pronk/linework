@@ -88,6 +88,7 @@ const LABEL_AIR = 6; // a label keeps this far from every other line: nearer, it
 const LABEL_NEAR = 16; // and keeps this far when it can
 const CROWD = 2; // per pixel nearer than that, per line
 const STRUCK = 56; // a label wider than this on a vertical line reads as crossed out: beside the line is better
+const BEYOND = 1; // per pixel a label reaches past everything else (placeLabels)
 const STRUCK_COST = 50; // so much worse a pill like that is than one beside the line (that costs 30 more than one on it)
 const PART = 48; // siblings part at least this far from the end they do not share
 const SHARE = 0.5; // per pixel of running on a sibling's line: cheaper than a lane of its own
@@ -1556,8 +1557,12 @@ function placeLabels(input: RouterInput, routes: Map<string, PlacedEdge>): numbe
     let crossed: Set<string> | undefined;
     for (const l of lines) if (!own.has(l.edge) && overlap(r, l.box)) (crossed ??= new Set()).add(l.edge);
     n += crossed?.size ?? 0;
-    return n ? 1000 + 40 * n : crowd(r);
+    return n ? 1000 + 40 * n : crowd(r) + beyond(r);
   };
+  // Past the edge of everything else, a label makes the drawing larger (and its text smaller on a slide): per pixel.
+  const all = [...input.obstacles.values(), ...input.soft, ...[...routes.values()].flatMap((r) => r.points.map((q) => ({ x: q.x, y: q.y, width: 0, height: 0 })))];
+  const edge = { x0: Math.min(...all.map((b) => b.x)), y0: Math.min(...all.map((b) => b.y)), x1: Math.max(...all.map((b) => b.x + b.width)), y1: Math.max(...all.map((b) => b.y + b.height)) };
+  const beyond = (r: Box) => BEYOND * (Math.max(0, edge.x0 - r.x) + Math.max(0, r.x + r.width - edge.x1) + Math.max(0, edge.y0 - r.y) + Math.max(0, r.y + r.height - edge.y1));
   // Clear of other lines but near one, a label could be read as that one's: the nearer, the worse.
   const crowd = (r: Box) => {
     const near = new Map<string, number>();
