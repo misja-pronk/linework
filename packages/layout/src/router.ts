@@ -189,6 +189,12 @@ function crossedPorts(input: RouterInput, routes: Map<string, PlacedEdge>, sides
   return out;
 }
 
+function bounds(p: Point[]): { x0: number; y0: number; x1: number; y1: number } {
+  let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const v of p) [x0, y0, x1, y1] = [Math.min(x0, v.x), Math.min(y0, v.y), Math.max(x1, v.x), Math.max(y1, v.y)];
+  return { x0, y0, x1, y1 };
+}
+
 function crossEach(p: Point[], q: Point[]): boolean {
   for (let i = 1; i < p.length; i++) for (let j = 1; j < q.length; j++) if (properCross(p[i - 1]!, p[i]!, q[j - 1]!, q[j]!)) return true;
   return false;
@@ -367,7 +373,15 @@ function slideEnds(input: RouterInput, routes: Map<string, PlacedEdge>, sides: M
  * line at a time, and the first one takes the lane nearest its port.
  */
 function untangleEnds(input: RouterInput, routes: Map<string, PlacedEdge>, sides: Map<string, [Side, Side]>, trunk: Map<string, string>, free: Set<string>) {
-  const list = input.edges.filter((e) => free.has(e.id) && !trunk.has(e.id) && e.from.node !== e.to.node && routes.has(e.id));
+  // Only lines with a lane before their last stretch (four points or more) can trade one.
+  const list = input.edges.filter((e) => free.has(e.id) && !trunk.has(e.id) && e.from.node !== e.to.node && (routes.get(e.id)?.points.length ?? 0) >= 4);
+  if (list.length < 2) return;
+  // Each line's bounding box: lines whose boxes do not meet cannot cross.
+  const boxes = new Map([...routes].map(([id, r]) => [id, bounds(r.points)]));
+  const meet = (p: string, q: string) => {
+    const [a, b] = [boxes.get(p)!, boxes.get(q)!];
+    return a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1;
+  };
   const walls = [...input.obstacles];
   const hits = (pts: Point[], own: string[]) => {
     for (let i = 1; i < pts.length; i++) {
@@ -388,12 +402,12 @@ function untangleEnds(input: RouterInput, routes: Map<string, PlacedEdge>, sides
   };
   const crossingsOf = (ids: string[]) => {
     let n = 0;
-    for (const id of ids) for (const [other, r] of routes) if (other !== id && (!ids.includes(other) || other > id) && crossEach(routes.get(id)!.points, r.points)) n++;
+    for (const id of ids) for (const [other, r] of routes) if (other !== id && (!ids.includes(other) || other > id) && meet(id, other) && crossEach(routes.get(id)!.points, r.points)) n++;
     return n;
   };
   for (const [i, a] of list.entries())
     // (Only pairs that cross at all: most do not.)
-    for (const b of list.slice(i + 1).filter((o) => crossEach(routes.get(a.id)!.points, routes.get(o.id)!.points)))
+    for (const b of list.slice(i + 1).filter((o) => meet(a.id, o.id) && crossEach(routes.get(a.id)!.points, routes.get(o.id)!.points)))
       for (const ka of ['from', 'to'] as const)
         for (const kb of ['from', 'to'] as const) {
           // Into (or out of) one side of one card; or sides facing the same way, where only the lanes can change.
@@ -434,10 +448,12 @@ function untangleEnds(input: RouterInput, routes: Map<string, PlacedEdge>, sides
             if (!na || !nb || hits(na, [a.from.node, a.to.node]) || hits(nb, [b.from.node, b.to.node]) || borders(na) + borders(nb) > borders(pa) + borders(pb)) continue;
             const tried: [PlacedEdge, PlacedEdge] = [{ points: simplify(ka === 'to' ? na : na.reverse()) }, { points: simplify(kb === 'to' ? nb : nb.reverse()) }];
             routes.set(a.id, tried[0]).set(b.id, tried[1]);
+            boxes.set(a.id, bounds(tried[0].points)).set(b.id, bounds(tried[1].points));
             const n = crossingsOf([a.id, b.id]);
             if (n < best) [best, kept] = [n, tried];
           }
           routes.set(a.id, kept[0]).set(b.id, kept[1]);
+          boxes.set(a.id, bounds(kept[0].points)).set(b.id, bounds(kept[1].points));
         }
 }
 
@@ -556,9 +572,11 @@ function chooseSides(input: RouterInput, strange: (e: RouteRequest) => ZoneCost 
     sidesAt(e, end, side).some(({ key, box }) => {
       const taken = ports.get(key);
       if (taken?.has(portOf(e, end))) return false;
-      const span = clearSpan(box, side, input.texts ?? [], 1);
       // A group's own side: only where a line lands clear of what the group holds (none such: no room at all).
-      const [lo, hi] = key === `${e[end].node}:${side}` ? (landing(e[end], side, span, 1) ?? [0, -1]) : span;
+      if (!taken && !e[end].inner) return false;
+      const own = !!e[end].inner && box === e[end].box;
+      const span = clearSpan(box, side, input.texts ?? [], 1);
+      const [lo, hi] = own ? (landing(e[end], side, span, 1) ?? [0, -1]) : span;
       if (hi < lo) return true;
       if (!taken) return false;
       let need = room.get(portOf(e, end))! - PORT;
