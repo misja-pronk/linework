@@ -1,0 +1,49 @@
+type: process
+title: Dev, test and production
+subtitle: Northwind lakehouse · one bundle goes from Git through dev and test, and a person opens the gate to production
+
+# How the lakehouse resource of model.yaml (pipelines, jobs, warehouse, serving, app) reaches each workspace,
+# told as examples/process/release-to-production.yaml tells the Orders API. One Declarative Automation Bundle
+# (databricks.yml) has the targets dev, test and prod; GitHub Actions deploys it with the Databricks CLI.
+#   identity   a service principal per environment, sp-lakehouse-<env>, signing in with OIDC: no secret in GitHub
+#   data       each target writes only its own catalogs, <domain>_<env>, bound to dbw-lakehouse-<env> alone
+#   gate       the GitHub environment prod has required reviewers
+lanes:
+  github: GitHub
+  reviewer: Reviewer
+  dev: { label: Development, description: dbw-lakehouse-dev }
+  test: { label: Test, description: dbw-lakehouse-test }
+  prod: { label: Production, description: dbw-lakehouse-prod }
+
+nodes:
+  Pull request: { in: github, kind: start, caption: a change to the bundle }
+  Validate bundle: { in: github, kind: script, caption: bundle validate · unit tests }
+  Deploy to dev: { in: dev, kind: service, caption: as sp-lakehouse-dev }
+  Merged to main: { in: github, kind: user, caption: after review }
+  Deploy to test: { in: test, kind: service, caption: as sp-lakehouse-test }
+  Run the pipelines: { in: test, kind: script, caption: on test data }
+  # The production environment has required reviewers: the run waits until one of them approves.
+  Release approved?: reviewer
+  Deploy to production: { in: prod, kind: service, caption: as sp-lakehouse-prod }
+  Live in production: { in: prod, kind: end }
+  Release stopped: { in: reviewer, kind: end }
+
+flow:
+  - Pull request -> Validate bundle -> Deploy to dev -> Merged to main -> Deploy to test -> Run the pipelines -> Release approved? -yes-> Deploy to production -> Live in production
+  - Release approved? -no-> Release stopped
+
+steps:
+  - title: One bundle, three workspaces
+    caption: The same bundle goes to dbw-lakehouse-dev, -test and -prod; each catalog is bound to one of them only.
+  - title: Every pull request
+    caption: Actions validates the bundle and deploys it to dev as sp-lakehouse-dev, which can write the _dev catalogs only.
+    path: Pull request -> Validate bundle -> Deploy to dev
+  - title: Test
+    caption: After the merge the bundle goes to test, and the pipelines run end to end on the _test catalogs.
+    path: Merged to main -> Deploy to test -> Run the pipelines
+  - title: The gate
+    caption: The prod environment in GitHub has required reviewers. The run waits until one of them approves.
+    path: Run the pipelines -> Release approved?
+  - title: Production
+    caption: sp-lakehouse-prod deploys the same bundle; only it has MODIFY on the _prod catalogs, people read.
+    path: Release approved? -> Deploy to production -> Live in production

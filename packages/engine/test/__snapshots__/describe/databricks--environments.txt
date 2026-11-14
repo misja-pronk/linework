@@ -1,0 +1,52 @@
+Dev, test and production
+
+Process diagram: Northwind lakehouse · one bundle goes from Git through dev and test, and a person opens the gate to production. 10 elements in 5 lanes, with 9 connections.
+
+Lanes and steps
+- GitHub (lane)
+  - Pull request (start event, a change to the bundle)
+  - Validate bundle (bundle validate · unit tests)
+  - Merged to main (after review)
+- Reviewer (lane)
+  - Release approved? (decision)
+  - Release stopped (end event)
+- Development (lane): dbw-lakehouse-dev
+  - Deploy to dev (as sp-lakehouse-dev)
+- Test (lane): dbw-lakehouse-test
+  - Deploy to test (as sp-lakehouse-test)
+  - Run the pipelines (on test data)
+- Production (lane): dbw-lakehouse-prod
+  - Deploy to production (as sp-lakehouse-prod)
+  - Live in production (end event)
+
+Main path
+1. Pull request
+2. Validate bundle
+3. Deploy to dev
+4. Merged to main
+5. Deploy to test
+6. Run the pipelines
+7. Release approved?
+8. Deploy to production (Release approved?: yes)
+9. Live in production
+
+Connections
+- Pull request leads to Validate bundle.
+- Validate bundle leads to Deploy to dev.
+- Deploy to dev leads to Merged to main.
+- Merged to main leads to Deploy to test.
+- Deploy to test leads to Run the pipelines.
+- Run the pipelines leads to Release approved?
+- Release approved? leads to Deploy to production (yes) and leads to Release stopped (no).
+- Deploy to production leads to Live in production.
+
+Walkthrough
+1. One bundle, three workspaces: The same bundle goes to dbw-lakehouse-dev, -test and -prod; each catalog is bound to one of them only.
+2. Every pull request: Actions validates the bundle and deploys it to dev as sp-lakehouse-dev, which can write the _dev catalogs only.
+3. Test: After the merge the bundle goes to test, and the pipelines run end to end on the _test catalogs.
+4. The gate: The prod environment in GitHub has required reviewers. The run waits until one of them approves.
+5. Production: sp-lakehouse-prod deploys the same bundle; only it has MODIFY on the _prod catalogs, people read.
+
+Key
+- Solid line, thick: Happy path
+- Solid line: Other paths
