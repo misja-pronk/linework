@@ -94,6 +94,22 @@ describe('what is drawn', () => {
     expect(said(down.svg!).some((l) => l!.startsWith('The night shift'))).toBe(true);
   });
 
+  it("wraps a lane's name at spaces and after hyphens, the lane tall enough for it", async () => {
+    const text = 'type: process\nlanes:\n  dev: dbw-lakehouse-dev\n  prod: Production workspace dbw-lakehouse-prod\nflow:\n  - Deploy -> Smoke test\nnodes:\n  Deploy: dev\n  Smoke test: prod\n';
+    const r = await render(text, { fonts: 'none' });
+    expect(r.diagnostics).toEqual([]);
+    const lines = [...r.svg!.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]!);
+    // Whole, on lines of their own: the hyphen ends a line, nothing is cut with an ellipsis.
+    expect(lines.slice(0, 2)).toEqual(['DBW-LAKEHOUSE-', 'DEV']);
+    expect(lines.slice(2, 5)).toEqual(['PRODUCTION', 'WORKSPACE DBW-', 'LAKEHOUSE-PROD']);
+    expect(lines.some((l) => l.includes('…'))).toBe(false);
+    // Each line fits the header, in the same size as any lane's name.
+    const size = [...r.svg!.matchAll(/<text[^>]*font-size="([\d.]+)"[^>]*>DBW-LAKEHOUSE-<\/text>/g)].map((m) => +m[1]!);
+    expect(Math.min(...size)).toBeGreaterThanOrEqual(10);
+    const prod = r.placed!.groups.get('prod')!;
+    expect(prod.height).toBeGreaterThanOrEqual(3 * 16 + 16);
+  });
+
   it('labels the ways out of a decision and draws a message dashed', async () => {
     const { edge } = await draw(leave);
     expect(edge('Enough days?', 'Approve')).toMatchObject({ label: 'yes', line: 'solid' });
