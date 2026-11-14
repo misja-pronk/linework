@@ -155,7 +155,10 @@ export interface RenderOptions extends SvgOptions {
   previous?: LayoutMemory | null;
   /** Reads files the diagram refers to, relative to the diagram (contracts, includes). Leave out where there are no files. */
   load?: (file: string) => string;
-  /** One of the diagram's `views:`; without it the diagram as written (or its first view when it only has views). */
+  /**
+   * One of the diagram's `views:`; without it the diagram as written (or its first view when it only has
+   * views, or says `present: views`). '' is the diagram as written even then: a canvas's whole drawing.
+   */
   view?: string;
   /** Draw the diagram at this step (1-based) of its `steps:`; without it, the whole diagram at full strength. */
   step?: number;
@@ -225,6 +228,12 @@ export interface RenderResult {
   viewTitles?: (lang: Lang) => Record<string, string>;
   /** The diagram has nothing drawn as written, only views: without a view it draws its first. */
   onlyViews?: boolean;
+  /**
+   * The diagram says `present: views`: as written it is a working canvas, not a slide. Without a view
+   * its first view is drawn; its views are what decks, PDFs, checks and descriptions take, and the
+   * whole is drawn only when asked for with view ''.
+   */
+  canvas?: boolean;
   /**
    * This drawing is read scrolling, not shown on one slide (a long sequence as a whole): it is
    * presented by the type's other views (its phases), so the slide check is theirs.
@@ -359,6 +368,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   let origin: ((path: Path) => { at: Path; file: string } | undefined) | undefined;
   let includes: string[] | undefined;
   let onlyViews = false;
+  let canvas = false;
   // A type that draws its source in several ways (a journey as map or storyboard) takes the view asked for itself.
   // The titles the type gives its views, in the drawing's language (a view's title is its subtitle); the
   // editor names them in its own language through viewTitles.
@@ -376,11 +386,13 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     model = { ...composed.catalogue };
     const names = [...model.views.keys()];
     onlyViews = names.length > 0 && !Object.entries(built).some(([k, v]) => !META.has(k) && v && typeof v === 'object' && Object.keys(v).length);
+    canvas = model.present === 'views' && names.length > 0 && !onlyViews;
+    if (model.present === 'views' && !names.length) report(['present'], 'present: views needs views: to present; without them the drawing as written is the slide', 'warning');
     if (opts.view) {
       model.view = model.views.get(opts.view);
       if (!model.view) report([], `There is no view "${opts.view}"${names.length ? `; views: ${names.join(', ')}` : ''}`);
-    } else if (onlyViews)
-      // Only views, nothing drawn as written: the first view is the diagram.
+    } else if (onlyViews || (canvas && opts.view === undefined && !ownView))
+      // Only views, nothing drawn as written (or the whole is a canvas): the first view is the diagram.
       model.view = model.views.get(names[0]!);
   } else if (opts.view) report([], `There is no view "${opts.view}": ${ownViews?.length ? `views: ${ownViews.map((v) => v.name).join(', ')}` : 'this diagram has no views'}`);
   if (ownView) built = { ...built, view: ownView };
@@ -512,6 +524,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const asPart = typeof drawnView === 'string' && !!allViews?.find((v) => v.name === drawnView)?.part;
   const told = model?.view ? model.view.present : asTable || asPart ? undefined : (stepsRef as unknown[] | undefined);
   if (stepsRef !== undefined && onlyViews) report(['steps'], 'These steps are for the diagram as written, and this file only has views: put steps inside a view', 'warning');
+  if (stepsRef !== undefined && canvas) report(['steps'], 'These steps are for the drawing as written, which present: views keeps off the slides: put steps inside a view', 'warning');
   if (focusRef !== undefined && onlyViews) report(['focus'], 'This focus is for the diagram as written, and this file only has views: put focus inside a view', 'warning');
   // Without written steps a sequence diagram is told message by message, a dynamic view line by line.
   const steps = told ? resolveSteps(told, lens.info?.active.length && lens.info.mode === 'only' ? { ...whole, legend: graph.legend } : graph, model?.view ? ['views', model.view.name, 'steps'] : ['steps'], report) : impliedSteps(graph);
@@ -560,6 +573,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(views ? { views } : {}),
     ...(model?.view ? { view: model.view.name } : ownView ? { view: ownView } : {}),
     ...(onlyViews ? { onlyViews } : {}),
+    ...(canvas ? { canvas } : {}),
     ...(!model?.view && writtenView ? { asWritten: { name: writtenView.name, ...(writtenView.title ? { title: writtenView.title } : {}) } } : {}),
     ...(titled.size ? { viewTitles } : {}),
     ...(!model?.view && ownViews?.find((v) => v.name === (ownView ?? written))?.scroll ? { scroll: true } : {}),

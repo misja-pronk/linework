@@ -1,18 +1,23 @@
-# Production on Azure, the way the network sees it (dev and test are the same, with their own names and ranges):
-#   spoke   vnet-lakehouse-prod: snet-dbw-host and snet-dbw-container (clusters, SCC), snet-pep (back-end, dfs)
-#   hub     vnet-hub-weu: afw-hub, the front-end and browser_authentication endpoints, the privatelink DNS zones
-#   planes  Databricks' control plane (the workspaces) and serverless plane (the NCC)
-# One domain's storage is drawn; every st<domain>prod has its own pep-st<domain>prod-dfs and an NCC endpoint.
-# The workspace resource sits in rg-lakehouse-prod; its web app and API are drawn in the control plane they run in.
+# Dev, test and production on Azure, the way the network sees it: one file, a view (a slide) per environment.
+#   spokes  vnet-lakehouse-<env>: snet-dbw-host and snet-dbw-container (clusters, SCC), snet-pep (back-end, dfs)
+#   hub     vnet-hub-weu: afw-hub, each workspace's front-end endpoint, the region's browser_authentication one
+#   planes  Databricks' control plane (the workspaces) and serverless plane (the NCCs)
+# What has env: is in that environment only (a spoke takes what sits in it along); the rest is shared.
+# present: views makes the drawing as written a working canvas with all three side by side: the slides, the
+# checks and the exports are the views. One domain's storage is drawn; every st<domain><env> has its own
+# pep-st<domain><env>-dfs and an NCC endpoint. Ranges and names come from model.yaml.
 type: azure
 title: Secure deployment
-subtitle: Northwind lakehouse · production · no public access, every hop over Private Link or through the hub firewall
+subtitle: Northwind lakehouse · no public access, every hop over Private Link or through the hub firewall
 direction: right
 include: [model.yaml]
+present: views
 
 groups:
   serverless: { kind: serverless-plane, label: Serverless compute plane, caption: Run by Databricks }
-  vnet-lakehouse-prod: { ref: vnet-lakehouse-prod, caption: 10.1.16.0/21 · sub-lakehouse-prod }
+  vnet-lakehouse-prod: { ref: vnet-lakehouse-prod, caption: 10.1.16.0/21 · sub-lakehouse-prod, env: prod }
+  vnet-lakehouse-test: { ref: vnet-lakehouse-test, caption: 10.1.12.0/22 · sub-lakehouse-test, env: test }
+  vnet-lakehouse-dev: { ref: vnet-lakehouse-dev, caption: 10.1.8.0/22 · sub-lakehouse-dev, env: dev }
   vnet-hub-weu: { ref: vnet-hub-weu, caption: 10.0.0.0/22 · sub-connectivity }
   office: { kind: on-premises, label: Northwind offices, caption: ExpressRoute }
   control: { kind: control-plane, label: Databricks control plane, caption: West Europe }
@@ -21,43 +26,82 @@ nodes:
   browser: { kind: user, label: Data engineer, caption: Browser, in: office }
 
   afw-hub: { ref: afw-hub, caption: Premium · 10.0.0.68 · SNAT out, in: vnet-hub-weu }
-  pep-dbw-lakehouse-prod-ui: { ref: pep-dbw-lakehouse-prod-ui, caption: front-end · snet-pep, in: vnet-hub-weu }
+  pep-dbw-lakehouse-prod-ui: { ref: pep-dbw-lakehouse-prod-ui, caption: front-end · snet-pep, in: vnet-hub-weu, env: prod }
+  pep-dbw-lakehouse-test-ui: { ref: pep-dbw-lakehouse-test-ui, caption: front-end · snet-pep, in: vnet-hub-weu, env: test }
+  pep-dbw-lakehouse-dev-ui: { ref: pep-dbw-lakehouse-dev-ui, caption: front-end · snet-pep, in: vnet-hub-weu, env: dev }
   pep-dbw-webauth-weu: { ref: pep-dbw-webauth-weu, caption: browser_authentication, in: vnet-hub-weu }
+  dbw-webauth-weu: { ref: dbw-webauth-weu, caption: Browser sign-in only, in: control }
 
-  clusters: { kind: compute, label: Cluster VMs, caption: SCC · no public IP, in: vnet-lakehouse-prod }
+  # Production
+  clusters-prod: { kind: compute, label: Cluster VMs, caption: SCC · no public IP, in: vnet-lakehouse-prod }
   pep-dbw-lakehouse-prod: { ref: pep-dbw-lakehouse-prod, caption: back-end · snet-pep, in: vnet-lakehouse-prod }
   pep-stordersprod-dfs: { ref: pep-stordersprod-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-prod }
-  stordersprod: { ref: stordersprod, caption: ADLS Gen2 · one per domain }
+  stordersprod: { ref: stordersprod, caption: ADLS Gen2 · one per domain, env: prod }
+  dbw-lakehouse-prod: { ref: dbw-lakehouse-prod, caption: Web app · REST API · SCC relay, in: control, env: prod }
+  ncc-lakehouse-prod: { ref: ncc-lakehouse-prod, caption: Private endpoint rules, in: serverless, env: prod }
 
-  dbw-lakehouse-prod: { ref: dbw-lakehouse-prod, caption: Web app · REST API · SCC relay, in: control }
-  dbw-webauth-weu: { ref: dbw-webauth-weu, caption: Browser sign-in only, in: control }
-  ncc-lakehouse-prod: { ref: ncc-lakehouse-prod, caption: Private endpoint rules, in: serverless }
+  # Test
+  clusters-test: { kind: compute, label: Cluster VMs, caption: SCC · no public IP, in: vnet-lakehouse-test }
+  pep-dbw-lakehouse-test: { ref: pep-dbw-lakehouse-test, caption: back-end · snet-pep, in: vnet-lakehouse-test }
+  pep-storderstest-dfs: { ref: pep-storderstest-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-test }
+  storderstest: { ref: storderstest, caption: ADLS Gen2 · one per domain, env: test }
+  dbw-lakehouse-test: { ref: dbw-lakehouse-test, caption: Web app · REST API, in: control, env: test }
+  ncc-lakehouse-test: { ref: ncc-lakehouse-test, caption: Private endpoint rules, in: serverless, env: test }
+
+  # Development
+  clusters-dev: { kind: compute, label: Cluster VMs, caption: SCC · no public IP, in: vnet-lakehouse-dev }
+  pep-dbw-lakehouse-dev: { ref: pep-dbw-lakehouse-dev, caption: back-end · snet-pep, in: vnet-lakehouse-dev }
+  pep-stordersdev-dfs: { ref: pep-stordersdev-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-dev }
+  stordersdev: { ref: stordersdev, caption: ADLS Gen2 · one per domain, env: dev }
+  dbw-lakehouse-dev: { ref: dbw-lakehouse-dev, caption: Web app · REST API, in: control, env: dev }
+  ncc-lakehouse-dev: { ref: ncc-lakehouse-dev, caption: Private endpoint rules, in: serverless, env: dev }
 
 edges:
   - browser -> pep-dbw-lakehouse-prod-ui: { label: HTTPS, style: private }
+  - browser -> pep-dbw-lakehouse-test-ui: { label: HTTPS, style: private }
+  - browser -> pep-dbw-lakehouse-dev-ui: { label: HTTPS, style: private }
   - browser -> pep-dbw-webauth-weu: { label: SSO, style: private }
-  - clusters -> pep-dbw-lakehouse-prod: { style: private }
-  - clusters -> pep-stordersprod-dfs: { style: private }
-  - clusters -> afw-hub: { label: 0.0.0.0/0, style: private }
+  - clusters-prod -> pep-dbw-lakehouse-prod: { style: private }
+  - clusters-prod -> pep-stordersprod-dfs: { style: private }
+  - clusters-prod -> afw-hub: { label: 0.0.0.0/0, style: private }
+  - clusters-test -> pep-dbw-lakehouse-test: { style: private }
+  - clusters-test -> pep-storderstest-dfs: { style: private }
+  - clusters-test -> afw-hub: { label: 0.0.0.0/0, style: private }
+  - clusters-dev -> pep-dbw-lakehouse-dev: { style: private }
+  - clusters-dev -> pep-stordersdev-dfs: { style: private }
+  - clusters-dev -> afw-hub: { label: 0.0.0.0/0, style: private }
 
-steps:
-  - title: Production
-    caption: A VNet-injected workspace with no public access; the hub holds the front-end endpoints and the firewall.
-  - title: A user's browser
-    caption: The workspace URL resolves in privatelink.azuredatabricks.net to the front-end endpoint in the hub.
-    path: browser -> pep-dbw-lakehouse-prod-ui -> dbw-lakehouse-prod
-  - title: Signing in
-    caption: After Entra ID the browser returns through the region's one browser_authentication endpoint.
-    path: browser -> pep-dbw-webauth-weu -> dbw-webauth-weu
-  - title: A cluster
-    caption: Clusters dial out to the SCC relay and the REST API through the back-end endpoint; no inbound ports.
-    path: clusters -> pep-dbw-lakehouse-prod -> dbw-lakehouse-prod
-  - title: Reading data
-    caption: Clusters reach each domain's account through its own dfs endpoint, named in privatelink.dfs.core.windows.net.
-    path: clusters -> pep-stordersprod-dfs -> stordersprod
-  - title: Serverless
-    caption: SQL warehouses and serverless jobs reach the same accounts through the NCC's private endpoints.
-    path: ncc-lakehouse-prod -> stordersprod
-  - title: Everything else
-    caption: rt-lakehouse-prod sends 0.0.0.0/0 to afw-hub, so package mirrors and the rest leave through the firewall.
-    path: clusters -> afw-hub
+views:
+  prod:
+    title: Secure deployment
+    subtitle: Northwind lakehouse · production · no public access, every hop over Private Link or through the hub firewall
+    environment: prod
+    steps:
+      - title: Production
+        caption: A VNet-injected workspace with no public access; the hub holds the front-end endpoints and the firewall.
+      - title: A user's browser
+        caption: The workspace URL resolves in privatelink.azuredatabricks.net to the front-end endpoint in the hub.
+        path: browser -> pep-dbw-lakehouse-prod-ui -> dbw-lakehouse-prod
+      - title: Signing in
+        caption: After Entra ID the browser returns through the region's one browser_authentication endpoint.
+        path: browser -> pep-dbw-webauth-weu -> dbw-webauth-weu
+      - title: A cluster
+        caption: Clusters dial out to the SCC relay and the REST API through the back-end endpoint; no inbound ports.
+        path: clusters-prod -> pep-dbw-lakehouse-prod -> dbw-lakehouse-prod
+      - title: Reading data
+        caption: Clusters reach each domain's account through its own dfs endpoint, named in privatelink.dfs.core.windows.net.
+        path: clusters-prod -> pep-stordersprod-dfs -> stordersprod
+      - title: Serverless
+        caption: SQL warehouses and serverless jobs reach the same accounts through the NCC's private endpoints.
+        path: ncc-lakehouse-prod -> stordersprod
+      - title: Everything else
+        caption: rt-lakehouse-prod sends 0.0.0.0/0 to afw-hub, so package mirrors and the rest leave through the firewall.
+        path: clusters-prod -> afw-hub
+  test:
+    title: Secure deployment
+    subtitle: Northwind lakehouse · test · built as production, in its own spoke, workspace and NCC
+    environment: test
+  dev:
+    title: Secure deployment
+    subtitle: Northwind lakehouse · development · built as production, in its own spoke, workspace and NCC
+    environment: dev

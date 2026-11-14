@@ -48,10 +48,13 @@ export async function renderFile(ctx: Ctx, job: Job, file: string, text = fs.rea
   // In a deck (pptx, pdf) the drawing as written is the first slide already: the view it is (a sequence's
   // whole, a mesh's overview) is not drawn twice, as the editor's view picker lists each drawing once.
   const deck = format === 'pptx' || format === 'pdf';
-  const again = (name: string) => deck && (name === first.view || name === first.asWritten?.name);
+  // A canvas (present: views) is drawn as its first view: that view is not drawn twice in any format.
+  const again = (name: string) => (deck || !!first.canvas) && (name === first.view || name === first.asWritten?.name);
   // A drawing read scrolling (a whole sequence) is too small for a slide: a deck presents it by its
   // other views (its phases) instead, with or without --all-views. --view whole still gives the whole.
-  const byViews = format === 'pptx' && !!first.scroll && !o.view && !o.step && !!first.views?.some((v) => !again(v.name));
+  // A canvas (present: views) is never a slide or a page: a deck or PDF of it holds its views.
+  const canvas = deck && !!first.canvas && o.view === undefined && !o.step;
+  const byViews = canvas || (format === 'pptx' && !!first.scroll && !o.view && !o.step && !!first.views?.some((v) => !again(v.name)));
   const views = (o['all-views'] || byViews) && first.views?.length ? await Promise.all(first.views.filter((v) => !again(v.name)).map((v) => render(text, { ...opts, view: v.name }))) : [];
   // A view with nothing in it is no picture: said, not written.
   for (const v of views) if (v.empty) ctx.error(`${shown}#${v.view}  ${ctx.dim(t('empty: nothing to draw, not written'))}`);
@@ -61,12 +64,13 @@ export async function renderFile(ctx: Ctx, job: Job, file: string, text = fs.rea
   for (const [i, l] of layered.entries()) if (l.empty || !l.layers?.kept) ctx.error(`${shown}@${first.layers!.list[i]!.name}  ${ctx.dim(t('nothing on this layer, not written'))}`);
   const runs = [first, ...views.filter((v) => !v.empty), ...layered.filter((l) => !l.empty && l.layers?.kept)];
   /** What a run is called in messages and file names: its view, or its layers. */
-  const named = (r: RenderResult, i: number) => (i && layered.includes(r) ? [r.view, r.layers!.active.join('+')].filter(Boolean).join('-') : i ? r.view : o.view);
+  // --all-views of a canvas: every picture is a view, the first one too (<file>--<view>.svg).
+  const named = (r: RenderResult, i: number) => (i && layered.includes(r) ? [r.view, r.layers!.active.join('+')].filter(Boolean).join('-') : i ? r.view : (o.view ?? (first.canvas && o['all-views'] ? first.view : undefined)));
   const where = (format: string, view?: string, step?: number) => outputPath(o, job.count, file, format, view, step);
   // --all-views and --all-layers in a deck: one file, the drawing as written first, then a slide (page) per view and per layer.
   if ((o['all-layers'] || o['all-views'] || byViews) && deck) {
     const fine = runs.filter((r) => r.svg && !r.diagnostics.some((d) => d.severity === 'error'));
-    const drawn = byViews && fine.some((r) => r !== first) ? fine.filter((r) => r !== first) : fine;
+    const drawn = byViews && !canvas && fine.some((r) => r !== first) ? fine.filter((r) => r !== first) : fine;
     const mark = (r: RenderResult) => (layered.includes(r) ? '@' : '#');
     for (const r of runs) ctx.report(r === first ? shown : `${shown}${mark(r)}${named(r, runs.indexOf(r))}`, r === first ? r.diagnostics : r.diagnostics.filter((d) => !first.diagnostics.some((f) => f.message === d.message)));
     if (!drawn.length) return false;
@@ -75,7 +79,8 @@ export async function renderFile(ctx: Ctx, job: Job, file: string, text = fs.rea
     const data = await document(ctx, o, format, drawn.map((r) => ({ ...r, name: path.basename(file), ...(layered.includes(r) && !o['all-steps'] ? { steps: undefined } : {}) })), first.theme, file, out);
     ctx.put(out, data);
     const layers = drawn.filter((r) => layered.includes(r)).length;
-    const said = byViews && !drawn.includes(first) ? t('{count} drawing: a view of the whole, which is read scrolling|{count} drawings: the views of the whole, which is read scrolling', { count: drawn.length })
+    const said = canvas && !o['all-layers'] ? t('{count} drawing: its view; the whole is a working canvas|{count} drawings: its views; the whole is a working canvas', { count: drawn.length })
+      : byViews && !drawn.includes(first) ? t('{count} drawing: a view of the whole, which is read scrolling|{count} drawings: the views of the whole, which is read scrolling', { count: drawn.length })
       : o['all-views'] && !o['all-layers'] ? t('{all} drawings: the whole and {count} view|{all} drawings: the whole and {count} views', { all: drawn.length, count: drawn.length - 1 }) : o['all-layers'] && !o['all-views'] ? t('{all} drawings: the whole and {count} layer|{all} drawings: the whole and {count} layers', { all: drawn.length, count: layers }) : t('{all} drawings: the whole, its views and layers', { all: drawn.length });
     ctx.log(`${shown} → ${out === '-' ? t('standard output') : out} ${ctx.dim(said)}`);
     if (o.stable) noteLayout(ctx, file, runs);

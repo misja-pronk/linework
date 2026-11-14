@@ -84,7 +84,7 @@ export function useNavigation(p: Props) {
   // ------------------------------------------------------------ views
 
   /** The views to pick from, in the picker's order: as written first where there is such a drawing. */
-  const viewList = (): (string | undefined)[] => (drawn?.views?.length ? [...(drawn.onlyViews ? [] : [undefined]), ...drawn.views.map((v) => v.name)] : []);
+  const viewList = (): (string | undefined)[] => (drawn?.views?.length ? [...(drawn.onlyViews || drawn.canvas ? [] : [undefined]), ...drawn.views.map((v) => v.name)] : []);
   /** A view by the name the picker gives it: a type's own title in the editor's language. */
   const viewTitle = (name?: string) => {
     const { views, written } = viewsOf(drawn);
@@ -103,7 +103,7 @@ export function useNavigation(p: Props) {
   /** Only views the type draws itself (no model `views:`, nothing included): as written is one of them. */
   const ownViews = !!type?.views && !!drawn?.views?.length && !drawn.onlyViews && !/^(views|include):/m.test(textNow());
   /** The view drawn: one picked, else for a type with views of its own the one in its `view:` (or its first). */
-  const viewNow = () => viewName ?? (ownViews ? (drawn!.asWritten ?? drawn!.views![0]!).name : undefined);
+  const viewNow = () => viewName ?? (ownViews ? (drawn!.asWritten ?? drawn!.views![0]!).name : drawn?.canvas ? drawn.view : undefined);
   const nextView = () => {
     const list = ownViews ? viewList().slice(1) : viewList();
     if (list.length < 2) return notify(t('This diagram has one view'));

@@ -58,14 +58,16 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
     }
     // A neighbourhood is a drawing of its own: it does not start from where things stood in the whole.
     // So is a drawing of only some layers (a faded one keeps the whole drawing's places).
+    // A canvas's whole drawing (view '') is not its first view (no view): each remembers its own.
+    const slot = view === '' ? '\0whole' : (view ?? '');
     const lens = (focus === undefined ? '' : `\n${JSON.stringify((focus as { on?: unknown } | null)?.on ?? null)}`) + (layers?.layers?.length && layers.layerMode !== 'dim' ? `\n@${layers.layers.join('+')}` : '');
     if (m.fresh !== fresh) {
       m.fresh = fresh;
-      m.views.set((view ?? '') + lens, null);
+      m.views.set(slot + lens, null);
       // Laid out afresh on purpose: no text drawn before comes back as it was drawn then.
       seen.current.clear();
     }
-    const key = (view ?? '') + lens;
+    const key = slot + lens;
     const exact = `${key}\n${step ?? ''}\n${JSON.stringify(viewPins(sidecar, view) ?? null)}\n${text}`;
     const previous = seen.current.get(exact) ?? unpinned(m.views.get(key), key, new Set(Object.keys(viewPins(sidecar, view)?.nodes ?? {})), pinned.current, before.current);
     // Nothing remembered yet (a file just opened): the note in its sidecar says where things were.
@@ -75,7 +77,7 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
         await registerThemeFonts(result.theme);
         if (n !== seq.current) return;
         if (result.placed?.memory && m.doc === docKey) {
-          for (const key of new Set([view ?? '', result.view ?? ''])) m.views.set(key + lens, result.placed.memory);
+          for (const key of new Set([slot, result.view ?? slot])) m.views.set(key + lens, result.placed.memory);
           const s = seen.current;
           s.delete(exact);
           s.set(exact, result.placed.memory);
