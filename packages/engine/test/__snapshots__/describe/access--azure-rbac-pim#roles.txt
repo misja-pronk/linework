@@ -1,6 +1,6 @@
 Azure access
 
-Roles, groups and access packages, roles × permissions: Roles × permissions. A table of 5 rows by 6 columns.
+Roles and groups, roles × permissions: Roles × permissions. A table of 5 rows by 6 columns.
 
 By row (Role by permission)
 Columns: read, create, change and delete, assign roles, restart apps and manage secrets.

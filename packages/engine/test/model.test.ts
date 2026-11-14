@@ -74,6 +74,16 @@ describe('include', () => {
     expect(r.diagnostics[0]!.message).toMatch(/^x\.yaml:2: "kind" cannot be "nope"/);
   });
 
+  it('says which included file a problem is in, so a folder says it once, there', async () => {
+    const load = files({ 'model.yaml': 'type: model\nelements:\n  api: { kind: api }\nrelations:\n  - api -> nothere\n', 'part.yaml': 'type: systems\nnodes:\n  db: database\nedges:\n  - db -> gone\n' });
+    const r = await render('type: systems\ninclude: [model.yaml, part.yaml]\nnodes:\n  api:\n  web: client\nedges:\n  - web -> nowhere\n', { load, fonts: 'none' });
+    expect(r.diagnostics.map((d) => [d.message, d.file])).toEqual([
+      ['There is no element "nothere" in the model', 'model.yaml'],
+      ['There is no node or group "nowhere"', undefined],
+      ['part.yaml: There is no node or group "gone"', 'part.yaml'],
+    ]);
+  });
+
   it('takes a file with its own language and look: the including diagram’s rule', async () => {
     const load = files({
       'part.yaml': 'type: systems\nlang: nl\ntheme: dark\naspect: 16:9\nicons: {}\nnodes:\n  db: database\n',

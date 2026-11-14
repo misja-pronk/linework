@@ -386,7 +386,13 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   if (layersRef !== undefined) invalid.push(...validate({ ...source, data: { layers: layersRef } }, layersOnly));
   if (invalid.length) return { type, diagnostics: once([...diagnostics, ...invalid]) };
 
-  const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error') => diagnostics.push(source.at(path, message, severity));
+  // A problem in an included file (an element of the model is at its include entry and file: ['include', 0, 'model.yaml']) says which file.
+  const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error', file?: string) => {
+    const d = source.at(path, message, severity);
+    const about = file ?? (path[0] === 'include' && typeof path[2] === 'string' ? path[2] : undefined);
+    if (about) d.file = about;
+    diagnostics.push(d);
+  };
   let model: ModelContext | undefined;
   let built: Record<string, unknown> = rest;
   let origin: ((path: Path) => { at: Path; file: string } | undefined) | undefined;
@@ -435,13 +441,13 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   else if (opts.focus != null && allViews?.some((v) => v.table && v.name === built.view)) built = { ...built, view: ownViews![0]!.name };
 
   // Problems in entries that came from another file point at its include entry.
-  const where = (path: Path, message: string): [Path, string] => {
+  const where = (path: Path, message: string, severity: Diagnostic['severity']) => {
     const o = origin?.(path);
-    return o ? [o.at, `${o.file}: ${message}`] : [path, message];
+    return o ? report(o.at, `${o.file}: ${message}`, severity, o.file) : report(path, message, severity);
   };
   let graph = type.build(built, {
-    error: (path, message) => report(...where(path, message)),
-    warn: (path, message) => report(...where(path, message), 'warning'),
+    error: (path, message) => where(path, message, 'error'),
+    warn: (path, message) => where(path, message, 'warning'),
     load: opts.load,
     model,
     lang,
@@ -591,7 +597,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // read it wherever the file goes. The type's own view the file is written for says what the drawing as
   // written says, so the two stay one picture (the presenter keeps one slide for both). The editor and the viewers draw their own, beside the drawing.
   if (!opts.interactive && !opts.marks) {
-    const said = describe({ lang, graph, type, steps, stepsImplied: !told, layers: lens.info, views: model?.views.size ? [...model.views.values()] : ownViews, view: model?.view?.name ?? (ownView !== written ? ownView : undefined), name: opts.file });
+    const said = describe({ lang, graph, type, ...(type.nameFor?.(built) ? { typeName: type.nameFor(built) } : {}), steps, stepsImplied: !told, layers: lens.info, views: model?.views.size ? [...model.views.values()] : ownViews, view: model?.view?.name ?? (ownView !== written ? ownView : undefined), name: opts.file });
     const at = step ? steps[step - 1] : undefined;
     const title = at ? `${said.title}, ${tr(lang, 'step {n} of {count}', { n: step!, count: steps.length })}${at.title ? `: ${at.title}` : ''}` : said.title;
     const desc = toText(said, { title: false }).trim();

@@ -10,7 +10,7 @@ import { tr } from '@cartography/i18n/drawing';
  */
 export function altOf(d: Drawing, max: number, view?: StepView): string {
   if (d.alt) return d.alt;
-  const said = describe({ lang: d.lang, graph: d.graph, type: d.type, steps: d.steps, stepsImplied: d.stepsImplied, name: d.name });
+  const said = describe({ lang: d.lang, graph: d.graph, type: d.type, ...(d.typeName ? { typeName: d.typeName } : {}), steps: d.steps, stepsImplied: d.stepsImplied, name: d.name });
   const state = view?.states[view.index];
   if (!state || view?.caption === false) return altText(said, max);
   const step = [state.title, state.caption].filter(Boolean).join(': ');

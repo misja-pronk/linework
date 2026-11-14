@@ -122,6 +122,8 @@ interface Props {
   canDrop(group: string, what: { node?: string; palette?: number }): boolean;
   /** ⌘-click (Ctrl elsewhere): follow the element's link instead of selecting it; true when it had one. */
   onFollow?(s: Selection): boolean;
+  /** ⌘-click on a link drawn inside a shape (a sequence's ref box: data-link): follow it; true when it could. */
+  onFollowLink?(target: string): boolean;
   /** Elements that cannot be dragged by accident: dragging them pans instead. */
   locked?: Set<string>;
   /** Lines with bends set by hand. */
@@ -967,8 +969,11 @@ export function Preview(p: Props) {
       return;
     }
     if (e.button !== 0) return;
-    // A click: the innermost element with an id under the pointer.
-    const hit = hitAt(document.elementFromPoint(e.clientX, e.clientY), e.clientX, e.clientY);
+    // A click: the innermost element with an id under the pointer; ⌘ on a link drawn inside it follows that.
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const linked = under?.closest('[data-link]')?.getAttribute('data-link');
+    if (linked && (navigator.platform.startsWith('Mac') ? e.metaKey : e.ctrlKey) && p.onFollowLink?.(linked)) return;
+    const hit = hitAt(under, e.clientX, e.clientY);
     lastClick.current = null;
     if (!hit) return e.shiftKey ? undefined : p.onSelect(undefined);
     if (follow(hit)) return;

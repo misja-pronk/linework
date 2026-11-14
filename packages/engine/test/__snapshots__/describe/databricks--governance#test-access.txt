@@ -1,6 +1,6 @@
 Who × where in test
 
-Roles, groups and access packages diagram: Northwind lakehouse · sp-lakehouse-test owns the test catalogs; each team reads its own. A table of 7 rows by 6 columns.
+Unity Catalog access diagram: Northwind lakehouse · sp-lakehouse-test owns the test catalogs; each team reads its own. A table of 7 rows by 6 columns.
 
 By row (Who by where)
 Columns: orders_test, webshop_test, finance_test, sales_test, customers_test and supply_test.

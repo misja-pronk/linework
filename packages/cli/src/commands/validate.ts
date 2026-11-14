@@ -1,7 +1,7 @@
 // carto validate <file.yaml…|folder>: each diagram and each of its views, the problems printed; --drift the sidecar too.
 import fs from 'node:fs';
 import path from 'node:path';
-import { isDiagramFile, type LayoutSidecar } from '@cartography/core';
+import { isDiagramFile, type Diagnostic, type LayoutSidecar } from '@cartography/core';
 import { drift, render, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@cartography/engine';
 import { stepCaptionLines, toPptx, type PptxOptions, type SlideText } from '@cartography/export';
 import type { ValidateOptions } from '../args.ts';
@@ -79,10 +79,14 @@ async function smallSteps(x: RenderResult, name: string, deck: Deck, whole: numb
   return `${x.view ? `View "${x.view}", ${which[0]!.toLowerCase()}${which.slice(1)}` : which}: on a ${pageName(x, deck)} ${small.length === 1 ? 'its' : 'their'} smallest text is ${range} pt, under ${SLIDE_MIN_PT} pt (the drawing alone: ${whole.toFixed(1)} pt): ${why}`;
 }
 
+/** A warning about an included file, as that file says it itself: without the "parts.yaml: " an includer puts before it. */
+const asOwn = (d: Diagnostic) => `${d.severity}\0${d.file && d.message.startsWith(`${d.file}: `) ? d.message.slice(d.file.length + 2) : d.message}`;
+
 export async function validateCommand(ctx: Ctx, files: string[], o: ValidateOptions): Promise<number> {
   let ok = true;
   // A folder: each diagram in it.
   const folders = files.filter(isFolder);
+  const checked: { given: string; f: string; shown: string; stdin: boolean; diagnostics: Diagnostic[]; hints: string[] }[] = [];
   for (const given of files.filter((x) => !isFolder(x)).concat(folders.flatMap((d) => dataFiles(d).filter((x) => isDiagramFile(x, fs.readFileSync(x, 'utf8')))))) {
     // `-` reads the diagram from standard input, as carto render - does.
     const stdin = given === '-';
@@ -121,6 +125,20 @@ export async function validateCommand(ctx: Ctx, files: string[], o: ValidateOpti
       const small = sheet ? undefined : await smallSteps(x, path.basename(f), deck, pt);
       if (small) diagnostics.push({ severity: 'warning', message: small });
     }
+    checked.push({ given, f, shown, stdin, diagnostics, hints });
+  }
+  // A warning in an included file is said once: by that file when it is checked too, else by the first file that includes it.
+  const own = new Map(checked.map((c) => [path.resolve(c.f), new Set(c.diagnostics.map(asOwn))]));
+  const said = new Set<string>();
+  for (const { f, shown, stdin, diagnostics: all, hints } of checked) {
+    const diagnostics = all.filter((d) => {
+      if (!d.file || d.severity !== 'warning') return true;
+      const file = path.resolve(path.dirname(f), d.file);
+      const key = `${file}\0${asOwn(d)}`;
+      if (own.get(file)?.has(asOwn(d)) || said.has(key)) return false;
+      said.add(key);
+      return true;
+    });
     ctx.report(shown, diagnostics);
     for (const h of hints) ctx.error(`${shown}  ${ctx.dim(t('hint'))}  ${h}`);
     const drifted = o.drift && !stdin && !(await checkDrift(ctx, o, f));

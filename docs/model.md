@@ -19,6 +19,7 @@ nodes:
 - Maps (`nodes`, `groups`, `tables`, …) merge key by key; lists (`edges`, ERD `relations`, …) are appended. The diagram's own entries come first, so their ids, edge numbers and pins stay as they are.
 - An id that is in two files is an error, shown on the `include:` line with the file it came from. So are include cycles (`a.yaml → b.yaml → a.yaml`), unreadable files and problems inside an included file (`parts.yaml:4: …`).
 - A file reached twice through different includes is read once.
+- A warning about something in an included file (a relation of the model to an element it does not have) is said once: `carto validate` on a folder says it in that file, and not again in every file that includes it (checking only the files that include it, the first one says it); the editor says it when that file is open. Errors are said in every file that includes it, since none of them can be drawn.
 - What an included file says about itself stays its own: its `title`, `subtitle`, `direction`, `focus` and `steps`, and its look and language (`theme`, `icons`, `aspect`, `lang`). The diagram that includes it decides those for the drawing, so a file made in the Dutch editor (`lang: nl`) can be included in an English diagram and the other way round.
 - `carto watch` re-renders when an included file changes; the editor reads includes from the open folder, and the bundled examples read them from the bundle.
 - In the editor, entries from another file can be selected and moved, but are edited in that file.
@@ -101,9 +102,37 @@ views:
 
 - **What repeats.** An entry whose name (the key) says `<domain>` is written once per domain; one that says `<domain>_<env>` once per domain and environment, the first list named outermost. So is a list item that names a list: a relation, an assignment, an id in a view's `include:`. The written-out entries take the place of the pattern, in order, so ids and edge order are the same every time.
 - **What is filled in.** Inside an entry, `<domain>` is the entry's own domain: in its label, caption, technology, tags, owner, `in:`, `of:`, parts, and the relations and grants written inside it. `<domain.team>` is a field of the value. A list item names what the entry around it does not, so `include: [uc-weu.<domain>_<env>]` in the view `<env>` is every domain's catalog in that environment.
+- **One of them with more.** An entry written out with a name a pattern writes adds to what the pattern writes for those values, in the pattern's place: the prod catalog of orders is the only one with tables.
+
+  ```yaml
+  elements:
+    uc-weu:
+      kind: metastore
+      elements:
+        <domain>_<env>: { kind: catalog, owner: <domain>-team, tags: [<env>] }
+        orders_prod:                          # adds to the catalog <domain>_<env> writes for orders, prod
+          tags: [pii]                         # → tags: [prod, pii]
+          elements:
+            sales: { kind: table, label: Sales of <domain> }   # <domain> is orders here
+  ```
+
+  Maps (`elements`, fields) are merged key by key, at any depth; a list gets the entry's items after the pattern's, without one that is already there; a field both write is the entry's (`label:` here wins over the pattern's). Placeholders in it are the values of the entry it adds to. A problem in what it adds is said on its own line, without values. It is an error when one of the two is not a map (`orders_prod: catalog` next to the pattern: write `{ … }`), and still when two patterns write the same name.
+- **Fields that use other fields.** A field of a value may itself name lists: `<env.owner>` is filled in with the values of the entry it is used in.
+
+  ```yaml
+  each:
+    domain: [orders, webshop]
+    env:
+      prod: { owner: sp-lakehouse-<env> }   # sp-lakehouse-prod
+      dev: { owner: <domain>-team }         # orders-team, webshop-team
+  elements:
+    <domain>_<env>: { kind: catalog, owner: <env.owner> }
+  ```
+
+  An entry that is not written for a list the field names gets an error on its line (`<env.owner> of dev is <domain>-team, and <domain> is not given here`); a field that comes back to itself (`a: <env.b>`, `b: <env.a>`) is an error at `each:`. A `<` in a field is a placeholder too: `\<x>` is the text.
 - **One way to write many.** Relations whose ends follow a pattern are written with the same placeholders (`uc-weu.<domain>_prod -> dbw-lakehouse-prod`), not with wildcards: every end is a name the file writes, checked like any other, and nothing is picked up by accident (`*_prod` would match a credential named `cred_x_prod` as readily as a catalog).
 - **Everywhere.** In models and in diagrams of every type: nodes, groups, edges, an access diagram's principals, resources and assignments, layers, views and steps. `each:` belongs to the file it is written in, like its title: a diagram that includes a model writes the lists it uses itself (one line each).
-- **Problems are said where the pattern is written.** A placeholder no list has is an error on its line, with the lists there are (`<domian> is not a list of each: did you mean <domain>?`); so is a name two patterns (or a pattern and an entry) both write, and a placeholder in a value the entry around it does not name (`label: In <env>` on an entry written once). A problem in a written-out entry (an unknown kind, a missing group) is said once, at the pattern, with the values it is about: `There is no group "nowhere" (for domain orders, and 19 more)`.
+- **Problems are said where the pattern is written.** A placeholder no list has is an error on its line, with the lists there are (`<domian> is not a list of each: did you mean <domain>?`); so is a name two patterns both write, and a placeholder in a value the entry around it does not name (`label: In <env>` on an entry written once). A problem in a written-out entry (an unknown kind, a missing group) is said once, at the pattern, with the values it is about: `There is no group "nowhere" (for domain orders, and 19 more)`.
 - **`<` as text.** A file without `each:` is read exactly as before, `List<Order>` and all. In a file with it, `\<id>` is the text `<id>`.
 - **Why `<domain>`.** `{domain}` starts a map in YAML: `label: {domain}_{env}` would not even parse, and the flow maps this idiom is written in (`{ kind: catalog, label: … }`) take no braces in their values. `<domain>` needs no quotes as a key or a value, and is how architecture notes already write it (`<domain>_<env>`).
 - **In the editor.** ⌘K and describe list the written-out names (`orders_prod`). Selecting one shows the pattern in the YAML; it is changed there, for every value at once (renaming or deleting one value on its own would leave the others behind).
@@ -228,7 +257,7 @@ views:
 - `carto validate` measures the views (and their steps) on their slides, never the whole.
 - The type's own drawings of the whole (an access diagram's who × where of everything) are part of the canvas too: a view with `show:` presents one, cut.
 - `carto render x.yaml -o x.pptx` (or `.pdf`), `--all-views` and `carto deck` write the views, a slide (page, picture) each; `carto describe` describes each view; the HTML export and presenting in the editor show the views. A PowerPoint or PDF exported in the editor while the whole is on screen holds the views.
-- The editor opens the file on its first view; V goes round the views.
+- The editor opens the file on its first view; V goes round the views. The whole of a large canvas can take a minute or more to lay out: the editor keeps the last one it finished, so "Whole diagram" picked again for the same text (after a look at a view) is there at once. It keeps only that one, and an edit lets it go.
 - Steps belong in the views: steps written at the top get a warning, since the whole is not presented. `present: whole` is the default. Without views, `present: views` gets a warning and the drawing is the slide.
 
 Examples: [examples/databricks/deployment.yaml](../examples/databricks/deployment.yaml), dev, test and production of one lakehouse, a spoke each; [examples/databricks/governance.yaml](../examples/databricks/governance.yaml), its Unity Catalog grants, a view per concern.
@@ -251,6 +280,16 @@ links:
 - **In the editor** ⌘-click (Ctrl-click elsewhere) follows the first link, and the inspector lists them all: URLs open in a new tab, diagrams and views open in place (from the open folder, or among the bundled examples). **Back to …** over the drawing, or ⌘[ (Ctrl+[), goes back to where the link was followed from, in the view it showed; a walk of several links comes back one step at a time.
 - Double-click on a linked card still renames it, as on any card: the editor is for changing the drawing, and a slip of the mouse should not take you to another file. Following is the deliberate ⌘-click. While presenting (P), ⌘-click or Tab and ↵ follows a link, and ⌫ (or the Back button) comes back.
 - Links in an included model are relative to the model file; Cartography rebases them for the diagram.
+- **A `link:` on one thing** takes the same forms. A sequence's `ref:` box leads into another diagram, at the view it names:
+
+  ```yaml
+  messages:
+    - ref: Shipping flow
+      over: [shopper, orders]
+      link: shipping.yaml#phase-delivery         # or shipping.yaml, '#phase-payment', https://…
+  ```
+
+  ⌘-click on the box in the editor opens that view of `shipping.yaml`, and **Back** returns to the sequence; the SVG links to `shipping--phase-delivery.svg`, and in an HTML export a click on the box opens that drawing. A link that is none of these is an error on its line. A capability, a class, a mind map's topic, a person or team and a journey's touchpoint take `link:` the same way.
 
 ## Pins per view
 

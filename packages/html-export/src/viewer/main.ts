@@ -760,6 +760,10 @@ function tap(e: PointerEvent, target: EventTarget | null) {
     const r = els.stage.getBoundingClientRect();
     return move(e.clientX - r.left < r.width / 3 ? -1 : 1);
   }
+  // A link drawn inside a shape (a sequence's ref box) goes where it says.
+  const link = target instanceof Element && els.sheet.contains(target) ? target.closest('[data-link]')?.getAttribute('data-link') : undefined;
+  const to = link != null && here ? data.drawings[here.d]!.links?.[link] : undefined;
+  if (to !== undefined) return go(to);
   const shape = shapeAt(target);
   lastTap = shape;
   if (shape) select(shape);

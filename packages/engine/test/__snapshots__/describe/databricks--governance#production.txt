@@ -1,6 +1,6 @@
 Who reads production
 
-Roles, groups and access packages diagram: Northwind lakehouse · analysts read four gold schemas, pii masked; Contoso reads its share. 7 elements in 4 groups, with 9 connections.
+Unity Catalog access diagram: Northwind lakehouse · analysts read four gold schemas, pii masked; Contoso reads its share. 7 elements in 4 groups, with 9 connections.
 
 Groups and elements
 - analysts (Power BI and Genie)

@@ -1,6 +1,6 @@
 Personal data
 
-Roles, groups and access packages diagram: Northwind lakehouse · mask_pii masks the columns tagged pii for all but customers-team and the prod jobs. 5 elements in 1 group, with 7 connections.
+Unity Catalog access diagram: Northwind lakehouse · mask_pii masks the columns tagged pii for all but customers-team and the prod jobs. 5 elements in 1 group, with 7 connections.
 
 Groups and elements
 - mask_pii (Masks columns tagged pii)

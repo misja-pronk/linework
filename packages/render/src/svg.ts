@@ -165,7 +165,7 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
     const drawn =
       shape.kind === 'card' ? drawCard(shape, box, theme, id, cardChips, (edge) => data('edge', edge), link, nodeImages?.get(n.id))
       : shape.kind === 'table' ? drawTable(shape, box, theme, id, nodeImages?.get(n.id))
-      : shape.kind === 'sequence' ? drawSequence(shape, box, theme, `${id}-shadow`, state?.message ? { message: state.message, quiet } : undefined)
+      : shape.kind === 'sequence' ? drawSequence(shape, box, theme, `${id}-shadow`, state?.message ? { message: state.message, quiet } : undefined, { interactive: opts.interactive, marks: opts.marks, file: opts.file })
       : shape.kind === 'gitflow' ? drawGitflow(shape, box, theme, `${id}-shadow`)
       : shape.kind === 'roadmap' ? drawRoadmap(shape, box, theme)
       : shape.kind === 'journey' ? drawJourney(shape, box, theme, `${id}-shadow`, state?.journey)

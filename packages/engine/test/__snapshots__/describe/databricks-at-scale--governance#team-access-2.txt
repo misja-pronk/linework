@@ -1,6 +1,6 @@
 Every domain, every environment (2 of 2)
 
-Roles, groups and access packages diagram: A row per domain; per environment what its team holds on its catalog, and what the jobs hold. A table of 10 rows by 6 columns.
+Unity Catalog access diagram: A row per domain; per environment what its team holds on its catalog, and what the jobs hold. A table of 10 rows by 6 columns.
 
 By row (domain by env)
 Columns: dev (<domain>-team, sp-lakehouse-dev); test (<domain>-team, sp-lakehouse-test); prod (<domain>-team, sp-lakehouse-prod).

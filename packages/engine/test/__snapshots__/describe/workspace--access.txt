@@ -1,6 +1,6 @@
 Harbour Bank access
 
-Roles, groups and access packages diagram. 6 elements, with 4 connections.
+Roles and groups diagram. 6 elements, with 4 connections.
 
 Elements
 - sg-team-digital (Security group)

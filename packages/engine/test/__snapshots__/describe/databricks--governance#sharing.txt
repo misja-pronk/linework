@@ -1,6 +1,6 @@
 Shared with Contoso
 
-Roles, groups and access packages diagram: Northwind lakehouse · sales-team owns the share; Contoso reads sell_through in its own Databricks account. 4 elements in 1 group, with 3 connections.
+Unity Catalog access diagram: Northwind lakehouse · sales-team owns the share; Contoso reads sell_through in its own Databricks account. 4 elements in 1 group, with 3 connections.
 
 Groups and elements
 - sales-team (Account group)

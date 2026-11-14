@@ -195,6 +195,18 @@ edges:
     expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b)));
   }, 60_000);
 
+  it('follows a sequence\'s ref box to the view its link names', async () => {
+    const files: Record<string, string> = {
+      'checkout.yaml': 'type: sequence\nparticipants: { a: service, b: service }\nmessages:\n  - a -> b: Order\n  - ref: Shipping\n    link: shipping.yaml#late\n',
+      'shipping.yaml': 'type: systems\nnodes:\n  a: service\n  b: service\nedges: [a -> b]\nviews:\n  early: { include: [a] }\n  late: { include: [b] }\n',
+    };
+    const p = payloadOf((await exportHtml({ entries: ['checkout.yaml'], nearby: Object.keys(files), read: (f) => files[f] })).html);
+    const from = p.drawings.find((d) => d.file === 'checkout.yaml' && !d.view)!;
+    const to = from.links?.['shipping.yaml#late'];
+    expect(to).toBeDefined();
+    expect(p.drawings[to!]).toMatchObject({ file: 'shipping.yaml', view: 'late' });
+  }, 30_000);
+
   it('brings along what a single diagram drills into, and only that', async () => {
     const nearby = fs.readdirSync(path.join(root, 'examples/workspace')).filter((f) => f.endsWith('.yaml'));
     const { html } = await exportHtml({ entries: ['context.yaml'], nearby, read: reader('examples/workspace') });

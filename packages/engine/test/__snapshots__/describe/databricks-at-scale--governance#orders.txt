@@ -1,6 +1,6 @@
 One domain through its environments
 
-Roles, groups and access packages diagram: orders-team owns dev, reads test, reads and MANAGEs prod; only the service principals write. 7 elements, with 6 connections.
+Unity Catalog access diagram: orders-team owns dev, reads test, reads and MANAGEs prod; only the service principals write. 7 elements, with 6 connections.
 
 Elements
 - orders-team (Account group)
