@@ -1,8 +1,13 @@
 # The lakehouse on Azure the way the network sees it: a slide per part, the drawing as written is the canvas.
-#   hub         vnet-hub-weu: ExpressRoute gateway, DNS Private Resolver, afw-hub, the front-end and
-#               browser_authentication endpoints, the Power BI VNet data gateway; private DNS zones linked to it
+#   hub         vnet-hub-weu: ExpressRoute gateway (rt-hub-gateway on its subnet sends the spokes' replies through
+#               the firewall), DNS Private Resolver, afw-hub, the front-end and browser_authentication endpoints, the
+#               Power BI VNet data gateway with its own dfs and blob endpoints to workspace storage (Cloud Fetch);
+#               private DNS zones linked to it
 #   spokes      vnet-lakehouse-<env>: clusters and the ERP ingestion gateway (host, container), snet-pep (back-end,
-#               dfs, workspace storage); nsg-dbw-lakehouse-<env> and rt-lakehouse-<env> on the cluster subnets
+#               dfs, workspace storage); nsg-dbw-lakehouse-<env> and rt-lakehouse-<env> (0.0.0.0/0 to afw-hub,
+#               gateway route propagation off) on the cluster subnets
+#   storage     no public network access; private endpoints, the access connector's resource instance rule and the
+#               region's control plane get in. Contoso is a SecureConnect recipient (switched on per recipient)
 #   planes      Databricks' control plane (workspaces) and serverless plane (an NCC per environment, and the
 #               metastore's NCC for OpenSharing SecureConnect)
 # One domain account is drawn per environment; every st<domain><env> has its own pep-st<domain><env>-dfs and an NCC
@@ -10,7 +15,8 @@
 # serverless never has an endpoint to a prod account. Ranges and names come from model.yaml.
 # Facts: learn.microsoft.com/azure/databricks/security/network/ (front-end/front-end-private-connect,
 # serverless-network-security/serverless-private-link, storage/firewall-support), .../ingestion/lakeflow-connect/
-# sql-server-limits, .../opensharing/secureconnect-provider, learn.microsoft.com/data-integration/vnet/
+# sql-server-limits, .../opensharing/secureconnect-provider, learn.microsoft.com/data-integration/vnet/,
+# learn.microsoft.com/azure/virtual-network/virtual-networks-udr-overview, .../azure/firewall/tutorial-hybrid-portal
 type: azure
 title: Secure deployment
 subtitle: Northwind lakehouse · no public access, every hop over Private Link or through the hub firewall
@@ -41,11 +47,15 @@ nodes:
   ergw-hub-weu: { kind: expressroute, label: ergw-hub-weu, caption: ExpressRoute gateway · GatewaySubnet, in: vnet-hub-weu }
   dnspr-hub-weu: { ref: dnspr-hub-weu, caption: Resolver inbound · 10.0.1.100, in: vnet-hub-weu }
   afw-hub: { ref: afw-hub, caption: Premium · 10.0.0.68 · SNAT out, in: vnet-hub-weu }
+  rt-hub-gateway: { ref: rt-hub-gateway, caption: On GatewaySubnet, in: vnet-hub-weu }
   pep-dbw-lakehouse-prod-ui: { ref: pep-dbw-lakehouse-prod-ui, caption: databricks_ui_api · snet-pep, in: vnet-hub-weu, env: prod }
   pep-dbw-lakehouse-test-ui: { ref: pep-dbw-lakehouse-test-ui, caption: databricks_ui_api · snet-pep, in: vnet-hub-weu, env: test }
   pep-dbw-lakehouse-dev-ui: { ref: pep-dbw-lakehouse-dev-ui, caption: databricks_ui_api · snet-pep, in: vnet-hub-weu, env: dev }
   pep-dbw-webauth-weu: { ref: pep-dbw-webauth-weu, caption: browser_authentication · snet-pep, in: vnet-hub-weu }
   pbi-gateway: { kind: fabric, label: VNet data gateway, caption: Power BI · snet-pbi-gateway, in: vnet-hub-weu, env: prod }
+  # Cloud Fetch clients need their own dfs and blob endpoints to workspace storage, in their own network
+  pep-dbstorage-prod-hub-dfs: { kind: private-endpoint, label: pep-dbstorage-prod-hub-dfs, caption: dfs · snet-pep, in: vnet-hub-weu, env: prod }
+  pep-dbstorage-prod-hub-blob: { kind: private-endpoint, label: pep-dbstorage-prod-hub-blob, caption: blob · snet-pep, in: vnet-hub-weu, env: prod }
   privatelink-azuredatabricks-net: { ref: privatelink-azuredatabricks-net, caption: Workspace and pl-auth records, in: zones }
   privatelink-dfs-core-windows-net: { ref: privatelink-dfs-core-windows-net, caption: dfs endpoints, in: zones }
   privatelink-blob-core-windows-net: { ref: privatelink-blob-core-windows-net, caption: blob endpoints, in: zones }
@@ -60,13 +70,13 @@ nodes:
   clusters-prod: { kind: compute, label: Cluster VMs, caption: Host and container subnets · SCC, in: vnet-lakehouse-prod }
   gateway-prod: { of: lakehouse.erp-ingest, kind: compute, label: Ingestion gateway, caption: erp-ingest · classic compute, in: vnet-lakehouse-prod }
   nsg-dbw-lakehouse-prod: { ref: nsg-dbw-lakehouse-prod, caption: On both cluster subnets, in: vnet-lakehouse-prod }
-  rt-lakehouse-prod: { ref: rt-lakehouse-prod, caption: On both cluster subnets, in: vnet-lakehouse-prod }
+  rt-lakehouse-prod: { ref: rt-lakehouse-prod, caption: Cluster subnets · gateway routes off, in: vnet-lakehouse-prod }
   pep-dbw-lakehouse-prod: { ref: pep-dbw-lakehouse-prod, caption: databricks_ui_api · back-end, in: vnet-lakehouse-prod }
   pep-stordersprod-dfs: { ref: pep-stordersprod-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-prod }
   pep-dbstorage-prod-dfs: { kind: private-endpoint, label: pep-dbstorage-prod-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-prod }
   pep-dbstorage-prod-blob: { kind: private-endpoint, label: pep-dbstorage-prod-blob, caption: blob · snet-pep, in: vnet-lakehouse-prod }
   dbstorage-prod: { kind: storage, label: dbstorage, caption: Workspace storage · firewall support on, in: managed-prod }
-  stordersprod: { ref: stordersprod, caption: ADLS Gen2 · one of six, env: prod }
+  stordersprod: { ref: stordersprod, caption: ADLS Gen2 · one per domain, env: prod }
   stsupplyprod: { ref: stsupplyprod, caption: ADLS Gen2 · model artifacts, env: prod }
   stsalesprod: { ref: stsalesprod, caption: ADLS Gen2 · sell_through, env: prod }
 
@@ -84,12 +94,12 @@ nodes:
   clusters-test: { kind: compute, label: Cluster VMs, caption: Host and container subnets · SCC, in: vnet-lakehouse-test }
   pep-dbw-lakehouse-test: { ref: pep-dbw-lakehouse-test, caption: databricks_ui_api · back-end, in: vnet-lakehouse-test }
   pep-storderstest-dfs: { ref: pep-storderstest-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-test }
-  storderstest: { ref: storderstest, caption: ADLS Gen2 · one of six, env: test }
+  storderstest: { ref: storderstest, caption: ADLS Gen2 · one per domain, env: test }
   ncc-lakehouse-test: { ref: ncc-lakehouse-test, caption: Attached to dbw-lakehouse-test, in: serverless, env: test }
   clusters-dev: { kind: compute, label: Cluster VMs, caption: Host and container subnets · SCC, in: vnet-lakehouse-dev }
   pep-dbw-lakehouse-dev: { ref: pep-dbw-lakehouse-dev, caption: databricks_ui_api · back-end, in: vnet-lakehouse-dev }
   pep-stordersdev-dfs: { ref: pep-stordersdev-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-dev }
-  stordersdev: { ref: stordersdev, caption: ADLS Gen2 · one of six, env: dev }
+  stordersdev: { ref: stordersdev, caption: ADLS Gen2 · one per domain, env: dev }
   ncc-lakehouse-dev: { ref: ncc-lakehouse-dev, caption: Attached to dbw-lakehouse-dev, in: serverless, env: dev }
 
 edges:
@@ -123,7 +133,10 @@ edges:
   # Power BI and Contoso
   - power-bi -> pbi-gateway: { label: DirectQuery, style: private }
   - pbi-gateway -> pep-dbw-lakehouse-prod-ui: { label: SQL warehouse, style: private }
-  - pbi-gateway -> pep-dbstorage-prod-blob: { label: Cloud Fetch, style: private }
+  - pbi-gateway -> pep-dbstorage-prod-hub-dfs: { label: Cloud Fetch, style: private }
+  - pbi-gateway -> pep-dbstorage-prod-hub-blob: { label: Cloud Fetch, style: private }
+  - pep-dbstorage-prod-hub-dfs -> dbstorage-prod: { style: private }
+  - pep-dbstorage-prod-hub-blob -> dbstorage-prod: { style: private }
   - contoso-retail -> secureconnect: { label: OpenSharing, style: private }
   - secureconnect -> ncc-opensharing-weu: { style: private }
   # Test and development
@@ -171,19 +184,23 @@ views:
         caption: Firewall support closes dbstorage to public networks; clusters reach it through a dfs and a blob endpoint.
         path: [clusters-prod -> pep-dbstorage-prod-dfs -> dbstorage-prod, clusters-prod -> pep-dbstorage-prod-blob -> dbstorage-prod]
       - title: Everything else
-        caption: rt-lakehouse-prod sends 0.0.0.0/0 to afw-hub, so package mirrors and the rest leave through the firewall.
+        caption: rt-lakehouse-prod sends 0.0.0.0/0 to afw-hub and takes no gateway routes, so all else, on-premises too, passes the firewall.
         path: rt-lakehouse-prod -> afw-hub
   erp:
     title: Ingesting the ERP
     environment: prod
     subtitle: Northwind lakehouse · Lakeflow Connect's gateway reaches SQL Server on-premises through the hub
-    include: [gateway-prod, rt-lakehouse-prod, afw-hub, ergw-hub-weu, erp, pep-dbw-lakehouse-prod, dbw-lakehouse-prod]
+    direction: down
+    include: [gateway-prod, rt-lakehouse-prod, afw-hub, rt-hub-gateway, ergw-hub-weu, erp, pep-dbw-lakehouse-prod, dbw-lakehouse-prod]
     steps:
       - title: Ingesting the ERP
         caption: erp-ingest pairs one ingestion pipeline (serverless) with one gateway, which must run on classic compute.
       - title: To SQL Server
-        caption: rt-lakehouse-prod sends the gateway to afw-hub, which allows 1433 to the ERP over ExpressRoute only.
+        caption: Gateway routes are off in rt-lakehouse-prod, so 10.10.0.0/16 goes to afw-hub too; it allows 1433 to the ERP only.
         path: gateway-prod -> afw-hub -> ergw-hub-weu -> erp
+      - title: The way back
+        caption: rt-hub-gateway on GatewaySubnet sends what comes back for the spokes through afw-hub as well, so both ways pass it.
+        path: rt-hub-gateway -> afw-hub
       - title: To the workspace
         caption: Like a cluster, the gateway reports to the control plane through the back-end endpoint.
         path: gateway-prod -> pep-dbw-lakehouse-prod -> dbw-lakehouse-prod
@@ -205,7 +222,8 @@ views:
     title: Power BI
     environment: prod
     subtitle: Northwind lakehouse · the Power BI service queries the workspace through a VNet data gateway in the hub
-    include: [power-bi, pbi-gateway, pep-dbw-lakehouse-prod-ui, dbw-lakehouse-prod, pep-dbstorage-prod-blob, dbstorage-prod]
+    direction: down
+    include: [power-bi, pbi-gateway, pep-dbw-lakehouse-prod-ui, dbw-lakehouse-prod, pep-dbstorage-prod-hub-dfs, pep-dbstorage-prod-hub-blob, dbstorage-prod]
     steps:
       - title: Power BI
         caption: The Power BI service has no way into the network; a VNet data gateway in snet-pbi-gateway runs its queries.
@@ -213,8 +231,8 @@ views:
         caption: The gateway reaches the SQL warehouse through the workspace's front-end endpoint, as a browser would.
         path: power-bi -> pbi-gateway -> pep-dbw-lakehouse-prod-ui -> dbw-lakehouse-prod
       - title: Cloud Fetch
-        caption: Large results come from workspace storage; the gateway fetches them through its blob endpoint.
-        path: pbi-gateway -> pep-dbstorage-prod-blob -> dbstorage-prod
+        caption: Large results come from workspace storage, through a dfs and a blob endpoint in the gateway's own network.
+        path: [pbi-gateway -> pep-dbstorage-prod-hub-dfs -> dbstorage-prod, pbi-gateway -> pep-dbstorage-prod-hub-blob -> dbstorage-prod]
   contoso:
     title: Sharing with Contoso
     environment: prod
@@ -223,9 +241,9 @@ views:
     exclude: ['uc-weu.contoso -> contoso-retail']   # the share's own data line; here the network path
     steps:
       - title: Sharing with Contoso
-        caption: stsalesprod accepts private endpoints only, so a recipient cannot read the shared files directly.
+        caption: stsalesprod sits behind private endpoints, so Contoso cannot read its files; it still lets in the control plane.
       - title: SecureConnect
-        caption: Contoso's requests go through Databricks' proxy, which reads through an NCC with a blob and a dfs rule.
+        caption: Switched on for the recipient contoso, Databricks' proxy reads through an NCC with a blob and a dfs rule.
         path: contoso-retail -> secureconnect -> ncc-opensharing-weu -> stsalesprod
       - title: On the metastore
         caption: That NCC is attached to uc-weu, not to a workspace, and serves every share in the metastore.
