@@ -75,7 +75,19 @@ export const config: GraphTypeConfig = {
   plainEdge: 'Connection',
   // Shared-model (C4) words for what this type already draws.
   trust: true,
-  kindAliases: { person: 'user', actor: 'user', 'software-system': 'system', component: 'service', web: 'client', spa: 'client', db: 'database', bus: 'topic', 'event-stream': 'topic' },
+  kindAliases: {
+    person: 'user', actor: 'user', 'software-system': 'system', component: 'service', web: 'client', spa: 'client', db: 'database', bus: 'topic', 'event-stream': 'topic',
+    // Azure Databricks kinds of a shared model (the azure type's), as the generic thing they are.
+    databricks: 'system', 'control-plane': 'zone', 'compute-plane': 'zone', 'serverless-plane': 'cloud',
+    metastore: 'warehouse', catalog: 'database', schema: 'database', table: 'database', volume: 'storage', 'registered-model': 'ai',
+    compute: 'server', serverless: 'function', 'sql-warehouse': 'warehouse',
+    'lakeflow-connect': 'worker', 'lakeflow-pipeline': 'worker', 'lakeflow-job': 'job',
+    'storage-credential': 'secrets', 'external-location': 'storage', 'access-connector': 'identity',
+    'model-serving': 'ai', 'databricks-app': 'client', share: 'storage', recipient: 'external',
+    ncc: 'gateway', 'network-policy': 'firewall',
+    // and the Azure pieces around it.
+    fabric: 'warehouse', subscription: 'boundary', 'resource-group': 'group', vnet: 'zone', subnet: 'zone', 'private-endpoint': 'gateway', nsg: 'firewall', 'route-table': 'firewall',
+  },
 };
 
 const palette: PaletteItem[] = [

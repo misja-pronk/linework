@@ -44,6 +44,10 @@ export const classes: KindTable = {
   'source-aligned': { label: 'Source-aligned', icon: 'package', tone: 'teal', keywords: ['raw', 'operational'] },
   aggregate: { label: 'Aggregate', icon: 'boxes', tone: 'indigo', keywords: ['core', 'shared'] },
   'consumer-aligned': { label: 'Consumer-aligned', icon: 'target', tone: 'amber', keywords: ['fit for purpose'] },
+  // The medallion layers of a lakehouse, for platforms that sort data by refinement instead.
+  bronze: { label: 'Bronze', icon: 'medal', tone: 'orange', keywords: ['medallion', 'raw', 'landing'] },
+  silver: { label: 'Silver', icon: 'medal', tone: 'slate', keywords: ['medallion', 'cleansed', 'conformed'] },
+  gold: { label: 'Gold', icon: 'medal', tone: 'amber', keywords: ['medallion', 'curated', 'business-ready'] },
 };
 
 export const sourceKinds: KindTable = {
@@ -66,6 +70,8 @@ export const portKinds: KindTable = {
   topic: { label: 'topic', icon: 'radio', tone: 'blue' },
   query: { label: 'SQL', icon: 'search', tone: 'blue' },
   model: { label: 'model', icon: 'brain', tone: 'blue' },
+  volume: { label: 'volume', icon: 'folders', tone: 'blue', keywords: ['unity catalog', 'files'] },
+  share: { label: 'share', icon: 'share-2', tone: 'blue', keywords: ['opensharing', 'delta sharing', 'delta share'] },
 };
 
 export const consumerKinds: KindTable = {
@@ -648,7 +654,7 @@ const schema = {
           type: 'object',
           properties: {
             ...named,
-            class: { enum: Object.keys(classes), description: 'source-aligned, aggregate or consumer-aligned' },
+            class: { enum: Object.keys(classes), description: 'source-aligned, aggregate or consumer-aligned; or a medallion layer: bronze, silver, gold' },
             domain: { type: 'string' },
             owner: { type: 'string' },
             version: { type: ['string', 'number'] },

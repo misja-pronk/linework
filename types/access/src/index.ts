@@ -32,6 +32,8 @@ export const principalKinds: KindTable = {
   'dynamic-group': { label: 'Dynamic group', icon: 'users', tone: 'teal' },
   'role-assignable-group': { label: 'Role-assignable group', icon: 'shield-user', tone: 'violet' },
   'm365-group': { label: 'Microsoft 365 group', icon: 'users', tone: 'sky' },
+  // A Databricks account group: synced from Entra ID (automatic identity management or SCIM), granted Unity Catalog privileges.
+  'account-group': { label: 'Account group', icon: 'users', tone: 'rose', keywords: ['databricks group', 'unity catalog'] },
   'service-principal': { label: 'Service principal', icon: 'bot', tone: 'indigo', keywords: ['sp', 'enterprise app', 'enterprise application'] },
   'managed-identity': { label: 'Managed identity', icon: 'id-card', tone: 'indigo', keywords: ['mi', 'msi', 'uami'] },
   // The definition of an application (client id, credentials, API permissions); its service principal is what holds roles.
@@ -61,6 +63,15 @@ export const resourceKinds: KindTable = {
   'directory-role': { label: 'Directory role', icon: 'shield-user', tone: 'violet' },
   // A scope for Entra roles: a role assigned on it covers only the users, groups and devices in it.
   'administrative-unit': { label: 'Administrative unit', icon: 'folder', tone: 'violet' },
+  // Azure Databricks: a workspace and its compute, and Unity Catalog's securables (USE CATALOG, SELECT, …).
+  databricks: { label: 'Databricks workspace', icon: 'flame', tone: 'rose', keywords: ['dbw', 'workspace'] },
+  'sql-warehouse': { label: 'SQL warehouse', icon: 'warehouse', tone: 'indigo', keywords: ['databricks sql'] },
+  metastore: { label: 'Metastore', icon: 'library-big', tone: 'indigo', keywords: ['unity catalog', 'uc'] },
+  catalog: { label: 'Catalog', icon: 'library', tone: 'indigo', keywords: ['unity catalog', 'uc', 'use catalog'] },
+  schema: { label: 'Schema', icon: 'folder-tree', tone: 'indigo', keywords: ['unity catalog', 'use schema'] },
+  table: { label: 'Table', icon: 'table-2', tone: 'indigo', keywords: ['unity catalog', 'select', 'modify', 'view'] },
+  volume: { label: 'Volume', icon: 'folders', tone: 'teal', keywords: ['unity catalog', 'read volume'] },
+  'external-location': { label: 'External location', icon: 'folder-cog', tone: 'teal', keywords: ['unity catalog', 'read files'] },
 };
 
 /** Conditional Access, and what its policies ask for: drawn before the people they apply to. */
@@ -916,7 +927,7 @@ export function effectiveAccess(source: AccessSource): { principal: string; scop
 
 const OWNER_LEVEL = /\b(owner|user access administrator|role based access control administrator|global administrator|privileged role administrator)\b/i;
 const BROAD = ['tenant', 'management-group', 'subscription', 'organization'];
-const GROUPS = ['group', 'role-assignable-group', 'm365-group', 'dynamic-group'];
+const GROUPS = ['group', 'role-assignable-group', 'm365-group', 'dynamic-group', 'account-group'];
 
 /** Things worth a second look. Warnings only: the picture stays as it is. */
 function check(m: Model, ctx: BuildContext) {
