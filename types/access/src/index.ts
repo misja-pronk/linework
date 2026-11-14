@@ -341,13 +341,14 @@ class Model {
     for (const a of this.assignments) {
       const kind = this.resource(a.scope)?.kind;
       if (!kind) continue;
+      const aKind = `${/^[aeiou]/.test(kind) ? 'an' : 'a'} ${kind}`;
       const on = list(this.role(a.role)?.on);
       if (on.length && !on.includes(kind)) {
-        ctx.warn(a.path, `${a.role} is granted on ${on.join(' or ')}, and ${a.scope} is a ${kind}`);
+        ctx.warn(a.path, `${a.role} is granted on ${on.join(' or ')}, and ${a.scope} is ${aKind}`);
         continue;
       }
       const wrong = [...this.permissions(a.role).keys()].filter((p) => this.applies.has(p) && !this.applies.get(p)!.includes(kind));
-      if (wrong.length) ctx.warn(a.path, `${a.role} holds ${wrong.map((p) => `${p} (on ${this.applies.get(p)!.join(' or ')})`).join(', ')}, and ${a.scope} is a ${kind}: grant it where that applies, or take it out of the role`);
+      if (wrong.length) ctx.warn(a.path, `${a.role} holds ${wrong.map((p) => `${p} (on ${this.applies.get(p)!.join(' or ')})`).join(', ')}, and ${a.scope} is ${aKind}: grant it where that applies, or take it out of the role`);
     }
     for (const [id, p] of this.packages) {
       if (p.catalog && !this.catalogs.some(([c]) => c === p.catalog)) ctx.error(['packages', id, 'catalog'], `There is no catalog "${p.catalog}"`);
