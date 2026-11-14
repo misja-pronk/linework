@@ -16,53 +16,42 @@
 # The whole file is a working canvas (present: views); its views are the slides, one concern each.
 # tags put each environment on a layer (Layers menu, or carto render --layer prod).
 # Ids are the model's (model.yaml) where the thing is the same; catalogs and locations drop the uc-weu. prefix.
+# A name with <domain> or <env> is written once per value of that list under each: (this file's own lists).
 type: access
 title: Unity Catalog access
 subtitle: Northwind lakehouse · account groups from Entra ID, grants per domain and environment
 include: [model.yaml]
 present: views
 
+each:
+  domain: [orders, webshop, finance, sales, customers, supply]
+  env:
+    dev: { title: Development }
+    test: { title: Test }
+    prod: { title: Production }
+  bi: [orders, finance, sales, customers]   # the domains whose gold analysts read
+
 layers:
-  dev: { tags: [dev], title: Development }
-  test: { tags: [test], title: Test }
-  prod: { tags: [prod], title: Production }
+  <env>: { tags: [<env>], title: <env.title> }
 
 principals:
   # Account groups: made and filled in Entra ID, synced by automatic identity management
   platform-team: { kind: account-group, label: platform-team, caption: Metastore and workspace admins }
   engineers: { kind: account-group, label: engineers, caption: Every domain team }
-  orders-team: { kind: account-group, label: orders-team, member-of: engineers }
-  webshop-team: { kind: account-group, label: webshop-team, member-of: engineers }
-  finance-team: { kind: account-group, label: finance-team, member-of: engineers }
-  sales-team: { kind: account-group, label: sales-team, member-of: engineers }
-  customers-team: { kind: account-group, label: customers-team, member-of: engineers }
-  supply-team: { kind: account-group, label: supply-team, member-of: engineers }
+  <domain>-team: { kind: account-group, label: <domain>-team, member-of: engineers }
   analysts: { kind: account-group, label: analysts, caption: Power BI and Genie }
   # Service principals: one per environment; GitHub Actions signs in as it with OIDC, and every job there runs as it
-  sp-lakehouse-dev: { kind: service-principal, label: sp-lakehouse-dev, caption: Deploys and runs dev, tags: [dev] }
-  sp-lakehouse-test: { kind: service-principal, label: sp-lakehouse-test, caption: Deploys and runs test, tags: [test] }
-  sp-lakehouse-prod: { kind: service-principal, label: sp-lakehouse-prod, caption: Deploys and runs prod, tags: [prod] }
+  sp-lakehouse-<env>: { kind: service-principal, label: sp-lakehouse-<env>, caption: Deploys and runs <env>, tags: [<env>] }
   # OpenSharing recipient: Contoso's own Databricks account (Databricks-to-Databricks)
   contoso: { kind: recipient, label: contoso, caption: Databricks-to-Databricks, tags: [prod] }
 
 resources:
   uc-weu: { kind: metastore, label: uc-weu, caption: Metastore }
-  dbw-lakehouse-dev: { kind: databricks, label: dbw-lakehouse-dev, tags: [dev] }
-  dbw-lakehouse-test: { kind: databricks, label: dbw-lakehouse-test, tags: [test] }
-  dbw-lakehouse-prod: { kind: databricks, label: dbw-lakehouse-prod, tags: [prod] }
-  # Catalogs: ISOLATED, each bound to its environment's workspace only (the caption says which)
-  orders_dev: { kind: catalog, label: orders_dev, bound: dbw-lakehouse-dev, tags: [dev] }
-  webshop_dev: { kind: catalog, label: webshop_dev, bound: dbw-lakehouse-dev, tags: [dev] }
-  finance_dev: { kind: catalog, label: finance_dev, bound: dbw-lakehouse-dev, tags: [dev] }
-  sales_dev: { kind: catalog, label: sales_dev, bound: dbw-lakehouse-dev, tags: [dev] }
-  customers_dev: { kind: catalog, label: customers_dev, bound: dbw-lakehouse-dev, tags: [dev] }
-  supply_dev: { kind: catalog, label: supply_dev, bound: dbw-lakehouse-dev, tags: [dev] }
-  orders_test: { kind: catalog, label: orders_test, bound: dbw-lakehouse-test, tags: [test] }
-  webshop_test: { kind: catalog, label: webshop_test, bound: dbw-lakehouse-test, tags: [test] }
-  finance_test: { kind: catalog, label: finance_test, bound: dbw-lakehouse-test, tags: [test] }
-  sales_test: { kind: catalog, label: sales_test, bound: dbw-lakehouse-test, tags: [test] }
-  customers_test: { kind: catalog, label: customers_test, bound: dbw-lakehouse-test, tags: [test] }
-  supply_test: { kind: catalog, label: supply_test, bound: dbw-lakehouse-test, tags: [test] }
+  dbw-lakehouse-<env>: { kind: databricks, label: dbw-lakehouse-<env>, tags: [<env>] }
+  # Catalogs: ISOLATED, each bound to its environment's workspace only (the caption says which); customers_prod holds
+  # personal data
+  <domain>_dev: { kind: catalog, label: <domain>_dev, bound: dbw-lakehouse-dev, tags: [dev] }
+  <domain>_test: { kind: catalog, label: <domain>_test, bound: dbw-lakehouse-test, tags: [test] }
   orders_prod: { kind: catalog, label: orders_prod, bound: dbw-lakehouse-prod, tags: [prod] }
   webshop_prod: { kind: catalog, label: webshop_prod, bound: dbw-lakehouse-prod, tags: [prod] }
   finance_prod: { kind: catalog, label: finance_prod, bound: dbw-lakehouse-prod, tags: [prod] }
@@ -75,24 +64,9 @@ resources:
   sales_prod_gold: { kind: schema, label: sales_prod.gold, in: sales_prod, tags: [prod] }
   customers_prod_gold: { kind: schema, label: customers_prod.gold, in: customers_prod, tags: [prod, pii] }
   # Landing containers that Auto Loader reads: external locations, ISOLATED and bound like the catalogs
-  orders_dev_landing: { kind: external-location, label: orders_dev_landing, bound: dbw-lakehouse-dev, tags: [dev] }
-  webshop_dev_landing: { kind: external-location, label: webshop_dev_landing, bound: dbw-lakehouse-dev, tags: [dev] }
-  finance_dev_landing: { kind: external-location, label: finance_dev_landing, bound: dbw-lakehouse-dev, tags: [dev] }
-  sales_dev_landing: { kind: external-location, label: sales_dev_landing, bound: dbw-lakehouse-dev, tags: [dev] }
-  customers_dev_landing: { kind: external-location, label: customers_dev_landing, bound: dbw-lakehouse-dev, tags: [dev] }
-  supply_dev_landing: { kind: external-location, label: supply_dev_landing, bound: dbw-lakehouse-dev, tags: [dev] }
-  orders_test_landing: { kind: external-location, label: orders_test_landing, bound: dbw-lakehouse-test, tags: [test] }
-  webshop_test_landing: { kind: external-location, label: webshop_test_landing, bound: dbw-lakehouse-test, tags: [test] }
-  finance_test_landing: { kind: external-location, label: finance_test_landing, bound: dbw-lakehouse-test, tags: [test] }
-  sales_test_landing: { kind: external-location, label: sales_test_landing, bound: dbw-lakehouse-test, tags: [test] }
-  customers_test_landing: { kind: external-location, label: customers_test_landing, bound: dbw-lakehouse-test, tags: [test] }
-  supply_test_landing: { kind: external-location, label: supply_test_landing, bound: dbw-lakehouse-test, tags: [test] }
-  orders_prod_landing: { kind: external-location, label: orders_prod_landing, bound: dbw-lakehouse-prod, tags: [prod] }
-  webshop_prod_landing: { kind: external-location, label: webshop_prod_landing, bound: dbw-lakehouse-prod, tags: [prod] }
-  finance_prod_landing: { kind: external-location, label: finance_prod_landing, bound: dbw-lakehouse-prod, tags: [prod] }
-  sales_prod_landing: { kind: external-location, label: sales_prod_landing, bound: dbw-lakehouse-prod, tags: [prod] }
-  customers_prod_landing: { kind: external-location, label: customers_prod_landing, bound: dbw-lakehouse-prod, tags: [prod] }
-  supply_prod_landing: { kind: external-location, label: supply_prod_landing, bound: dbw-lakehouse-prod, tags: [prod] }
+  <domain>_dev_landing: { kind: external-location, label: <domain>_dev_landing, bound: dbw-lakehouse-dev, tags: [dev] }
+  <domain>_test_landing: { kind: external-location, label: <domain>_test_landing, bound: dbw-lakehouse-test, tags: [test] }
+  <domain>_prod_landing: { kind: external-location, label: <domain>_prod_landing, bound: dbw-lakehouse-prod, tags: [prod] }
   # OpenSharing share, under the metastore
   contoso_sell_through: { kind: share, label: contoso_sell_through, caption: sales_prod.gold.sell_through, tags: [prod] }
 
@@ -120,90 +94,26 @@ policies:
 assignments:
   # The platform team runs the metastore and the workspaces; it holds no grants on domain data
   - platform-team is metastore-admin on uc-weu
-  - platform-team is workspace-admin on dbw-lakehouse-dev
-  - platform-team is workspace-admin on dbw-lakehouse-test
-  - platform-team is workspace-admin on dbw-lakehouse-prod
+  - platform-team is workspace-admin on dbw-lakehouse-<env>
   # Who may sign in where: engineers everywhere, analysts in prod, each service principal in its environment
-  - engineers is workspace-user on dbw-lakehouse-dev
-  - engineers is workspace-user on dbw-lakehouse-test
-  - engineers is workspace-user on dbw-lakehouse-prod
+  - engineers is workspace-user on dbw-lakehouse-<env>
   - analysts is workspace-user on dbw-lakehouse-prod
-  - sp-lakehouse-dev is workspace-user on dbw-lakehouse-dev
-  - sp-lakehouse-test is workspace-user on dbw-lakehouse-test
-  - sp-lakehouse-prod is workspace-user on dbw-lakehouse-prod
+  - sp-lakehouse-<env> is workspace-user on dbw-lakehouse-<env>
   # Dev: each team owns its catalog; the bundle's pipelines run as sp-lakehouse-dev
-  - orders-team is owner on orders_dev
-  - webshop-team is owner on webshop_dev
-  - finance-team is owner on finance_dev
-  - sales-team is owner on sales_dev
-  - customers-team is owner on customers_dev
-  - supply-team is owner on supply_dev
-  - sp-lakehouse-dev is pipeline on orders_dev
-  - sp-lakehouse-dev is pipeline on webshop_dev
-  - sp-lakehouse-dev is pipeline on finance_dev
-  - sp-lakehouse-dev is pipeline on sales_dev
-  - sp-lakehouse-dev is pipeline on customers_dev
-  - sp-lakehouse-dev is pipeline on supply_dev
+  - <domain>-team is owner on <domain>_dev
+  - sp-lakehouse-dev is pipeline on <domain>_dev
   # Test and prod: the environment's service principal owns the catalogs; each team reads its own
-  - sp-lakehouse-test is owner on orders_test
-  - sp-lakehouse-test is owner on webshop_test
-  - sp-lakehouse-test is owner on finance_test
-  - sp-lakehouse-test is owner on sales_test
-  - sp-lakehouse-test is owner on customers_test
-  - sp-lakehouse-test is owner on supply_test
-  - orders-team is read-catalog on orders_test
-  - webshop-team is read-catalog on webshop_test
-  - finance-team is read-catalog on finance_test
-  - sales-team is read-catalog on sales_test
-  - customers-team is read-catalog on customers_test
-  - supply-team is read-catalog on supply_test
-  - sp-lakehouse-prod is owner on orders_prod
-  - sp-lakehouse-prod is owner on webshop_prod
-  - sp-lakehouse-prod is owner on finance_prod
-  - sp-lakehouse-prod is owner on sales_prod
-  - sp-lakehouse-prod is owner on customers_prod
-  - sp-lakehouse-prod is owner on supply_prod
-  - orders-team is read-catalog on orders_prod
-  - webshop-team is read-catalog on webshop_prod
-  - finance-team is read-catalog on finance_prod
-  - sales-team is read-catalog on sales_prod
-  - customers-team is read-catalog on customers_prod
-  - supply-team is read-catalog on supply_prod
+  - sp-lakehouse-test is owner on <domain>_test
+  - <domain>-team is read-catalog on <domain>_test
+  - sp-lakehouse-prod is owner on <domain>_prod
+  - <domain>-team is read-catalog on <domain>_prod
   # Auto Loader reads the landing containers as the environment's service principal; nobody else reads files there
-  - sp-lakehouse-dev is read-files on orders_dev_landing
-  - sp-lakehouse-dev is read-files on webshop_dev_landing
-  - sp-lakehouse-dev is read-files on finance_dev_landing
-  - sp-lakehouse-dev is read-files on sales_dev_landing
-  - sp-lakehouse-dev is read-files on customers_dev_landing
-  - sp-lakehouse-dev is read-files on supply_dev_landing
-  - sp-lakehouse-test is read-files on orders_test_landing
-  - sp-lakehouse-test is read-files on webshop_test_landing
-  - sp-lakehouse-test is read-files on finance_test_landing
-  - sp-lakehouse-test is read-files on sales_test_landing
-  - sp-lakehouse-test is read-files on customers_test_landing
-  - sp-lakehouse-test is read-files on supply_test_landing
-  - sp-lakehouse-prod is read-files on orders_prod_landing
-  - sp-lakehouse-prod is read-files on webshop_prod_landing
-  - sp-lakehouse-prod is read-files on finance_prod_landing
-  - sp-lakehouse-prod is read-files on sales_prod_landing
-  - sp-lakehouse-prod is read-files on customers_prod_landing
-  - sp-lakehouse-prod is read-files on supply_prod_landing
+  - sp-lakehouse-<env> is read-files on <domain>_<env>_landing
   # Every engineer may find production data: BROWSE shows names and comments, no rows
-  - engineers is browse on orders_prod
-  - engineers is browse on webshop_prod
-  - engineers is browse on finance_prod
-  - engineers is browse on sales_prod
-  - engineers is browse on customers_prod
-  - engineers is browse on supply_prod
+  - engineers is browse on <domain>_prod
   # Analysts: USE CATALOG on four prod catalogs, and USE SCHEMA and SELECT on their gold schemas only
-  - analysts is use-catalog on orders_prod
-  - analysts is use-catalog on finance_prod
-  - analysts is use-catalog on sales_prod
-  - analysts is use-catalog on customers_prod
-  - analysts is read-schema on orders_prod_gold
-  - analysts is read-schema on finance_prod_gold
-  - analysts is read-schema on sales_prod_gold
-  - analysts is read-schema on customers_prod_gold
+  - analysts is use-catalog on <bi>_prod
+  - analysts is read-schema on <bi>_prod_gold
   # sell_through is shared with Contoso, who reads it in its own account; sales-team owns the share and the recipient
   - sales-team is owner on contoso_sell_through
   - contoso is share-read on contoso_sell_through
