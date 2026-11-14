@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse } from 'yaml';
+import { expandEach } from '@cartography/core';
 import { icon } from '@cartography/icons';
 import { config as azure, databricksGroups, databricksNodes } from '@cartography/azure';
 import { principalKinds, resourceKinds } from '@cartography/access';
@@ -14,6 +15,11 @@ import { render } from '../src/index.ts';
 const dir = path.resolve(import.meta.dirname, '../../../examples/databricks');
 const load = (f: string) => fs.readFileSync(path.join(dir, f), 'utf8');
 const draw = (text: string) => render(text, { load, fonts: 'none', file: 'test.yaml' });
+/** The model as the diagrams see it: its each: patterns written out. */
+const model = () => {
+  const raw = parse(load('model.yaml'));
+  return (expandEach(raw)?.data ?? raw) as { elements: Record<string, any> };
+};
 
 /** One element of each kind in the model (parts as dotted ids): how a kind maps does not depend on which. */
 function oneOfEachKind(): string[] {
@@ -24,7 +30,7 @@ function oneOfEachKind(): string[] {
       if (el?.elements) walk(el.elements as never, `${prefix}${id}.`);
     }
   };
-  walk(parse(load('model.yaml')).elements, '');
+  walk(model().elements, '');
   return [...seen.values()];
 }
 
@@ -121,8 +127,7 @@ describe('examples/databricks/model.yaml', () => {
   });
 
   it('names Azure resources the CAF way, and ids are the names shown', () => {
-    const model = parse(load('model.yaml'));
-    for (const [id, el] of Object.entries<{ kind: string; label?: string }>(model.elements)) {
+    for (const [id, el] of Object.entries<{ kind: string; label?: string }>(model().elements)) {
       if (!id.includes('-lakehouse-') && !id.startsWith('st')) continue;
       const abbr = { databricks: 'dbw', 'access-connector': 'dbac', storage: 'st', 'private-endpoint': 'pep', vnet: 'vnet', nsg: 'nsg', 'route-table': 'rt', secrets: 'kv', ncc: 'ncc', subscription: 'sub', 'resource-group': 'rg' }[el.kind];
       expect(abbr, id).toBeDefined();
@@ -132,8 +137,8 @@ describe('examples/databricks/model.yaml', () => {
   });
 
   it('names catalogs domain first, and gives every domain and environment its own storage', () => {
-    const model = parse(load('model.yaml'));
-    const uc = model.elements['uc-weu'].elements;
+    const m = model();
+    const uc = m.elements['uc-weu'].elements;
     for (const env of ['dev', 'test', 'prod']) {
       for (const domain of ['orders', 'webshop', 'finance', 'sales', 'customers', 'supply']) {
         const st = `st${domain}${env}`;
@@ -141,12 +146,12 @@ describe('examples/databricks/model.yaml', () => {
         expect(uc[`cred_${domain}_${env}`]?.kind).toBe('storage-credential');
         expect(uc[`${domain}_${env}_catalog`]?.technology).toBe(`catalog@${st}`);
         expect(uc[`${domain}_${env}_landing`]?.technology).toBe(`landing@${st}`);
-        expect(model.elements[st]?.kind, st).toBe('storage');
+        expect(m.elements[st]?.kind, st).toBe('storage');
         expect(st).toMatch(/^[a-z0-9]{3,24}$/);
-        expect(model.elements[`pep-${st}-dfs`]?.kind).toBe('private-endpoint');
+        expect(m.elements[`pep-${st}-dfs`]?.kind).toBe('private-endpoint');
       }
     }
-    expect(Object.keys(model.elements).filter((id) => id.startsWith('stlakehouse'))).toEqual([]);
+    expect(Object.keys(m.elements).filter((id) => id.startsWith('stlakehouse'))).toEqual([]);
   });
 
   it('can be placed in an Azure diagram and in an architecture diagram, every kind of it, without warnings', async () => {
