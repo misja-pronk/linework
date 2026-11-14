@@ -9,6 +9,10 @@ title: Northwind lakehouse
 subtitle: Azure Databricks in West Europe · six domains, three environments, one Unity Catalog metastore
 direction: right
 include: [model.yaml]
+# The model's relations between what is drawn are drawn for you. Unity Catalog feeding the lakehouse back
+# (gold into the sales pipeline and serving) is left out, as in the model's landscape: drawn once, as the lakehouse
+# writing to Unity Catalog.
+exclude: ['uc-weu -> lakehouse']
 
 groups:
   platform: { kind: boundary, label: Data platform, caption: Run by the data platform team }
@@ -33,5 +37,4 @@ edges:
   - github -> workspaces: Deploys
   - workspaces -> uc-weu: Attached
   - lakehouse -> uc-weu: { label: bronze to gold, style: data }
-  - uc-weu -> lakehouse: { label: gold, style: data }
   - domains -> uc-weu: Own

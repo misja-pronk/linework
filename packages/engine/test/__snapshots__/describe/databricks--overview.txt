@@ -1,6 +1,6 @@
 Northwind lakehouse
 
-Architecture diagram: Azure Databricks in West Europe · six domains, three environments, one Unity Catalog metastore. 10 elements in 2 groups, with 10 connections.
+Architecture diagram: Azure Databricks in West Europe · six domains, three environments, one Unity Catalog metastore. 10 elements in 2 groups, with 9 connections.
 
 Groups and elements
 - Sources (ERP · web shop · Salesforce)
@@ -19,7 +19,7 @@ Groups and elements
 Connections
 - Sources sends data to Northwind lakehouse (CDC · Kafka · API).
 - Northwind lakehouse sends data to uc-weu (bronze to gold), sends data to Replenishment (Forecast [REST]), sends data to Power BI (DirectQuery) and sends data to Sales reps (Customer 360).
-- uc-weu sends data to Northwind lakehouse (gold) and sends data to Contoso Retail (OpenSharing).
+- uc-weu sends data to Contoso Retail (OpenSharing).
 - GitHub Actions connects to Workspaces (Deploys).
 - Workspaces connects to uc-weu (Attached).
 - Domain teams connect to uc-weu (Own).
