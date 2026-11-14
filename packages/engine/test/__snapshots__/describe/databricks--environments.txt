@@ -1,51 +1,53 @@
 Dev, test and production
 
-Process diagram: Northwind lakehouse · one bundle goes from Git through dev and test, and a person opens the gate to production. 10 elements in 5 lanes, with 9 connections.
+Process diagram: Northwind lakehouse · one bundle goes from Git through dev and test, and a person opens the gate to production. 12 elements in 3 lanes, with 11 connections.
 
 Lanes and steps
 - GitHub (lane)
   - Pull request (start event, a change to the bundle)
-  - Validate bundle (bundle validate · unit tests)
-  - Merged to main (after review)
+  - Reviewed and merged (into main)
 - Reviewer (lane)
   - Release approved? (decision)
   - Release stopped (end event)
-- Development (lane): dbw-lakehouse-dev
-  - Deploy to dev (as sp-lakehouse-dev)
-- Test (lane): dbw-lakehouse-test
-  - Deploy to test (as sp-lakehouse-test)
-  - Run the pipelines (on test data)
-- Production (lane): dbw-lakehouse-prod
-  - Deploy to production (as sp-lakehouse-prod)
-  - Live in production (end event)
+- Azure Databricks (lane)
+  - Deploy to dev (OIDC as sp-lakehouse-dev)
+  - Deploy to test (OIDC as sp-lakehouse-test)
+  - Run pipelines (a red run stops it)
+  - Deploy to prod (OIDC as sp-lakehouse-prod)
+  - Smoke test green? (decision)
+  - Live in prod (end event)
+  - Deploy the last tag (OIDC as sp-lakehouse-prod)
+  - Rolled back (end event)
 
 Main path
 1. Pull request
-2. Validate bundle
-3. Deploy to dev
-4. Merged to main
-5. Deploy to test
-6. Run the pipelines
-7. Release approved?
-8. Deploy to production (Release approved?: yes)
-9. Live in production
+2. Deploy to dev
+3. Reviewed and merged
+4. Deploy to test
+5. Run pipelines
+6. Release approved?
+7. Deploy to prod (Release approved?: yes)
+8. Smoke test green?
+9. Live in prod (Smoke test green?: yes)
 
 Connections
-- Pull request leads to Validate bundle.
-- Validate bundle leads to Deploy to dev.
-- Deploy to dev leads to Merged to main.
-- Merged to main leads to Deploy to test.
-- Deploy to test leads to Run the pipelines.
-- Run the pipelines leads to Release approved?
-- Release approved? leads to Deploy to production (yes) and leads to Release stopped (no).
-- Deploy to production leads to Live in production.
+- Pull request leads to Deploy to dev.
+- Deploy to dev leads to Reviewed and merged.
+- Reviewed and merged leads to Deploy to test.
+- Deploy to test leads to Run pipelines.
+- Run pipelines leads to Release approved?
+- Release approved? leads to Deploy to prod (yes) and leads to Release stopped (no).
+- Deploy to prod leads to Smoke test green?
+- Smoke test green? leads to Live in prod (yes) and leads to Deploy the last tag (no).
+- Deploy the last tag leads to Rolled back.
 
 Walkthrough
-1. One bundle, three workspaces: The same bundle goes to dbw-lakehouse-dev, -test and -prod; each catalog is bound to one of them only.
-2. Every pull request: Actions validates the bundle and deploys it to dev as sp-lakehouse-dev, which can write the _dev catalogs only.
-3. Test: After the merge the bundle goes to test, and the pipelines run end to end on the _test catalogs.
-4. The gate: The prod environment in GitHub has required reviewers. The run waits until one of them approves.
-5. Production: sp-lakehouse-prod deploys the same bundle; only it has MODIFY on the _prod catalogs, people read.
+1. One bundle, three workspaces: The same bundle goes to dbw-lakehouse-dev, -test and -prod, each with its own service principal. Each catalog is bound to one workspace only.
+2. Every pull request: Actions signs in with OIDC as sp-lakehouse-dev, whose federation policy trusts this repository, so GitHub holds no secret, and deploys the bundle to dev.
+3. Test: Once reviewed and merged into main, sp-lakehouse-test deploys the bundle and runs the pipelines end to end on the _test catalogs. A red run stops the release.
+4. The gate: The prod environment in GitHub has required reviewers. Only a job in it gets a token for sp-lakehouse-prod, and it waits until one of them approves.
+5. Production: sp-lakehouse-prod, owner of the _prod catalogs, deploys the same bundle and a smoke test checks it. People read production; only this principal writes.
+6. Roll back: A red smoke test? Actions deploys the previous release tag again. Tables the release wrote wrongly go back with RESTORE or a full refresh.
 
 Key
 - Solid line, thick: Happy path
