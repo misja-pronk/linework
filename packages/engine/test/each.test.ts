@@ -299,6 +299,18 @@ describe('access: who × where laid out by the lists of each:', () => {
     });
   });
 
+  it("heads a column with the principal's column: (Domain team), not the name it is written as", async () => {
+    const named = access.replace('<domain>-team: { kind: account-group, label: <domain>-team }', '<domain>-team: { kind: account-group, label: <domain>-team, column: Domain team }');
+    const r = await render(named, { fonts: 'none', view: 'matrix' });
+    expect(errors(r)).toEqual([]);
+    expect(r.diagnostics.filter((d) => d.severity === 'warning')).toEqual([]);
+    expect(matrixOf(r).columns).toEqual(['Domain team / dev', 'sp-dev / dev', 'Domain team / prod', 'sp-prod / prod', 'analysts / prod']);
+    // Elsewhere the team is the account group it is: orders-team.
+    const plain = await render(named, { fonts: 'none', view: 'by-scope' });
+    expect(matrixOf(plain).columns[0]).toBe('Domain team / <domain>_prod');
+    expect((await render(named, { fonts: 'none' })).svg).toContain('orders-team');
+  });
+
   it('shows a part of the rows per view, with the same columns', async () => {
     const one = matrixOf(await render(access, { fonts: 'none', view: 'part-1' }));
     const two = matrixOf(await render(access, { fonts: 'none', view: 'part-2' }));

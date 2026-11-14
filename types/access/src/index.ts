@@ -130,6 +130,8 @@ interface Principal {
   app?: string;
   /** The object id in the directory: an import recognises the principal by it, whatever it is called here. */
   'object-id'?: string;
+  /** The header of its column where the who × where matrix is laid out by rows: (a team per domain: Domain team). */
+  column?: string;
   tags?: string[];
 }
 
@@ -1099,9 +1101,11 @@ function pivotView(m: Model, cut: Cut | undefined, p: Pivot): Graph {
   const headers: MatrixHeader[] = columns.map((c) => {
     const sample = who.find((id) => shapeOf(id) === c.shape)!;
     const h = principalHeader(m, sample);
-    // A column of one principal per row is named as it is written (<domain>-team); the environment is a band over its columns.
+    // A column of one principal per row is named as it is written (<domain>-team), or as its column: says
+    // (Domain team); the environment is a band over its columns.
     const where = p.columns ? label(p.columns, c.where) : c.where;
-    return { ...h, label: c.shape === sample ? h.label : c.shape, icon: undefined, ...(p.columns ? { group: where, caption: undefined } : { caption: where }) };
+    const named = m.principal(sample)?.column ?? (c.shape === sample ? h.label : c.shape);
+    return { ...h, label: named, icon: undefined, ...(p.columns ? { group: where, caption: undefined } : { caption: where }) };
   });
   return matrixGraph(
     m,
@@ -1481,6 +1485,7 @@ export const access: DiagramType<AccessSource> = {
           owners: { ...strings, description: 'Who owns it: a group’s or an app’s owners' },
           app: { type: 'string', description: 'A service principal’s or a federated credential’s app registration (a principal of kind app-registration)' },
           'object-id': objectId,
+          column: { type: 'string', description: 'The header of its column where the who × where matrix is laid out by rows: a list of each:, e.g. Domain team for <domain>-team' },
         }),
       },
       policies: {
