@@ -100,6 +100,8 @@ export interface ViewSpec {
   layers?: string[];
   /** The view claims to deploy everything: true for every part of every system, or the elements it is about. */
   complete?: true | string[];
+  /** One of the type's own drawings (an access diagram's graph, access matrix or roles table) this view draws. */
+  show?: string;
   at: Path;
 }
 
@@ -255,6 +257,7 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
         ...(typeof o.environment === 'string' ? { environment: o.environment } : {}),
         ...(list('layers') ? { layers: list('layers') } : {}),
         ...(o.complete === true ? { complete: true as const } : list('complete') ? { complete: list('complete') } : {}),
+        ...(typeof o.show === 'string' ? { show: o.show } : {}),
         at: at(['views', name]),
       });
     }
@@ -388,6 +391,7 @@ const viewSchema = {
     },
     environment: { type: 'string', description: 'One environment of a deployment, e.g. prod: nodes and groups with another env: are left out' },
     layers: viewLayersSchema,
+    show: { type: 'string', description: 'Which of the type’s own drawings this view is, e.g. graph, access (who × where) or roles in an access diagram' },
     complete: {
       anyOf: [{ type: 'boolean' }, { type: 'string' }, { type: 'array', items: { type: 'string' } }],
       description: 'Warn about parts of the model that nothing runs here: true for every system, or the elements it is about, e.g. [shop]',
