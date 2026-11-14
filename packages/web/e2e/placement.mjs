@@ -57,6 +57,8 @@ const shifts = (before, after, anchor) => {
 };
 const pinnedNow = async () => Number((await page.locator('.statusbar').innerText()).match(/(\d+) pinned/)?.[1] ?? 0);
 const paletteDrop = async (label, at) => {
+  // Scrolled into view: the Azure list has grown (Databricks) and puts some shapes below the window.
+  await page.locator(`.add-item:has-text("${label}")`).first().scrollIntoViewIfNeeded();
   const it = await page.locator(`.add-item:has-text("${label}")`).first().boundingBox();
   await page.mouse.move(it.x + it.width / 2, it.y + it.height / 2);
   await page.mouse.down();
