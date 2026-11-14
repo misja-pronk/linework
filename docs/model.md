@@ -108,6 +108,7 @@ One file can hold dev, test and production. `env:` on a node, group or edge says
 - An environment nothing is tagged for is simply what is left: `dev` without the extras of `prod`. A view with `environment:` in a file where nothing has `env:` at all gets a warning.
 - Without a view the diagram draws everything, every environment at once. Then what only some environments have carries their names as tags (`prod`, `test · prod` on a card or a zone, `dev` after a line's label), and the key says that what has no tag is in all of them.
 - `carto render aws.yaml --all-views` writes one picture per environment.
+- Three detailed environments side by side are seldom one slide: `present: views` makes the whole a working canvas and the views the slides (see [present: views](#present-views--the-whole-is-a-working-canvas)).
 
 ### Complete or not
 
@@ -137,17 +138,20 @@ Rules, in `include:` and `exclude:`:
 | Rule | Picks |
 |---|---|
 | `shop`, `shop.api`, `web` | that element or node |
+| `vnet-prod` (a group written here) | the group with everything written in it, at any depth |
 | `shop.*` | its parts (model) or what sits `in:` it (groups) |
 | `tag:external` | elements with that tag |
+| `env:prod` | what is written for that environment: its own `env:` or that of a group around it names it |
 | `kind:database` | elements of that kind |
 | `*` | everything at the top level (and everything written in the diagram) |
 | `'* -> shop'`, `'shop.api -> *'` | relations, and the ends they connect (at the level of detail shown) |
 
-- `include` defaults to `*`. `expand` draws an element as a boundary and adds its parts; `exclude` takes elements out, or relations when the rule has an arrow.
-- What sits in a group keeps the group. `title`, `subtitle` and `direction` override the diagram's.
+- `include` defaults to `*`. `expand` draws an element as a boundary and adds its parts; `exclude` takes elements out (a group with what is in it), or relations when the rule has an arrow.
+- What sits in a group keeps the group. An element drawn together with parts of it is their boundary, as if expanded, with only those parts in it: `include: [sub-prod, sub-prod.vnet, sub-prod.vnet.snet-pep]` draws the subnet inside its VNet inside its subscription. `title`, `subtitle` and `direction` override the diagram's.
 - Without a view a diagram draws what it says. A diagram that only has views (like `containers.yaml`) draws its first.
 - Diagrams of other types (ERD, access, GitHub, data products) take views too, by id, `id.*` and relation rules.
 - Views of an included model stay the model's: `carto render model.yaml --view landscape` draws them.
+- `exclude:` at the top of a diagram leaves relations of the model out of the drawing as written and of every view, by the same arrow rules: `exclude: ['uc-weu -> lakehouse']`. Lines written in the diagram stay. A node is left out by not writing it, so a rule without an arrow there gets a warning.
 - A view can be told in parts: `steps:` inside the view, see [steps.md](steps.md). When presenting, the views come in the order written.
 
 CLI:
@@ -162,6 +166,32 @@ In the editor a view menu appears in the canvas tools when the diagram has views
 ### C4 views
 
 A view can also say which C4 diagram it is (`kind: landscape | context | container | component | dynamic | deployment`, with `of:` the element it is about); it then picks its elements itself, and in a `type: c4` diagram (or a model file with such views) it is drawn in C4 notation. See [c4.md](c4.md).
+
+### present: views — the whole is a working canvas
+
+A detailed deployment of three environments never fits one slide, while each environment does. `present: views` at the top says so: the drawing as written is the canvas you work on, and the views are what is presented.
+
+```yaml
+type: azure
+include: [model.yaml]
+present: views
+groups:
+  vnet-lakehouse-prod: { ref: vnet-lakehouse-prod, env: prod }
+  vnet-lakehouse-dev: { ref: vnet-lakehouse-dev, env: dev }
+nodes: …
+views:
+  prod: { environment: prod, steps: [ … ] }
+  test: { environment: test }
+  dev: { environment: dev }
+```
+
+- Without a view the first view is drawn, as for a file of only views. The whole drawing is drawn when asked for by the empty view name: "Whole diagram" in the editor's view picker, `--view ''` on the command line.
+- `carto validate` measures the views (and their steps) on their slides, never the whole.
+- `carto render x.yaml -o x.pptx` (or `.pdf`), `--all-views` and `carto deck` write the views, a slide (page, picture) each; `carto describe` describes each view; the HTML export and presenting in the editor show the views. A PowerPoint or PDF exported in the editor while the whole is on screen holds the views.
+- The editor opens the file on its first view; V goes round the views.
+- Steps belong in the views: steps written at the top get a warning, since the whole is not presented. `present: whole` is the default. Without views, `present: views` gets a warning and the drawing is the slide.
+
+Example: [examples/databricks/deployment.yaml](../examples/databricks/deployment.yaml), dev, test and production of one lakehouse, a spoke each.
 
 ## links: drill-down
 
