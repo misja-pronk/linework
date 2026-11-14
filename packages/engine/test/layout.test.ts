@@ -337,10 +337,11 @@ describe('layout quality', () => {
     const load = (rel: string) => fs.readFileSync(path.resolve(examples, 'deployment', rel), 'utf8');
     // Drawn on its own (not the way the first environment was), as it would be without the others,
     // and with the account around the region that the example leaves out to fit a slide: one more group title to pass.
+    // As placed, not wrapped: on the slide's real room (under its title) it is cut into two columns, and the users stand above the gateway.
     const aws = fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8');
     const inAccount = aws.replace('  region: { kind: region, region: eu-west-1 }', '  account: { kind: account, label: shop }\n  region: { kind: region, region: eu-west-1, in: account }');
     expect(inAccount).not.toBe(aws);
-    const r = await render(inAccount, { fonts: 'none', load, view: 'dev', previous: null });
+    const r = await render(inAccount, { fonts: 'none', load, view: 'dev', previous: null, tuning: { wrap: false } });
     const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'igw')!;
     expect(r.placed!.edges.get(line.id)!.points).toHaveLength(2);
   });

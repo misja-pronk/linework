@@ -97,7 +97,7 @@ describe('validate', () => {
     const after = await validateDiagram({ yaml: badged });
     // Fewer crossings, or as few and a much tidier drawing (the hub's lines keep clear of the cards they pass).
     expect(after.quality!.crossings).toBeLessThanOrEqual(r.quality!.crossings);
-    expect(after.quality!.score).toBeLessThan(r.quality!.score / 2);
+    if (after.quality!.crossings === r.quality!.crossings) expect(after.quality!.score).toBeLessThan(r.quality!.score / 2);
   });
 
   it('measures the other direction before suggesting it', async () => {
