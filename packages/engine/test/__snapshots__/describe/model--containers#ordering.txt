@@ -18,4 +18,4 @@ Connections
 Key
 - Solid line with beads: Connection
 - Solid blue line: Request
-- Solid teal line with ticks: Data flow
+- Solid violet line with ticks: Data flow

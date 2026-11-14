@@ -30,7 +30,7 @@ describe('systems', () => {
     // The dashed line without a style is drawn too, so the key names it.
     expect(r.graph!.legend).toEqual([
       { label: 'Connection (dashed)', line: 'dashed' },
-      { label: 'Data flow', line: 'solid', tone: 'teal', pattern: 'ticks' },
+      { label: 'Data flow', line: 'solid', tone: 'violet', pattern: 'ticks' },
     ]);
   });
 
@@ -77,7 +77,7 @@ edges:
 
   it('names plain lines in the legend when coloured ones are explained too', async () => {
     const r = await render(`type: systems\nnodes:\n  a: service\n  b: queue\n  c: worker\nedges:\n  - a -> b: { style: async }\n  - b -> c\n`, { fonts: 'none' });
-    expect(r.graph!.legend).toEqual([{ label: 'Connection', line: 'solid' }, { label: 'Async message', line: 'dashed', tone: 'violet' }]);
+    expect(r.graph!.legend).toEqual([{ label: 'Connection', line: 'solid' }, { label: 'Async message', line: 'dashed', tone: 'amber' }]);
   });
 
   it('rejects unknown kinds and styles', async () => {

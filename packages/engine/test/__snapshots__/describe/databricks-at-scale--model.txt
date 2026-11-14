@@ -17,4 +17,4 @@ Connections
 - Salesforce sends data to Northwind lakehouse (API).
 
 Key
-- Solid teal line with ticks: Data flow
+- Solid violet line with ticks: Data flow

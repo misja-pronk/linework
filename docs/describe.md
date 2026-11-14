@@ -28,7 +28,7 @@ Connections
 
 Key
 - Solid line with beads: Connection
-- Dashed violet line: Async message
+- Dashed amber line: Async message
 …
 ```
 
@@ -89,7 +89,7 @@ elements with one name are told apart by their kind (*web (Service)*, *web (Depl
 
 After that, for every type: the **walkthrough** (written steps, with their notes) or a dynamic view's numbered
 **steps**; **layers** with their tags; **trust boundaries**; and the **key**, each
-sample in words (*Dashed violet line: Async message*, *Shade 4 of 4 (strongest): €600k–€800k*).
+sample in words (*Dashed amber line: Async message*, *Shade 4 of 4 (strongest): €600k–€800k*).
 
 ## Writing diagrams that read well
 

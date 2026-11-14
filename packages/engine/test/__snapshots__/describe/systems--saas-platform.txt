@@ -34,6 +34,6 @@ Ways to look at this drawing by tag.
 Key
 - Solid line with beads: Connection
 - Solid blue line: Request
-- Dashed violet line: Async message
-- Solid teal line with ticks: Data flow
+- Dashed amber line: Async message
+- Solid violet line with ticks: Data flow
 - Dotted line: Supporting

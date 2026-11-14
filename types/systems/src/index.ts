@@ -68,8 +68,9 @@ export const config: GraphTypeConfig = {
   },
   edgeStyles: {
     sync: { label: 'Request', line: 'solid', tone: 'blue' },
-    async: { label: 'Async message', line: 'dashed', tone: 'violet' },
-    data: { label: 'Data flow', line: 'solid', tone: 'teal' },
+    async: { label: 'Async message', line: 'dashed', tone: 'amber' },
+    // Violet, as in the azure and cloud types: data flow is one colour in every drawing.
+    data: { label: 'Data flow', line: 'solid', tone: 'violet' },
     dotted: { label: 'Supporting', line: 'dotted', tone: 'slate' },
   },
   plainEdge: 'Connection',

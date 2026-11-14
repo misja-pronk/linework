@@ -30,4 +30,4 @@ Connections
 
 Key
 - Solid line: Connection
-- Solid teal line with ticks: Data flow
+- Solid violet line with ticks: Data flow

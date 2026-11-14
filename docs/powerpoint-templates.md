@@ -74,7 +74,7 @@ through:
 - the page is the slide background of the chosen layout (or the master's, or `lt1`); a dark layout gives a dark
   theme;
 - text is `tx1`, or the scheme colour that reads on that background;
-- **accent 1** is the main tone (blue: what most things are drawn in), **accent 2** the second (teal: data flow,
+- **accent 1** is the main tone (blue: what most things are drawn in), **accent 2** the second (teal: private network,
   the step rule); accents 3–6 go to the tone nearest in hue, so a red accent is still what says *danger*, and a
   grey one is the neutral tone;
 - every word is set in the template's body font (its *minor* font), the technical labels too; the title keeps
