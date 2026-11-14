@@ -1,29 +1,27 @@
 Who reads production
 
-Roles, groups and access packages diagram: Northwind lakehouse · analysts read four gold schemas, pii masked; Contoso reads its share. 7 elements in 4 groups, with 9 connections.
+Roles, groups and access packages diagram: Northwind lakehouse · analysts read the gold schemas they report on; Contoso reads its share. 6 elements in 3 groups, with 7 connections.
 
 Groups and elements
 - analysts (Power BI and Genie)
-- orders_prod (Bound to dbw-lakehouse-prod)
-  - orders_prod.gold (Schema)
+- webshop_prod (Bound to dbw-lakehouse-prod)
+  - webshop_prod.gold (Schema)
 - finance_prod (Bound to dbw-lakehouse-prod)
   - finance_prod.gold (Schema)
 - sales_prod (Bound to dbw-lakehouse-prod)
   - sales_prod.gold (Schema)
-- customers_prod (Bound to dbw-lakehouse-prod)
-  - customers_prod.gold (Schema)
-- contoso (Databricks-to-Databricks)
+- contoso (Databricks-to-Databricks · SecureConnect on)
 - contoso_sell_through (sales_prod.gold.sell_through)
 
 Connections
-- analysts is Use catalog on orders_prod, is Use catalog on finance_prod, is Use catalog on sales_prod, is Use catalog on customers_prod, is Read schema on orders_prod.gold, is Read schema on finance_prod.gold, is Read schema on sales_prod.gold and is Read schema on customers_prod.gold.
+- analysts is Use catalog on webshop_prod, is Use catalog on finance_prod, is Use catalog on sales_prod, is Read schema on webshop_prod.gold, is Read schema on finance_prod.gold and is Read schema on sales_prod.gold.
 - contoso is SELECT on share on contoso_sell_through.
 
 Layers
 Ways to look at this drawing by tag.
-- Development (tags dev; 0 elements).
-- Test (tags test; 0 elements).
-- Production (tags prod; 6 elements).
+- dev (tags dev; 0 elements).
+- test (tags test; 0 elements).
+- prod (tags prod; 5 elements).
 
 Key
 - Solid sky line: Role assignment

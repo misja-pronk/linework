@@ -220,7 +220,7 @@ relations:
   - sqldb-webshop-prod -> lakehouse.webshop-ingest: { label: CDC, style: data }
   - salesforce -> lakehouse.salesforce-ingest: { label: API, style: data }
   - evhns-webshop-prod -> lakehouse.clickstream: { label: Kafka, style: data }
-  - supplier-sftp -> uc-weu.supply_prod.bronze: { label: SFTP connector, style: data }
+  - supplier-sftp -> uc-weu.supply_prod.bronze: { label: SFTP connector · CSV, style: data }
   - lakehouse.erp-ingest -> uc-weu.orders_prod.bronze: { style: data }
   - lakehouse.erp-ingest -> uc-weu.finance_prod.bronze: { style: data }
   - lakehouse.erp-ingest -> uc-weu.supply_prod.bronze: { style: data }

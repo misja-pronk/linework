@@ -8,9 +8,9 @@ Columns: USE CATALOG, USE SCHEMA, SELECT, READ VOLUME, EXECUTE, MODIFY, CREATE S
 
 Layers
 Ways to look at this drawing by tag.
-- Development (tags dev; 0 elements).
-- Test (tags test; 0 elements).
-- Production (tags prod; 0 elements).
+- dev (tags dev; 0 elements).
+- test (tags test; 0 elements).
+- prod (tags prod; 0 elements).
 
 Key
 - Indigo check mark: Granted by the role

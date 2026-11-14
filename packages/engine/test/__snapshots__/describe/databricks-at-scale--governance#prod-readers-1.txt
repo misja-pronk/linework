@@ -1,19 +1,19 @@
 Who reads production (1 of 2)
 
-Roles, groups and access packages diagram: Each team MANAGEs its catalog, the jobs write, every engineer may BROWSE and analysts read gold. A table of 10 rows by 5 columns.
+Roles, groups and access packages diagram: Northwind lakehouse · each team reads its catalog, the jobs own it, engineers BROWSE, analysts read gold. A table of 10 rows by 5 columns.
 
 By row (domain by where)
 Columns: engineers, <domain>-team, analysts, sp-lakehouse-prod and analysts.
-- orders: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
-- webshop: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
-- finance: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
-- sales: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
-- customers: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema (columns tagged pii masked)
-- supply: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
-- marketing: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
-- logistics: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
-- procurement: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
-- hr: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
+- orders: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- webshop: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- finance: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- sales: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- customers: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema (columns tagged pii masked)
+- supply: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- marketing: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- logistics: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- procurement: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- hr: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
 
 Layers
 Ways to look at this drawing by tag.

@@ -9,11 +9,11 @@ Groups and elements
   - pep-stordersprod-dfs (dfs · snet-pep)
   - pep-dbstorage-prod-dfs (dfs · snet-pep)
   - pep-dbstorage-prod-blob (blob · snet-pep)
-  - rt-lakehouse-prod (On both cluster subnets)
+  - rt-lakehouse-prod (Cluster subnets · gateway routes off)
   - nsg-dbw-lakehouse-prod (On both cluster subnets)
 - Databricks control plane (West Europe)
   - dbw-lakehouse-prod (Web app · REST API · SCC relay)
-- stordersprod (ADLS Gen2 · one of six)
+- stordersprod (ADLS Gen2 · one per domain)
 - databricks-rg-dbw-lakehouse-prod (Managed by Databricks)
   - dbstorage (Workspace storage · firewall support on)
 - vnet-hub-weu (10.0.0.0/22 · sub-connectivity)
@@ -32,7 +32,7 @@ Walkthrough
 2. A cluster: Clusters dial out to the SCC relay and the REST API through the back-end endpoint; no inbound ports.
 3. Reading data: Each domain's account has its own dfs endpoint, named in privatelink.dfs.core.windows.net.
 4. Workspace storage: Firewall support closes dbstorage to public networks; clusters reach it through a dfs and a blob endpoint.
-5. Everything else: rt-lakehouse-prod sends 0.0.0.0/0 to afw-hub, so package mirrors and the rest leave through the firewall.
+5. Everything else: rt-lakehouse-prod sends 0.0.0.0/0 to afw-hub and takes no gateway routes, so all else, on-premises too, passes the firewall.
 
 Key
 - Dashed teal line: Private network

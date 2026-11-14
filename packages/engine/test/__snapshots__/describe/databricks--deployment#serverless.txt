@@ -7,7 +7,7 @@ Groups and elements
   - SQL warehouses and jobs (Serverless · dbw-lakehouse-prod)
   - ncc-lakehouse-prod (Attached to dbw-lakehouse-prod)
   - demand-forecast (Model Serving endpoint)
-- stordersprod (ADLS Gen2 · one of six)
+- stordersprod (ADLS Gen2 · one per domain)
 - stsupplyprod (ADLS Gen2 · model artifacts)
 - stsalesprod (ADLS Gen2 · sell_through)
 

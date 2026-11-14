@@ -88,7 +88,7 @@ const crossingBudget: Record<string, number> = {
   'databricks/governance.yaml#production': 0,
   'databricks/governance.yaml#pii': 1, // the policy's line back to the prod service principal, whom it leaves alone, passes customers-team's read
   'databricks/governance.yaml#sharing': 0,
-  'databricks/governance.yaml#landing': 0,
+  'databricks/governance.yaml#storage': 0,
   'databricks/medallion.yaml': 0,
   'databricks/mesh.yaml': 2, // the ERP's line to Revenue passes Orders' line down to the demand forecast; Web sessions' line down to Power BI passes the forecast's to replenishment
   'databricks/overview.yaml': 0,
@@ -198,6 +198,7 @@ const jogBudget: Record<string, number> = {
   'systems/saas-platform.yaml': 1, // the overview: the host dashboard's way in steps aside past the guest app's
   'databricks/governance.yaml#orders': 1, // two grants into orders_dev's side: one steps a lane aside
   'databricks-at-scale/governance.yaml#orders': 1, // two grants into orders_test's side: one steps a lane aside
+  'databricks/governance.yaml#pii': 1, // three exclusions leave mask_pii on one side: the one up to the app steps a lane aside
   'databricks/mesh.yaml': 2, // the web shop's two sources join one line into Web sessions; three lines into Power BI's side: one steps aside
 };
 
@@ -242,7 +243,7 @@ const joinBudget: Record<string, number> = {
 // Labels with another line running through or right beside them (nearer than 6 px): none, but for the ones named here.
 const touchBudget: Record<string, number> = {
   'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
-  'databricks-at-scale/governance.yaml#orders': 1, // MANAGE sits where orders-team's line up to prod passes the test service principal's
+  'databricks-at-scale/governance.yaml#orders': 1, // orders-team's Read catalog into orders_test sits by the step its line takes into the catalog's side
   'c4/kestrel-bank.yaml#containers': 1,
   'c4/kestrel-bank.yaml#components': 1,
   'kubernetes/inference.yaml': 1,

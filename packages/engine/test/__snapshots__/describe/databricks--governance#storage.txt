@@ -1,0 +1,27 @@
+Credentials and connections in production
+
+Roles, groups and access packages diagram: Northwind lakehouse · each credential is bound to dbw-lakehouse-prod alone; the jobs read SFTP through a connection. 9 elements, with 8 connections.
+
+Elements
+- platform-team (Metastore and workspace admins)
+- cred_orders_prod (Storage credential · dbw-lakehouse-prod only)
+- cred_webshop_prod (Storage credential · dbw-lakehouse-prod only)
+- cred_finance_prod (Storage credential · dbw-lakehouse-prod only)
+- cred_sales_prod (Storage credential · dbw-lakehouse-prod only)
+- cred_customers_prod (Storage credential · dbw-lakehouse-prod only)
+- cred_supply_prod (Storage credential · dbw-lakehouse-prod only)
+- sftp_suppliers (Connection · SFTP)
+- sp-lakehouse-prod (Deploys and runs prod)
+
+Connections
+- platform-team is Owner on cred_orders_prod, is Owner on cred_webshop_prod, is Owner on cred_finance_prod, is Owner on cred_sales_prod, is Owner on cred_customers_prod, is Owner on cred_supply_prod and is Owner on sftp_suppliers.
+- sp-lakehouse-prod is USE CONNECTION on sftp_suppliers.
+
+Layers
+Ways to look at this drawing by tag.
+- dev (tags dev; 0 elements).
+- test (tags test; 0 elements).
+- prod (tags prod; 8 elements).
+
+Key
+- Solid sky line: Role assignment

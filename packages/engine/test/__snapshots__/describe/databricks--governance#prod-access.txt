@@ -1,6 +1,6 @@
 Who × where in production
 
-Roles, groups and access packages diagram: Northwind lakehouse · each team reads its own catalog, sp-lakehouse-prod owns all six; no one holds MANAGE. A table of 7 rows by 6 columns.
+Roles, groups and access packages diagram: Northwind lakehouse · sp-lakehouse-prod owns the prod catalogs; each team reads its own; no one holds MANAGE. A table of 7 rows by 6 columns.
 
 By row (Who by where)
 Columns: orders_prod, webshop_prod, finance_prod, sales_prod, customers_prod and supply_prod.
@@ -14,9 +14,9 @@ Columns: orders_prod, webshop_prod, finance_prod, sales_prod, customers_prod and
 
 Layers
 Ways to look at this drawing by tag.
-- Development (tags dev; 0 elements).
-- Test (tags test; 0 elements).
-- Production (tags prod; 0 elements).
+- dev (tags dev; 0 elements).
+- test (tags test; 0 elements).
+- prod (tags prod; 0 elements).
 
 Key
 - Indigo filled pill: Assigned directly

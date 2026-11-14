@@ -1,6 +1,6 @@
 Sales domain
 
-Azure infrastructure diagram: Northwind lakehouse · Salesforce, orders and customers into sell_through, for Power BI and Contoso. 14 elements in 2 groups, with 13 connections.
+Azure infrastructure diagram: Northwind lakehouse · Salesforce, orders and customers into sell_through, read in Power BI and shared with Contoso. 11 elements in 2 groups, with 10 connections.
 
 Groups and elements
 - Salesforce (Sales Cloud): Accounts and opportunities
@@ -12,12 +12,9 @@ Groups and elements
     - sell_through (Table)
 - bi-warehouse (Serverless SQL warehouse)
 - Power BI (Fabric capacity F64): Reports on gold through the SQL warehouse
-- Business analysts (Power BI · Genie): Read gold data in Power BI and Genie
 - sales-pipeline (Lakeflow pipeline)
 - orders_prod (Catalog)
 - contoso_sell_through (OpenSharing)
-- contoso (Databricks-to-Databricks)
-- Contoso Retail (Retail partner · own Databricks account): Retail partner; reads sell-through in its own Databricks account
 - customers_prod (Catalog)
 
 Connections
@@ -27,15 +24,11 @@ Connections
 - silver sends data to gold (join).
 - gold sends data to bi-warehouse.
 - bi-warehouse sends data to Power BI (DirectQuery).
-- Power BI sends data to Business analysts (Reports).
 - sales-pipeline connects to sales_prod (Management: refreshes).
 - orders_prod sends data to gold (orders).
 - sell_through sends data to contoso_sell_through (Shared in).
-- contoso_sell_through connects to contoso (Granted to).
-- contoso sends data to Contoso Retail (OpenSharing).
 - customers_prod sends data to gold (customers).
 
 Key
-- Solid line: Connection
 - Solid violet line with ticks: Data flow
 - Dotted line with ticks: Management

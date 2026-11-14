@@ -21,9 +21,9 @@ Connections
 
 Layers
 Ways to look at this drawing by tag.
-- Development (tags dev; 2 elements).
-- Test (tags test; 2 elements).
-- Production (tags prod; 2 elements).
+- dev (tags dev; 2 elements).
+- test (tags test; 2 elements).
+- prod (tags prod; 2 elements).
 
 Key
 - Dotted line: Member of

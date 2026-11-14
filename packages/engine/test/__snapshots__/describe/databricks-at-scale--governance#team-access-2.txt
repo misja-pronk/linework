@@ -1,19 +1,19 @@
 Every domain, every environment (2 of 2)
 
-Roles, groups and access packages diagram: A row per domain; per environment what its team holds on its catalog, and what the jobs hold. A table of 10 rows by 6 columns.
+Roles, groups and access packages diagram: Northwind lakehouse · a row per domain; per environment what its team and the service principal hold. A table of 10 rows by 6 columns.
 
 By row (domain by env)
 Columns: dev (<domain>-team, sp-lakehouse-dev); test (<domain>-team, sp-lakehouse-test); prod (<domain>-team, sp-lakehouse-prod).
-- payroll: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- pricing: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- inventory: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- returns: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- loyalty: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- fraud: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- support: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- products: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- partners: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- risk: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
+- payroll: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- pricing: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- inventory: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- returns: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- loyalty: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- fraud: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- support: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- products: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- partners: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- risk: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
 
 Layers
 Ways to look at this drawing by tag.

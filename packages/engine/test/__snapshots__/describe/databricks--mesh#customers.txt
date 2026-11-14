@@ -1,6 +1,6 @@
-Data products
+Customers
 
-Data products, customers in detail: Customers in detail. 5 elements in 1 group, with 4 connections.
+Data products diagram: Northwind lakehouse · accounts from Salesforce, pii masked for all but the CRM team and the app. 5 elements in 1 group, with 4 connections.
 
 Groups and elements
 - Salesforce (Sales Cloud)
