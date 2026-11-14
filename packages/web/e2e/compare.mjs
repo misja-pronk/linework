@@ -36,8 +36,11 @@ const wait = (ms = 300) => page.waitForTimeout(ms);
 const check = (what, got, want) => (got === want ? undefined : fail(`${what}: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`));
 const url = process.env.CARTO_URL ?? 'http://localhost:5178/';
 
+// Drawn left to right, as asked: wide, so side by side the two go under each other (left open, five
+// cards come out top-down on a slide's room under its title, and side by side stand next to each other).
 const v1 = `type: azure
 title: Shop
+direction: right
 groups:
   rg: { kind: resource-group, label: rg-shop }
 nodes:
