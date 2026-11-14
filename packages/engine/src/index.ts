@@ -393,9 +393,12 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     if (opts.view) {
       model.view = model.views.get(opts.view);
       if (!model.view) report([], `There is no view "${opts.view}"${names.length ? `; views: ${names.join(', ')}` : ''}`);
-    } else if (onlyViews || (canvas && opts.view === undefined && !ownView))
+    } else if (onlyViews || (canvas && opts.view === undefined && !ownView)) {
       // Only views, nothing drawn as written (or the whole is a canvas): the first view is the diagram.
       model.view = model.views.get(names[0]!);
+      // The whole asked for (view ''), where there is no whole: said, not drawn as if it were.
+      if (onlyViews && opts.view === '') report([], `There is no whole drawing here: the diagram only has views (it draws nothing as written), so view '' draws its first view, "${names[0]}"`, 'warning');
+    }
   } else if (opts.view) report([], `There is no view "${opts.view}": ${ownViews?.length ? `views: ${ownViews.map((v) => v.name).join(', ')}` : 'this diagram has no views'}`);
   if (ownView) built = { ...built, view: ownView };
   // A view of the model that is one of the type's own drawings (`show: access`): that drawing, cut to the view.
