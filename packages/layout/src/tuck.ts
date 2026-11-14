@@ -40,7 +40,8 @@ export function tuck(p: Placement, graph: Graph, gaps: { along: number; across: 
   const found: { q: Placement; s: number; d: number; level: boolean }[] = [];
   for (const n of graph.nodes) {
     const card = p.nodes.get(n.id);
-    if (n.parent || !card) continue;
+    // A card with a rank hint stands in its layer (a column of principals): it is not moved out of it.
+    if (n.parent || !card || n.rank != null) continue;
     const lines = graph.edges.filter((e) => (e.from.node === n.id) !== (e.to.node === n.id));
     if (!lines.length) continue;
     const ends = lines.map((e) => ({ out: e.from.node === n.id, box: p.nodes.get(e.from.node === n.id ? e.to.node : e.from.node) ?? p.groups.get(e.from.node === n.id ? e.to.node : e.from.node) }));
