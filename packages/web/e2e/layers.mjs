@@ -117,6 +117,8 @@ await wait(400);
   if (JSON.stringify(placed) !== JSON.stringify(again)) fail(`a faded layer should keep every place: ${JSON.stringify(placed)} then ${JSON.stringify(again)}`);
   await page.keyboard.press('0');
   await drawn('0: everything', ALL);
+  // The faded drawing has every node too: what tells them apart is the fading, gone once the new drawing is in (made in a worker, it comes a moment later).
+  await page.waitForFunction(() => !document.querySelector('.drawing [data-node][data-dim]'), undefined, { timeout: 5000 }).catch(() => undefined);
   check('0: nothing faded', await faded(), '');
   check('0: no chip', await chip(), '');
   await page.keyboard.press('Escape');

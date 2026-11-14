@@ -190,12 +190,18 @@ async function run(width, height, theme) {
     await page.evaluate(() => (localStorage.removeItem('cartography:hinted'), localStorage.removeItem('cartography:visits')));
     await page.reload();
     await page.waitForSelector('.hint', { state: 'attached' });
+    // The drawing is made in a worker: it is in (here only the sheet: the folder is not open after a reload)
+    // before the hint is measured against it, and before V goes round its views.
+    await page.waitForSelector('.drawing svg');
     // Where the hint stands (shown only where it is clear of the drawing); V, the next view, takes it
     // away for this visit, so the toast V raises is held against where it stood.
     const hint = (await page.locator('.hint').evaluate((h) => getComputedStyle(h).visibility)) === 'visible' ? await box('.hint') : null;
     await page.click('.preview');
     await page.keyboard.press('v');
     await page.waitForSelector('.toast');
+    // The hint goes as the view changes, a frame after the toast: with the drawing made in a worker the page
+    // is free to show the toast before that (it used to be busy drawing in between).
+    await page.waitForSelector('.hint', { state: 'detached', timeout: 2000 }).catch(() => undefined);
     if (await page.locator('.hint').count()) fail(`${tag}: the hint stays after V`);
     const zoom = await box('.zoom');
     const toast = await box('.toast');
