@@ -1,28 +1,29 @@
 Customers domain
 
-Azure infrastructure diagram: Northwind lakehouse · accounts from Salesforce into customers_prod, personal data tagged pii, read by Sales and the Customer 360 app. 10 elements in 2 groups, with 9 connections.
+Azure infrastructure diagram: Northwind lakehouse · accounts from Salesforce into customers_prod, pii columns masked, read by Sales and Customer 360. 11 elements in 2 groups, with 10 connections.
 
 Groups and elements
-- Salesforce (Sales Cloud): Accounts and opportunities
-- salesforce-ingest (Salesforce connector)
+- mask_pii (ABAC column mask · governed tag pii): Masks every column tagged pii for everyone but the CRM team and the jobs
 - customers_prod (Catalog)
-  - bronze (Schema)
-  - silver (Schema)
   - gold (Schema)
     - customers (Table)
+  - bronze (Schema)
+  - silver (Schema)
+- Salesforce (Sales Cloud): Accounts and opportunities
+- salesforce-ingest (Salesforce connector)
 - sales_prod (Catalog)
 - bi-warehouse (Serverless SQL warehouse)
 - customer-360 (Databricks App)
-- Sales reps (Users): Look up customers in the Customer 360 app
+- Sales reps (Customer 360 app): Look up customers in the Customer 360 app
 - customers-pipeline (Lakeflow pipeline)
 
 Connections
+- mask_pii connects to customers (Management: masks pii columns).
 - Salesforce sends data to salesforce-ingest (API).
 - salesforce-ingest sends data to bronze.
 - bronze sends data to silver (clean).
 - silver sends data to gold (match).
-- gold sends data to sales_prod (customers).
-- sales_prod sends data to bi-warehouse.
+- gold sends data to sales_prod (customers) and sends data to bi-warehouse.
 - bi-warehouse sends data to customer-360 (SQL).
 - customer-360 sends data to Sales reps (Customer 360).
 - customers-pipeline connects to customers_prod (Management: refreshes).

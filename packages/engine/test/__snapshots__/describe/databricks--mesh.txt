@@ -1,6 +1,6 @@
 Data products
 
-Data products diagram: Northwind lakehouse · products per domain, published from Unity Catalog under a data contract. 17 elements in 6 groups, with 19 connections.
+Data products diagram: Northwind lakehouse · products per domain, published from Unity Catalog under a data contract. 17 elements in 6 groups, with 20 connections.
 
 Groups and elements
 - ERP (SQL Server · CDC)
@@ -9,8 +9,8 @@ Groups and elements
 - Finance (Domain · Finance data team)
   - Revenue (Gold · v3.0.0)
 - Supply chain (Domain · Supply chain data team)
-  - Stock levels (Gold · v1.1.0 · Warehouse team)
-  - Demand forecast (Gold · beta · v0.4.0 · Planning analytics)
+  - Stock levels (Gold · v1.1.0)
+  - Demand forecast (Gold · beta · v0.4.0)
   - Supplier files (Bronze · v1.0.0)
 - Sales (Domain · Sales analytics team)
   - Sell-through (Gold · v1.0.0)
@@ -35,6 +35,7 @@ Connections
 - Sell-through connects to Power BI, connects to Customer 360 and connects to Contoso Retail.
 - Demand forecast connects to Replenishment.
 - Web shop (Azure SQL) connects to Web sessions.
+- Web sessions connects to Power BI.
 - Clickstream connects to Web sessions.
 - Salesforce connects to Sell-through and connects to Customers (Gold).
 - Customers (Gold) connects to Sell-through and connects to Customer 360.

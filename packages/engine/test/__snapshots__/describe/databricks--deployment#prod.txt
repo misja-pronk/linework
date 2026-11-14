@@ -1,0 +1,38 @@
+Production spoke
+
+Azure infrastructure diagram: Northwind lakehouse · clusters with no public IP, storage over Private Link, the rest through afw-hub. 11 elements in 4 groups, with 9 connections.
+
+Groups and elements
+- vnet-lakehouse-prod (10.1.16.0/21 · peered to the hub)
+  - Cluster VMs (Host and container subnets · SCC)
+  - pep-dbw-lakehouse-prod (databricks_ui_api · back-end)
+  - pep-stordersprod-dfs (dfs · snet-pep)
+  - pep-dbstorage-prod-dfs (dfs · snet-pep)
+  - pep-dbstorage-prod-blob (blob · snet-pep)
+  - rt-lakehouse-prod (On both cluster subnets)
+  - nsg-dbw-lakehouse-prod (On both cluster subnets)
+- Databricks control plane (West Europe)
+  - dbw-lakehouse-prod (Web app · REST API · SCC relay)
+- stordersprod (ADLS Gen2 · one of six)
+- databricks-rg-dbw-lakehouse-prod (Managed by Databricks)
+  - dbstorage (Workspace storage · firewall support on)
+- vnet-hub-weu (10.0.0.0/22 · sub-connectivity)
+  - afw-hub (Premium · 10.0.0.68 · SNAT out)
+
+Connections
+- Cluster VMs connects to pep-dbw-lakehouse-prod (Private network: SCC relay · REST), connects to pep-stordersprod-dfs (Private network), connects to pep-dbstorage-prod-dfs (Private network) and connects to pep-dbstorage-prod-blob (Private network).
+- pep-dbw-lakehouse-prod connects to dbw-lakehouse-prod (Private network: back-end).
+- pep-stordersprod-dfs connects to stordersprod (Private network).
+- pep-dbstorage-prod-dfs connects to dbstorage (Private network).
+- pep-dbstorage-prod-blob connects to dbstorage (Private network).
+- rt-lakehouse-prod connects to afw-hub (Private network: 0.0.0.0/0).
+
+Walkthrough
+1. Production spoke: Clusters run in the delegated host and container subnets, behind nsg-dbw-lakehouse-prod and rt-lakehouse-prod.
+2. A cluster: Clusters dial out to the SCC relay and the REST API through the back-end endpoint; no inbound ports.
+3. Reading data: Each domain's account has its own dfs endpoint, named in privatelink.dfs.core.windows.net.
+4. Workspace storage: Firewall support closes dbstorage to public networks; clusters reach it through a dfs and a blob endpoint.
+5. Everything else: rt-lakehouse-prod sends 0.0.0.0/0 to afw-hub, so package mirrors and the rest leave through the firewall.
+
+Key
+- Dashed teal line: Private network

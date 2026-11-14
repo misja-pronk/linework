@@ -1,0 +1,29 @@
+Power BI
+
+Azure infrastructure diagram: Northwind lakehouse · the Power BI service queries the workspace through a VNet data gateway in the hub. 6 elements in 4 groups, with 5 connections.
+
+Groups and elements
+- Power BI (Power BI service · Fabric F64): Reports on gold through the SQL warehouse
+- vnet-hub-weu (10.0.0.0/22 · sub-connectivity)
+  - VNet data gateway (Power BI · snet-pbi-gateway)
+  - pep-dbw-lakehouse-prod-ui (databricks_ui_api · snet-pep)
+- vnet-lakehouse-prod (10.1.16.0/21 · peered to the hub)
+  - pep-dbstorage-prod-blob (blob · snet-pep)
+- Databricks control plane (West Europe)
+  - dbw-lakehouse-prod (Web app · REST API · SCC relay)
+- databricks-rg-dbw-lakehouse-prod (Managed by Databricks)
+  - dbstorage (Workspace storage · firewall support on)
+
+Connections
+- Power BI connects to VNet data gateway (Private network: DirectQuery).
+- VNet data gateway connects to pep-dbw-lakehouse-prod-ui (Private network: SQL warehouse) and connects to pep-dbstorage-prod-blob (Private network: Cloud Fetch).
+- pep-dbw-lakehouse-prod-ui connects to dbw-lakehouse-prod (Private network: front-end).
+- pep-dbstorage-prod-blob connects to dbstorage (Private network).
+
+Walkthrough
+1. Power BI: The Power BI service has no way into the network; a VNet data gateway in snet-pbi-gateway runs its queries.
+2. DirectQuery: The gateway reaches the SQL warehouse through the workspace's front-end endpoint, as a browser would.
+3. Cloud Fetch: Large results come from workspace storage; the gateway fetches them through its blob endpoint.
+
+Key
+- Dashed teal line: Private network

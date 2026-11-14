@@ -89,7 +89,7 @@ const crossingBudget: Record<string, number> = {
   'databricks/governance.yaml#pii': 1, // the policy's line back to customers-team, whom it leaves alone, passes the prod service principal's write
   'databricks/governance.yaml#sharing': 0,
   'databricks/medallion.yaml': 0,
-  'databricks/mesh.yaml': 1, // the ERP's line to Revenue passes Orders' line down to the demand forecast
+  'databricks/mesh.yaml': 2, // the ERP's line to Revenue passes Orders' line down to the demand forecast; Web sessions' line down to Power BI passes the forecast's to replenishment
   'databricks/overview.yaml': 0,
   'databricks/deployment.yaml': 0,
   'databricks/environments.yaml': 0,
@@ -194,7 +194,7 @@ const jogBudget: Record<string, number> = {
   'databricks/governance.yaml#orders': 1, // two grants into orders_dev's side: one steps a lane aside
   'databricks/governance.yaml#pii': 2, // four grants and the policy into one catalog's side: two step aside
   'databricks/governance.yaml#sharing': 1, // sales-team's MANAGE steps up into its catalog under the gold schema
-  'databricks/mesh.yaml': 1, // the web shop's two sources join one line into Web sessions
+  'databricks/mesh.yaml': 2, // the web shop's two sources join one line into Web sessions; three lines into Power BI's side: one steps aside
 };
 
 // Labels sitting on a corner of their line: none, but for the ones named here.

@@ -1,33 +1,27 @@
-Secure deployment
+Development
 
-Azure infrastructure diagram: Northwind lakehouse · development · built as production, in its own spoke, workspace and NCC. 11 elements in 5 groups, with 10 connections.
+Azure infrastructure diagram: Northwind lakehouse · built as production, in its own spoke, workspace and NCC. 8 elements in 4 groups, with 7 connections.
 
 Groups and elements
-- Northwind offices (ExpressRoute)
-  - Data engineer (Browser)
 - vnet-hub-weu (10.0.0.0/22 · sub-connectivity)
-  - pep-dbw-lakehouse-dev-ui (front-end · snet-pep)
-  - pep-dbw-webauth-weu (browser_authentication)
+  - pep-dbw-lakehouse-dev-ui (databricks_ui_api · snet-pep)
   - afw-hub (Premium · 10.0.0.68 · SNAT out)
 - Databricks control plane (West Europe)
-  - dbw-lakehouse-dev (Web app · REST API)
-  - dbw-webauth-weu (Browser sign-in only): Holds the region's browser_authentication endpoint; delete lock
-- vnet-lakehouse-dev (10.1.8.0/22 · sub-lakehouse-dev)
-  - Cluster VMs (SCC · no public IP)
-  - pep-dbw-lakehouse-dev (back-end · snet-pep)
+  - dbw-lakehouse-dev (Web app · REST API · SCC relay)
+- vnet-lakehouse-dev (10.1.8.0/22 · peered to the hub)
+  - Cluster VMs (Host and container subnets · SCC)
+  - pep-dbw-lakehouse-dev (databricks_ui_api · back-end)
   - pep-stordersdev-dfs (dfs · snet-pep)
-- stordersdev (ADLS Gen2 · one per domain)
+- stordersdev (ADLS Gen2 · one of six)
 - Serverless compute plane (Run by Databricks)
-  - ncc-lakehouse-dev (Private endpoint rules)
+  - ncc-lakehouse-dev (Attached to dbw-lakehouse-dev)
 
 Connections
-- Data engineer connects to pep-dbw-lakehouse-dev-ui (Private network: HTTPS) and connects to pep-dbw-webauth-weu (Private network: SSO).
 - pep-dbw-lakehouse-dev-ui connects to dbw-lakehouse-dev (Private network: front-end).
-- pep-dbw-webauth-weu connects to dbw-webauth-weu (Private network: browser sign-in).
-- Cluster VMs connects to pep-dbw-lakehouse-dev (Private network), connects to pep-stordersdev-dfs (Private network) and connects to afw-hub (Private network: 0.0.0.0/0).
+- Cluster VMs connects to afw-hub (Private network: 0.0.0.0/0), connects to pep-dbw-lakehouse-dev (Private network: SCC relay · REST) and connects to pep-stordersdev-dfs (Private network).
 - pep-dbw-lakehouse-dev connects to dbw-lakehouse-dev (Private network: back-end).
 - pep-stordersdev-dfs connects to stordersdev (Private network).
-- ncc-lakehouse-dev connects to stordersdev (Private network: serverless).
+- ncc-lakehouse-dev connects to stordersdev (Private network: dfs).
 
 Key
 - Dashed teal line: Private network
