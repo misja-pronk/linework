@@ -14,4 +14,6 @@ export default defineConfig({
   base: './',
   server: { port: 5178, fs: { allow: ['../..'] } },
   build: { target: 'es2022', chunkSizeWarningLimit: 4000 },
+  // The drawing's worker (render-worker.ts) shares the engine's modules with the page: ES modules.
+  worker: { format: 'es' },
 });

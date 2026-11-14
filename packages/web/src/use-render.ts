@@ -1,6 +1,8 @@
-// Renders on every change, newest wins: a slow render never overwrites a newer one.
+// Renders on every change, newest wins: a slow render never overwrites a newer one. The drawing is
+// made in a worker (render-client.ts): one that takes long says so, and can be stopped.
 import { useEffect, useRef, useState } from 'react';
-import { render, type RenderResult } from '@cartography/engine';
+import type { RenderResult } from '@cartography/engine';
+import { Cancelled, draw } from './render-client.ts';
 import { viewPins, type LayoutMemory, type LayoutSidecar, type Point } from '@cartography/core';
 import { useBrand } from './brand.ts';
 import { useIconOptions } from './icon-packs.ts';
@@ -19,6 +21,16 @@ export interface Rendered {
   docKey: number;
 }
 
+/** A drawing that is taking a while: since when, of which view; stop() gives it up. */
+export interface Busy {
+  since: number;
+  view?: string;
+  stop(): void;
+}
+
+/** How long a drawing takes before the editor says it is still at it. */
+const BUSY_AFTER_MS = 600;
+
 /**
  * `view` picks one of the diagram's views; `file` is its name, so includes back to it read as a cycle;
  * `step` draws one of its steps. `fresh` counts the times the layout was reset: a new number draws
@@ -27,6 +39,7 @@ export interface Rendered {
  */
 export function useRender(text: string, theme: 'light' | 'dark', sidecar: LayoutSidecar | undefined, load: ((f: string) => string) | undefined, docKey: number, view?: string, file?: string, step?: number, fresh = 0, focus?: unknown, layers?: LayersOptions & { stage?: string }) {
   const [out, setOut] = useState<Rendered>();
+  const [busy, setBusy] = useState<Busy>();
   const seq = useRef(0);
   const doc = useRef(docKey);
   // Where everything was in the last drawing of each view of this document: the next drawing stays
@@ -45,8 +58,12 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
   // The drawings of the texts drawn lately (with their pins): one drawn again (⌘Z, ⌘⇧Z) starts from
   // how it was drawn then, so an undo gives the picture back as it was, not a rearranged one.
   const seen = useRef(new Map<string, LayoutMemory>());
+  /** What the drawing on screen was drawn from: asked for again (a view given up on, Stop), it is not drawn again. */
+  const done = useRef<unknown[]>(undefined);
   useEffect(() => {
     const n = ++seq.current;
+    const asked = [text, theme, themeOverride, icons, sidecar, load, docKey, view, file, step, fresh, focus, layers];
+    if (done.current?.length === asked.length && asked.every((x, i) => Object.is(x, done.current![i]))) return setBusy(undefined);
     const t0 = performance.now();
     const m = memory.current;
     if (m.doc !== docKey) {
@@ -71,7 +88,14 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
     const exact = `${key}\n${step ?? ''}\n${JSON.stringify(viewPins(sidecar, view) ?? null)}\n${text}`;
     const previous = seen.current.get(exact) ?? unpinned(m.views.get(key), key, new Set(Object.keys(viewPins(sidecar, view)?.nodes ?? {})), pinned.current, before.current);
     // Nothing remembered yet (a file just opened): the note in its sidecar says where things were.
-    render(text, { theme, themeOverride, ...icons, sidecar, load, view, file, step, fonts: 'none', interactive: true, idPrefix: 'live', previous, ...(focus !== undefined ? { focus } : {}), ...layers })
+    const job = draw(text, { theme, themeOverride, ...icons, sidecar, load, view, file, step, fonts: 'none', interactive: true, idPrefix: 'live', previous, ...(focus !== undefined ? { focus } : {}), ...layers });
+    let again: ReturnType<typeof draw> | undefined;
+    const since = Date.now();
+    const busyNow: Busy = { since, view, stop: () => (job.cancel(true), again?.cancel(true), setBusy(undefined)) };
+    // Still saying a drawing is under way (a view picked while the last one lays out): it is this one now.
+    setBusy((b) => (b ? busyNow : b));
+    const slow = setTimeout(() => setBusy(busyNow), BUSY_AFTER_MS);
+    job.result
       .then(async (result) => {
         // The page needs the theme's faces before the drawing shows (Transit and Drafting bring their own).
         await registerThemeFonts(result.theme);
@@ -95,13 +119,17 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
         let fallback: RenderResult | undefined;
         const good = !result.svg && hasDrawn.current !== docKey ? store.get<{ file: string; text: string }>('lastGood') : undefined;
         if (good && file && good.file === file && good.text !== text) {
-          fallback = await render(good.text, { theme, themeOverride, ...icons, sidecar, load, view, file, fonts: 'none', interactive: true, idPrefix: 'live' }).catch(() => undefined);
+          again = draw(good.text, { theme, themeOverride, ...icons, sidecar, load, view, file, fonts: 'none', interactive: true, idPrefix: 'live' });
+          fallback = await again.result.catch(() => undefined);
           if (n !== seq.current) return;
           if (!fallback?.svg) fallback = undefined;
         }
+        done.current = asked;
         setOut((prev) => ({ result, drawn: result.svg ? result : same && prev?.drawn ? prev.drawn : fallback, ms: Math.round(performance.now() - t0), text, docKey }));
       })
       .catch((e: unknown) => {
+        // Given up on: a newer drawing, or stopped on purpose.
+        if (e instanceof Cancelled) return;
         console.error('render failed', e);
         if (n === seq.current)
           setOut((prev) => ({
@@ -111,9 +139,18 @@ export function useRender(text: string, theme: 'light' | 'dark', sidecar: Layout
             text,
             docKey,
           }));
+      })
+      .finally(() => {
+        clearTimeout(slow);
+        if (n === seq.current) setBusy(undefined);
       });
+    return () => {
+      clearTimeout(slow);
+      job.cancel();
+      again?.cancel();
+    };
   }, [text, theme, themeOverride, icons, sidecar, load, docKey, view, file, step, fresh, focus, layers]);
-  return out;
+  return { rendered: out, busy };
 }
 
 /**

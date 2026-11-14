@@ -27,6 +27,64 @@
   white-space: normal;
   pointer-events: auto;
 }
+/* Back from a link followed (⌘[): a chip like the focus chip, all of it the button. */
+.back-chip {
+  font: inherit;
+  font-size: 0.75rem;
+  padding-right: 8px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.back-chip:hover {
+  border-color: var(--text-muted);
+}
+/* A drawing that takes a while (the whole of a working canvas): how long so far, and Stop. */
+.busy-note {
+  display: flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  color: var(--text);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  white-space: normal;
+  pointer-events: auto;
+}
+.busy-note button {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.busy-note button:hover {
+  border-color: var(--text-muted);
+}
+.busy-spinner {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--rule);
+  border-top-color: var(--text-muted);
+  border-radius: 50%;
+  animation: busy-turn 0.9s linear infinite;
+}
+@keyframes busy-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .busy-spinner {
+    animation: none;
+  }
+}
 .canvas-empty {
   position: absolute;
   left: 50%;
