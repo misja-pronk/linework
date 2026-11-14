@@ -2,29 +2,16 @@
 // template's), the rows its title, subtitle or a step's caption take, and the scale that fits the
 // drawing into what is left. The deck draws with it; carto validate, the editor's page frame and the
 // PDF on a slide page measure with it, so they say what PowerPoint shows. Nothing here draws.
-import type { Graph, LegendItem, Placed, StepState } from '@cartography/core';
+import { INCH, KEY_HEIGHT, MARGIN, MAX_K, PX, ROWS, SLIDE_SIZE, type Graph, type LegendItem, type Placed, type StepState } from '@cartography/core';
 import { keyLayout, LEGEND, legendItems, legendWidth, noteMargins, wrap, type StepView } from '@cartography/render';
 import { inThemeFonts, look, measureText, type Theme } from '@cartography/theme';
 import { pages } from './steps.ts';
 import type { Drawing } from './pptx.ts';
 
-/** EMU per CSS pixel at 96 dpi. */
-export const PX = 9525;
-export const INCH = 914400;
-/**
- * Our own slide's margins (EMU): modest at the sides, a little less above and below, where the
- * title row and the drawing's own white space already keep things off the edge.
- */
-export const MARGIN = { side: Math.round(0.32 * INCH), top: Math.round(0.25 * INCH), bottom: Math.round(0.24 * INCH) };
-/**
- * The rows over the drawing (inches): the title (24 pt), the subtitle and a step's caption lines (13 to
- * 15 pt), and the gap under them.
- */
-export const ROWS = { title: 0.38, line: 0.26, gap: 0.06 };
+// The slide's own numbers (its size, margins, title rows, largest scale) are core's (slide-room.ts): the layout aims by them too.
+export { INCH, MARGIN, MAX_K, PX, ROWS };
 /** What the step number ("3 / 5", right-aligned at the end of the title row) leaves of that row's width, in inches. */
 export const NUMBER = 0.6;
-/** Largest scale for small drawings: a 13.5 px label becomes ~16 pt and no bigger. */
-export const MAX_K = 1.6 * PX;
 /** A step's caption on a slide: sizes in points, `px` the caption size for wrapping. */
 export const CAPTION = { title: 15, text: 14, px: (14 * 12700) / PX };
 /**
@@ -61,8 +48,7 @@ export interface SlideRoom {
 
 /** One of our own slides, 16:9 (13.33 by 7.5 inches) unless said. */
 export function ownRoom(aspect: '16:9' | '4:3' = '16:9'): SlideRoom {
-  const W = aspect === '4:3' ? 9144000 : 12192000;
-  const H = 6858000;
+  const { W, H } = SLIDE_SIZE[aspect];
   return { W, H, room: { x: MARGIN.side, y: MARGIN.top, w: W - 2 * MARGIN.side, h: H - MARGIN.top - MARGIN.bottom } };
 }
 
@@ -70,9 +56,9 @@ export function ownRoom(aspect: '16:9' | '4:3' = '16:9'): SlideRoom {
 export function legendLayout(graph: Graph, placed: Placed, theme: Theme) {
   const items = graph.legend ?? [];
   if (!items.length) return { key: false, rows: [] as { item: LegendItem; x: number }[][], width: 0, height: 0 };
-  if (look(theme).legend !== 'key') return { key: false, rows: [legendItems(graph, theme).map(({ item, x }) => ({ item, x }))], width: legendWidth(graph, theme), height: 40 };
+  if (look(theme).legend !== 'key') return { key: false, rows: [legendItems(graph, theme).map(({ item, x }) => ({ item, x }))], width: legendWidth(graph, theme), height: KEY_HEIGHT.row };
   const lay = keyLayout(items, theme, placed.width);
-  return { key: true, rows: lay.rows, width: Math.max(...lay.ends), height: 54 + (lay.rows.length - 1) * LEGEND.ROW };
+  return { key: true, rows: lay.rows, width: Math.max(...lay.ends), height: KEY_HEIGHT.key + (lay.rows.length - 1) * LEGEND.ROW };
 }
 
 /** Content size in layout px: the drawing plus the legend under it, and the room callouts of any step need around it (left, top: where the drawing starts). */

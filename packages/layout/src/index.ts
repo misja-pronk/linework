@@ -1,5 +1,5 @@
 // Layout: dot places nodes and groups, pins from the sidecar move nodes, our router draws the lines.
-import { unpackLayout, type Box, type EdgeOverride, type Graph, type Endpoint, type LayoutMemory, type LayoutSidecar, type Marker, type Placed, type PlacedEdge, type Point, type Sized } from '@cartography/core';
+import { KEY_HEIGHT, MAX_K, PX, slideArea, unpackLayout, type Box, type EdgeOverride, type Graph, type Endpoint, type LayoutMemory, type LayoutSidecar, type Marker, type Placed, type PlacedEdge, type Point, type Sized } from '@cartography/core';
 import { placeWithDot, type DotVariant, type Placement, type Spacing } from './dot.ts';
 import { applyPins } from './pins.ts';
 import { compact } from './compact.ts';
@@ -177,7 +177,9 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
       // is tried at all, so on a near tie the drawing as asked loses, unless the previous drawing was
       // that one. A long chain, far off either way, goes top-down there as it always did.
       const fits = (x: number, y: number) => !was && x <= OFF && x < y - NEARER;
-      if (fits(a, b) && noWorse(alt, best)) best = alt;
+      // Nearer the shape of its room, a drawing whose text comes out smaller still loses: shape is for the size of the text.
+      const asLarge = (x: Choice, y: Choice) => target == null || pageScale(x.placed, graph, target) >= pageScale(y.placed, graph, target) - 1e-9;
+      if (fits(a, b) && noWorse(alt, best) && asLarge(alt, best)) best = alt;
       // Or, on a first drawing, when it reads clearly better on the page (larger text, for what it costs).
       else if (!was && target != null && readsBetter(alt, best, target)) best = alt;
       // A shape is no reason to keep a drawing with labels on cards or lines through them that the other is free of.
@@ -247,30 +249,54 @@ const FEW = 5;
 const WIDE = 3;
 /** The shape a drawing aims for unless the source says otherwise: a slide. */
 const SLIDE = 16 / 9;
-/** Further than this from the target shape (as a log ratio: from about square to 3:1 for 16:9), another shape is tried. */
-const OFF = Math.log(1.8);
+/**
+ * Further than this from the shape of its room (as a log ratio: from about 1.05:1 to 3.8:1 under a 16:9
+ * slide's title), another direction is tried. Measured on the whole slide this was 1.8; on the room under
+ * the title the same drawings come out a little further off, and 1.9 keeps the ones turned before.
+ */
+const OFF = Math.log(1.9);
+
+/** The deck's own slide of a target shape (16:9, 4:3), or none: a sheet or a page of that shape. */
+function deckOf(target: number): '16:9' | '4:3' | undefined {
+  return Math.abs(target / (16 / 9) - 1) < 0.01 ? '16:9' : Math.abs(target / (4 / 3) - 1) < 0.01 ? '4:3' : undefined;
+}
 
 /**
- * How far a drawing's shape is from the target, as a log ratio: 0 is spot on. The shape is that of
- * the whole picture: the margins, the title (and subtitle) above and the key below, about as render draws them.
+ * What a page of the target shape shows of a drawing and the room it has there (px at 96 dpi), and the
+ * largest scale it is shown at. On a slide of ours the title and subtitle stand in rows of their own
+ * over the drawing (core's slideArea, as the deck draws them): the picture is the drawing and its key,
+ * its room what the slide leaves under those rows (about 1219 by 631 px on 16:9, 2:1), and a small
+ * drawing grows to MAX_K and no more. On another page the whole SVG is placed (its margins, the title
+ * above and the key below, about as render draws them) on a page 720 px high.
  */
+function picture(p: Pick<Placed, 'width' | 'height'>, graph: Graph, target: number): { width: number; height: number; room: { width: number; height: number }; most: number } {
+  const deck = deckOf(target);
+  if (deck) return { width: p.width, height: p.height + (graph.legend?.length ? KEY_HEIGHT.key : 0), room: slideArea(deck, { title: !!graph.title, subtitle: !!graph.subtitle }), most: MAX_K / PX };
+  return { width: p.width + 80, height: p.height + 125 + (graph.subtitle ? 20 : 0) + (graph.legend?.length ? 55 : 0), room: { width: 720 * target, height: 720 }, most: Infinity };
+}
+
+/** A drawing's shape against the shape of its room (picture), as a ratio: 1 is spot on, 2 twice as wide. */
+function shapeRatio(p: Pick<Placed, 'width' | 'height'>, graph: Graph, target: number): number {
+  const { width, height, room } = picture(p, graph, target);
+  return width / Math.max(1, height) / (room.width / room.height);
+}
+
+/** How far a drawing's shape is from the shape of its room on the page, as a log ratio: 0 is spot on. */
 function off(p: Pick<Placed, 'width' | 'height'>, graph: Graph, target: number): number {
-  const width = p.width + 80;
-  const height = p.height + 125 + (graph.subtitle ? 20 : 0) + (graph.legend?.length ? 55 : 0);
-  return Math.abs(Math.log(width / height / target));
+  return Math.abs(Math.log(shapeRatio(p, graph, target)));
 }
 
 /** How much nearer the target shape (log ratio) another drawing has to come to be worth its change. */
 const NEARER = 0.2;
 
 /**
- * How large a drawing comes out on a page of the target shape: the scale it is drawn at to fit a
- * page 720 px high (a 16:9 slide is 1280 by 720). Text size on the slide goes with it.
+ * How large a drawing comes out on a page of the target shape: the scale that fits its picture into
+ * its room (picture), never past the largest. Text size on the page goes with it: at 1 a drawing px
+ * is a px at 96 dpi, three quarters of a point.
  */
 export function pageScale(p: Pick<Placed, 'width' | 'height'>, graph: Graph, target: number): number {
-  const width = p.width + 80;
-  const height = p.height + 125 + (graph.subtitle ? 20 : 0) + (graph.legend?.length ? 55 : 0);
-  return Math.min((720 * target) / width, 720 / height);
+  const { width, height, room, most } = picture(p, graph, target);
+  return Math.min(room.width / Math.max(1, width), room.height / Math.max(1, height), most);
 }
 
 /**
@@ -282,18 +308,16 @@ export const READABLE_SCALE = 0.95;
 /** How much more each doubling below READABLE_SCALE counts (1: twice). */
 export const SMALL_COST = 1;
 /**
- * A picture outside the band of slide shapes (1.1:1 to 2.4:1 for 16:9, in proportion for another
- * target) leaves most of a slide empty and reads as a strip: weighed with small text, each unit of
- * log ratio past the band costs this much.
+ * A picture outside the band of slide shapes (from 0.62 to 1.35 times the shape of its room: about
+ * 1.2:1 to 2.7:1 under a 16:9 slide's title) leaves most of a slide empty and reads as a strip: weighed
+ * with small text, each unit of log ratio past the band costs this much.
  */
 const SHAPE_COST = 2;
 const BAND: [number, number] = [1.1 / SLIDE, 2.4 / SLIDE];
 
 /** How far (log ratio) a picture's shape lies outside the band of slide shapes; 0 inside it. */
 function outOfBand(p: Pick<Placed, 'width' | 'height'>, graph: Graph, target: number): number {
-  const width = p.width + 80;
-  const height = p.height + 125 + (graph.subtitle ? 20 : 0) + (graph.legend?.length ? 55 : 0);
-  const r = width / height / target;
+  const r = shapeRatio(p, graph, target);
   return Math.max(0, Math.log(BAND[0] / r), Math.log(r / BAND[1]));
 }
 /** What one crossing costs in readability, in doublings of the page scale: one crossing is worth 19% larger text. */
@@ -304,8 +328,12 @@ export const BACKWARD_COST = 0.05;
 export const VOID_COST = 1.5;
 /** And a line that misleads (lineFaults): a loop, a hook at an end, arrowheads on each other, a line that seems to run on into another. */
 export const FAULT_COST = 0.1;
-/** A wrapped drawing must read this much better (in doublings of scale: 11% larger text) to be kept. */
-const WRAP_GAIN = 0.15;
+/**
+ * A wrapped drawing must read this much better (in doublings of scale: 13% larger text) to be kept.
+ * Measured against the slide's real room a taller drawing no longer pays for the title band, so the
+ * rows of a wrap come out about 5% larger than they used to be weighed: the bar rose with it (from 0.15).
+ */
+const WRAP_GAIN = 0.18;
 
 /**
  * How well a drawing reads on a page of the target shape, higher is better: the size it is drawn at

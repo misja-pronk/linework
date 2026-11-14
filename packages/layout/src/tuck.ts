@@ -25,10 +25,11 @@ const hit = (a: Box, b: Box, gx: number, gy: number) => a.x < b.x + b.width + gx
 /**
  * Placements with one card outside the groups moved into free room of the rest, most promising
  * first (by `scale`, how large a placement comes out on the page), at most `most`. Only moves that
- * make the drawing come out larger by `gain`; a card never ends up further from what it is joined to
+ * make the drawing come out larger by `gain` (next to nothing: under a slide's title a tuck that frees
+ * a row often makes the text only a percent or two larger, and that is still larger); a card never ends up further from what it is joined to
  * than it was (by more than its own length), nor before what feeds it or after what it feeds.
  */
-export function tuck(p: Placement, graph: Graph, gaps: { along: number; across: number }, scale: (q: Placement) => number, gain = 1.03, most = 4): Placement[] {
+export function tuck(p: Placement, graph: Graph, gaps: { along: number; across: number }, scale: (q: Placement) => number, gain = 1.003, most = 4): Placement[] {
   const down = graph.direction === 'down';
   // Room between columns along the flow, and between cards across it, as dot keeps them.
   const [gx, gy] = down ? [gaps.across, gaps.along] : [gaps.along, gaps.across];
