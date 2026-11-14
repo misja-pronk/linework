@@ -83,7 +83,11 @@ const crossingBudget: Record<string, number> = {
   'model/deployment.yaml': 0,
   'model/model.yaml': 0,
   'databricks/model.yaml': 0,
-  'databricks/governance.yaml': 4, // one domain through three environments next to prod-wide grants: the prod service principal's and the analysts' lines pass the teams' MANAGE lines
+  'databricks/governance.yaml': 0, // a canvas: drawn as its first view, who administers
+  'databricks/governance.yaml#orders': 1, // orders-team's MANAGE line up to prod passes the dev service principal's line to dev
+  'databricks/governance.yaml#production': 0,
+  'databricks/governance.yaml#pii': 1, // the policy's line back to customers-team, whom it leaves alone, passes the prod service principal's write
+  'databricks/governance.yaml#sharing': 0,
   'databricks/medallion.yaml': 0,
   'databricks/mesh.yaml': 1, // the ERP's line to Revenue passes Orders' line down to the demand forecast
   'databricks/overview.yaml': 0,
@@ -187,7 +191,9 @@ const jogBudget: Record<string, number> = {
   'states/pull-request.yaml': 1, // the return from Changes requested steps into Awaiting review's side
   'systems/data-pipeline.yaml': 1, // two lines into one side
   'systems/saas-platform.yaml': 1, // the overview: the host dashboard's way in steps aside past the guest app's
-  'databricks/governance.yaml': 1, // several grants into one catalog's side: one steps a lane aside
+  'databricks/governance.yaml#orders': 1, // two grants into orders_dev's side: one steps a lane aside
+  'databricks/governance.yaml#pii': 2, // four grants and the policy into one catalog's side: two step aside
+  'databricks/governance.yaml#sharing': 1, // sales-team's MANAGE steps up into its catalog under the gold schema
   'databricks/mesh.yaml': 1, // the web shop's two sources join one line into Web sessions
 };
 
@@ -221,6 +227,7 @@ const orderBudget: Record<string, number> = {
   'model/deployment.yaml': 1,
   'network/small-office.yaml': 1,
   'databricks/mesh.yaml': 1, // Orders stands below Customers and Sales: its lines run on to Sell-through and the demand forecast
+  'databricks/governance.yaml#production': 2, // the catalogs stand in the order of the analysts' grants, not the order written
 };
 
 // Lines on one track that are not one trunk (falseJoins): none, but for the ones named here.
@@ -239,7 +246,6 @@ const touchBudget: Record<string, number> = {
   'systems/web-shop.yaml': 1,
   'workspace/containers.yaml#payments': 1,
   'workspace/containers.yaml#api': 1,
-  'databricks/governance.yaml': 1, // the grants into the sales and customers catalogs run close past each other's labels
   'azure/web-app.yaml': 1, // db_datawriter, on its role line down to SQL, sits against the TDS line running down beside it
 };
 
@@ -281,7 +287,6 @@ const returns: Record<string, number> = {
   'c4/kestrel-bank.yaml#payment-notice': 1,
   'c4/kestrel-bank.yaml#production': 1, // wrapped for a slide: the line down to the core ledger runs back to its start
   'databricks/medallion.yaml': 1, // one order: two columns top-down, orders gold runs back up to sales gold in the second
-  'databricks/governance.yaml': 2, // teams on the right MANAGE or own what stands left of them: the sales catalog and the share
 };
 
 describe('layout quality', () => {

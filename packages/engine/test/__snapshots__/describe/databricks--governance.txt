@@ -1,54 +1,22 @@
-Unity Catalog access
+Who administers
 
-Roles, groups and access packages diagram: Northwind lakehouse · account groups from Entra ID, grants per domain and environment. 17 elements in 2 groups, with 19 connections.
+Roles, groups and access packages diagram: The platform team runs the metastore and the workspaces, and holds no grants on domain data. 5 elements, with 4 connections.
 
-Groups and elements
-- platform-team (Metastore admins)
+Elements
+- platform-team (Metastore and workspace admins)
 - uc-weu (Metastore)
-- orders-team (Account group)
-- engineers (Every domain team)
-- orders_dev (Bound to dev)
-- orders_test (Bound to test)
-- orders_prod (Bound to prod)
-- customers-team (Account group)
-- customers_prod (Bound to prod)
-  - customers_prod.gold (pii tagged)
-- analysts (Power BI and Genie)
-- sales_prod (Bound to prod)
-  - sales_prod.gold (sell_through)
-- sales-team (Account group)
-- contoso_sell_through (Share)
-- sp-lakehouse-dev (Runs the jobs in dev)
-- sp-lakehouse-test (Runs the jobs in test)
-- sp-lakehouse-prod (Runs the jobs in prod)
-- contoso (OpenSharing recipient)
+- dbw-lakehouse-dev (Databricks workspace)
+- dbw-lakehouse-test (Databricks workspace)
+- dbw-lakehouse-prod (Databricks workspace)
 
 Connections
-- platform-team is Metastore admin on uc-weu.
-- orders-team is a member of engineers, is Owner on orders_dev, is Read on orders_test and is MANAGE on orders_prod.
-- engineers is BROWSE on orders_prod.
-- customers-team is a member of engineers and is MANAGE on customers_prod.
-- analysts is Read · pii masked on customers_prod.gold and is Read on sales_prod.gold.
-- sales-team is a member of engineers, is MANAGE on sales_prod and is Owner on contoso_sell_through.
-- sp-lakehouse-dev is Write on orders_dev.
-- sp-lakehouse-test is Write on orders_test.
-- sp-lakehouse-prod is Write on orders_prod, is Write on customers_prod and is Write on sales_prod.
-- contoso is SELECT on share on contoso_sell_through.
-
-Walkthrough
-1. Groups come from Entra ID: Automatic identity management syncs Entra groups, nested ones too, to the account.
-2. The platform team administers: platform-team is metastore admin (and account admin); it holds no grants on domain data.
-3. One domain, three environments: orders-team owns dev, reads test, and in prod reads and MANAGEs, so it decides who reads.
-4. Only service principals write: Jobs run as their environment's service principal; catalogs are bound to one workspace.
-5. Personal data masked: An ABAC policy masks columns tagged pii; analysts see the rows, not names and emails.
-6. Shared with Contoso: sales-team owns the share; Contoso reads sell_through in its own Databricks account.
+- platform-team is Metastore admin on uc-weu, is Workspace admin on dbw-lakehouse-dev, is Workspace admin on dbw-lakehouse-test and is Workspace admin on dbw-lakehouse-prod.
 
 Layers
 Ways to look at this drawing by tag.
-- Development (tags dev; 3 elements).
-- Test (tags test; 3 elements).
-- Production (tags prod; 11 elements).
+- Development (tags dev; 1 element).
+- Test (tags test; 1 element).
+- Production (tags prod; 1 element).
 
 Key
-- Dotted line: Member of
 - Solid sky line: Role assignment

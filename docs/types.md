@@ -263,6 +263,35 @@ principals:
   fic-github: { kind: federated-credential, label: github-prod, app: app-deploy }
 ```
 
+Unity Catalog has its own: `account-group`, `recipient` (OpenSharing, called Delta Sharing until June 2026) with `share`, `metastore`, `catalog`, `schema`, `table`, `volume`, and `databricks` for a workspace. `bound: dbw-lakehouse-prod` says which workspaces an isolated catalog is bound to: its card says so in the graph (a line along the column of scopes would cross every grant). A data access policy (ABAC) is a `column-mask` or `row-filter` policy `on` a catalog, schema or table, matching a governed `tag`, for everyone or its `targets`, `excludes` the ones it leaves alone; in the matrix a cell that reads there says what it does (`columns tagged pii masked`).
+
+```yaml
+policies:
+  mask-pii: { kind: column-mask, label: mask_pii, tag: pii, on: customers_prod, excludes: [customers-team, sp-lakehouse-prod] }
+```
+
+Without access packages or Conditional Access the graph reads in columns: people and workloads, then their groups, then where they are granted something (data policies stand just before their scopes). It is drawn left to right as it is, never turned or wrapped for the slide.
+
+**Views.** A large platform (six domains through three environments, sixty grants) is never one slide: give the file `views:`, one per concern, and `present: views` to make the whole a working canvas (see [model.md](model.md#present-views--the-whole-is-a-working-canvas)). A view picks principals and scopes with `include:` (ids, `catalog.*` for a scope and what is in it, `tag:pii`, `kind:service-principal`, `*`); a side it names nothing of is left open, so `include: [orders-team]` is orders-team with all it is granted, and `include: [customers_prod.*]` everyone granted something there. `exclude:` leaves things out with their grants (and grants tagged as it names), `environment: prod` leaves out what is tagged but not prod. `show:` picks the drawing, `graph` (the default), `access` (who × where) or `roles`, and the cut applies to it: the matrix keeps the rows and columns the view keeps, the roles table the roles its grants give.
+
+```yaml
+present: views
+views:
+  orders:
+    title: One domain through its environments
+    include: [orders-team, engineers, kind:service-principal, orders_dev, orders_test, orders_prod]
+  prod-access:
+    title: Who × where in production
+    show: access
+    environment: prod
+    exclude: [uc-weu, kind:databricks]
+  privileges:
+    title: What each role holds
+    show: roles
+```
+
+Name a view other than `graph`, `access`, `packages` or `roles`: asked for by that name, the type's own drawing of the whole is drawn. [examples/databricks/governance.yaml](../examples/databricks/governance.yaml) has eight views of one lakehouse.
+
 Not for: where the resources run (use `azure`), GitHub teams and repository permissions (use `github`).
 
 ```yaml

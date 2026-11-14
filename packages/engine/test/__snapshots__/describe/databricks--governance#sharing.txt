@@ -1,0 +1,25 @@
+Shared with Contoso
+
+Roles, groups and access packages diagram: sales-team owns the share; Contoso reads sell_through in its own Databricks account. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- sales-team (Account group)
+- sales_prod (Bound to dbw-lakehouse-prod)
+  - sales_prod.gold (sell_through)
+- contoso_sell_through (sales_prod.gold.sell_through)
+- analysts (Power BI and Genie)
+- contoso (Databricks-to-Databricks)
+
+Connections
+- sales-team is MANAGE on sales_prod and is Owner on contoso_sell_through.
+- analysts is Read on sales_prod.gold.
+- contoso is SELECT on share on contoso_sell_through.
+
+Layers
+Ways to look at this drawing by tag.
+- Development (tags dev; 0 elements).
+- Test (tags test; 0 elements).
+- Production (tags prod; 3 elements).
+
+Key
+- Solid sky line: Role assignment

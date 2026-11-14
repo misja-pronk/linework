@@ -385,6 +385,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     includes = composed.files;
     model = { ...composed.catalogue };
     const names = [...model.views.keys()];
+    // A view named as one of the type's own drawings is never drawn: asked for by name, that drawing is.
+    for (const n of names) if (allViews?.some((v) => v.name === n)) report(['views', n], `"${n}" is also the name of one of this type's own drawings, which is drawn when "${n}" is asked for: give the view another name (show: ${n} draws that drawing cut to the view)`, 'warning');
     onlyViews = names.length > 0 && !Object.entries(built).some(([k, v]) => !META.has(k) && v && typeof v === 'object' && Object.keys(v).length);
     canvas = model.present === 'views' && names.length > 0 && !onlyViews;
     if (model.present === 'views' && !names.length) report(['present'], 'present: views needs views: to present; without them the drawing as written is the slide', 'warning');
@@ -396,6 +398,12 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
       model.view = model.views.get(names[0]!);
   } else if (opts.view) report([], `There is no view "${opts.view}": ${ownViews?.length ? `views: ${ownViews.map((v) => v.name).join(', ')}` : 'this diagram has no views'}`);
   if (ownView) built = { ...built, view: ownView };
+  // A view of the model that is one of the type's own drawings (`show: access`): that drawing, cut to the view.
+  else if (model?.view?.show) {
+    const show = model.view.show;
+    if (allViews?.some((v) => v.name === show)) built = { ...built, view: show };
+    else report(model.view.at[0] === 'views' ? [...model.view.at, 'show'] : model.view.at, allViews?.length ? `There is no drawing "${show}" here; show: ${allViews.map((v) => v.name).join(', ')}` : 'show: picks one of a type’s own drawings, and this type has only one', 'warning');
+  }
   // A focus asked for is about elements and lines: a diagram that opens as one of its tables (view: access) is focused in the type's first view, its graph.
   else if (opts.focus != null && allViews?.some((v) => v.table && v.name === built.view)) built = { ...built, view: ownViews![0]!.name };
 
@@ -467,7 +475,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
   const pins = viewPins(opts.sidecar, model?.view?.name);
   // A view of the type's own that is drawn one way (one data product, left to right) is not turned for its shape, nor cut into rows.
-  const steady = !!allViews?.find((v) => v.name === (built as { view?: unknown }).view)?.steady;
+  const steady = !!allViews?.find((v) => v.name === ((built as { view?: unknown }).view ?? written))?.steady;
   const autoDirection = !steady && (model?.view?.direction ?? data.direction) == null;
   const aspect = readAspect(aspectRef, (message) => report(['aspect'], message, 'warning'));
   // Views of one diagram are drawn alike where their content allows: a view drawn fresh (nothing
@@ -478,7 +486,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const seedKey = firstView ? `${hashText(text)}|${typeof opts.theme === 'string' ? opts.theme : ''}|${aspect ?? ''}` : '';
   let seed: LayoutMemory | undefined;
   // A table (an access matrix) is not laid out: nothing to share.
-  const table = (name: string | undefined) => !!allViews?.find((v) => v.name === name)?.table;
+  const table = (name: string | undefined) => !!allViews?.find((v) => v.name === (model?.views.get(name ?? '')?.show ?? name))?.table;
   // Views of different kinds (a C4 context and a component view) are different pictures.
   const kindOf = (name: string) => model?.views.get(name)?.kind;
   if (firstView && thisView && thisView !== firstView && !table(thisView) && !table(firstView) && kindOf(thisView) === kindOf(firstView) && opts.previous === undefined && !pins?.layout && !opts.tuning) {
@@ -553,7 +561,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // The type's own view this file is written for: model views and includes come first, so not with those.
   const writtenView = !model?.views.size && ownViews?.length ? allViews!.find((v) => v.name === written) : undefined;
   const typeViews = ownViews?.map(({ name, title }) => ({ name, ...(title ? { title } : {}) }));
-  const views = model?.views.size ? [...[...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })), ...(typeViews?.slice(1) ?? [])] : typeViews?.length ? typeViews : undefined;
+  // A canvas (present: views) is presented by its views alone: the type's own drawings of the whole (a who × where of everything) are part of the canvas.
+  const views = model?.views.size ? [...[...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })), ...(canvas ? [] : (typeViews?.slice(1) ?? []))] : typeViews?.length ? typeViews : undefined;
   // The type's views among those, and the one the file is written for: their titles in another language.
   const titled = new Set([...(model?.views.size ? (typeViews?.slice(1) ?? []) : (typeViews ?? [])).map((v) => v.name), ...(!model?.view && writtenView ? [writtenView.name] : [])]);
   const viewTitles = (other: Lang) => Object.fromEntries((type.views?.(rest, wordIn(other)) ?? []).filter((v) => v.title && titled.has(v.name)).map((v) => [v.name, v.title!]));

@@ -4,6 +4,7 @@
 //   access    who × where, the effective role, and where it comes from
 //   packages  access packages × what they grant
 //   roles     roles × permissions, including inherited ones
+// A view of the file (views: at the top) cuts each of them to the principals and scopes it picks.
 import {
   english,
   idPattern,
@@ -43,6 +44,8 @@ export const principalKinds: KindTable = {
   device: { label: 'Device', icon: 'laptop', tone: 'slate', keywords: ['laptop', 'intune', 'endpoint'] },
   paw: { label: 'Privileged access workstation', icon: 'laptop-minimal-check', tone: 'rose', keywords: ['paw', 'admin workstation', 'saw'] },
   'connected-org': { label: 'Connected organisation', icon: 'handshake', tone: 'orange' },
+  // Who an OpenSharing share (called Delta Sharing until June 2026) is granted to: another Databricks account, or an open client.
+  recipient: { label: 'Recipient', icon: 'handshake', tone: 'teal', keywords: ['opensharing', 'delta sharing', 'share recipient', 'partner'] },
   // What an export names but no longer finds: a deleted user or group that still holds a role.
   unknown: { label: 'Identity not found', icon: 'circle-question-mark', tone: 'rose' },
 };
@@ -72,6 +75,8 @@ export const resourceKinds: KindTable = {
   table: { label: 'Table', icon: 'table-2', tone: 'indigo', keywords: ['unity catalog', 'select', 'modify', 'view'] },
   volume: { label: 'Volume', icon: 'folders', tone: 'teal', keywords: ['unity catalog', 'read volume'] },
   'external-location': { label: 'External location', icon: 'folder-cog', tone: 'teal', keywords: ['unity catalog', 'read files'] },
+  // OpenSharing (Delta Sharing until June 2026): tables, volumes and models shared with recipients, SELECT on the share.
+  share: { label: 'Share', icon: 'share-2', tone: 'teal', keywords: ['opensharing', 'delta sharing', 'delta share'] },
 };
 
 /** Conditional Access, and what its policies ask for: drawn before the people they apply to. */
@@ -80,7 +85,13 @@ export const policyKinds: KindTable = {
   'authentication-strength': { label: 'Authentication strength', icon: 'fingerprint-pattern', tone: 'amber', keywords: ['mfa', 'fido2', 'passkey', 'phishing-resistant'] },
   'named-location': { label: 'Named location', icon: 'map-pin', tone: 'teal', keywords: ['location', 'ip range', 'country', 'trusted network'] },
   'compliance-policy': { label: 'Device compliance policy', icon: 'badge-check', tone: 'green', keywords: ['compliance', 'compliant', 'intune'] },
+  // Unity Catalog ABAC: set on a catalog, schema or table (on:), it masks the columns or filters the rows that carry a governed tag (tag:).
+  'column-mask': { label: 'Column mask policy', icon: 'eye-off', tone: 'amber', keywords: ['abac', 'governed tag', 'mask', 'pii', 'unity catalog'] },
+  'row-filter': { label: 'Row filter policy', icon: 'funnel', tone: 'amber', keywords: ['abac', 'governed tag', 'row level security', 'unity catalog'] },
 };
+
+/** Data access policies (ABAC): they guard data, so they stand with the scopes they are on. */
+const DATA_POLICIES = ['column-mask', 'row-filter'];
 
 /**
  * Each kind of line: its entry in the key, and (as the line's kind) what describe says it does. Its
@@ -103,6 +114,7 @@ const edgeStyles = {
   requires: { label: 'Policy requires', line: 'dashed', tone: 'rose', kind: 'Requires', loose: true, pattern: 'double' },
   location: { label: 'Location condition', line: 'dotted', tone: 'teal', kind: 'Location condition', loose: true, pattern: 'double' },
   covers: { label: 'Policy covers app', line: 'solid', tone: 'slate', kind: 'Covers' },
+  guards: { label: 'Data policy on', line: 'solid', tone: 'amber', kind: 'Policy on', pattern: 'double' },
 } as const satisfies Record<string, { label: string; line: GraphEdge['line']; tone: Tone; kind?: string; loose?: boolean; pattern?: LinePattern }>;
 
 interface Principal {
@@ -126,6 +138,8 @@ interface Resource {
   in?: string;
   /** The id where it lives (an Azure resource id, a repository's full name): as object-id, for imports. */
   'resource-id'?: string;
+  /** The workspaces an isolated catalog is bound to (workspace-catalog binding): only there can it be used. */
+  bound?: string | string[];
   tags?: string[];
 }
 
@@ -158,6 +172,10 @@ interface Control {
   requires?: string | string[];
   /** Blocks access instead of granting it. */
   block?: boolean;
+  /** A data access policy: the catalogs, schemas or tables it is set on. */
+  on?: string | string[];
+  /** A data access policy: the governed tag it matches, e.g. pii. */
+  tag?: string;
   state?: 'on' | 'report-only' | 'off';
   tags?: string[];
 }
@@ -281,6 +299,9 @@ class Model {
       for (const key of ['targets', 'excludes'] as const)
         for (const t of list(c[key])) if (!this.principal(t) && !this.resource(t)) ctx.error(['policies', id, key], `There is no principal "${t}"`);
       for (const l of list(c.locations)) if (!this.control(l)) ctx.error(['policies', id, 'locations'], `There is no named location "${l}" under policies`);
+      for (const o of list(c.on)) if (!this.resource(o)) ctx.error(['policies', id, 'on'], `There is no resource "${o}"`);
+      if ((c.on != null || c.tag != null) && !DATA_POLICIES.includes(c.kind ?? ''))
+        ctx.warn(['policies', id, c.on != null ? 'on' : 'tag'], 'on: and tag: say where a data access policy masks or filters: give it kind column-mask or row-filter');
     }
     // Every card has its own id: a package policy's own id may not be taken by anything else.
     const taken = new Set([...this.principals, ...this.resources, ...this.packages, ...this.controls].map(([id]) => id));
@@ -288,7 +309,10 @@ class Model {
       for (const [i, pol] of this.policies(p).entries())
         if (pol.id && taken.has(pol.id)) ctx.error(['packages', id, 'policy', ...(Array.isArray(p.policy) ? [i] : []), 'id'], `"${pol.id}" is already the id of something else`);
         else if (pol.id) taken.add(pol.id);
-    for (const [id, r] of this.resources) if (r.in && !this.resource(r.in)) ctx.error(['resources', id, 'in'], `There is no resource "${r.in}"`);
+    for (const [id, r] of this.resources) {
+      if (r.in && !this.resource(r.in)) ctx.error(['resources', id, 'in'], `There is no resource "${r.in}"`);
+      for (const w of list(r.bound)) if (!this.resource(w)) ctx.error(['resources', id, 'bound'], `There is no workspace "${w}" under resources`);
+    }
     for (const [id, r] of this.roles) for (const p of list(r.inherits)) if (!this.role(p)) ctx.error(['roles', id, 'inherits'], `There is no role "${p}"`);
     for (const [id, p] of this.packages) {
       if (p.catalog && !this.catalogs.some(([c]) => c === p.catalog)) ctx.error(['packages', id, 'catalog'], `There is no catalog "${p.catalog}"`);
@@ -403,7 +427,7 @@ class Model {
    * an equally strong one from elsewhere), each with where it comes from: itself, a group, an access
    * package, a scope above.
    */
-  reach(p: string): Map<string, Reach[]> {
+  reach(p: string, counted?: Set<number>): Map<string, Reach[]> {
     if (!this.assigned) {
       this.assigned = new Map();
       for (const a of this.assignments) this.assigned.set(a.principal, [...(this.assigned.get(a.principal) ?? []), a]);
@@ -425,7 +449,9 @@ class Model {
       }
     }
     for (const s of sources)
-      for (const a of this.assigned.get(s.id) ?? [])
+      for (const a of this.assigned.get(s.id) ?? []) {
+        // A view counts only the grants it does not leave out.
+        if (counted && !counted.has(this.assignments.indexOf(a))) continue;
         for (const scope of this.covered(a.scope)) {
           const from = a.scope !== scope ? this.label(a.scope) : undefined;
           const role = this.role(a.role);
@@ -443,6 +469,7 @@ class Model {
             ...(pim ? { activation: pim } : {}),
           });
         }
+      }
     // App and site roles from a package: a fixed text, not one of the roles.
     for (const a of appRoles) add(a.scope, { text: a.role, direct: false, via: a.via, through: 'package', tone: 'indigo' });
     const rank = (r: Reach) => (r.role ? this.rank(r.role) : 0);
@@ -498,14 +525,133 @@ function resourceHeader(m: Model, id: string): MatrixHeader {
   return { label: r.label ?? id, caption: r.caption ?? (k && m.word(k.label)), icon: k?.icon, tone: k?.tone };
 }
 
+// ---------------------------------------------------------------- views of the model
+
+/**
+ * What a view (`views:` at the top) shows. It picks principals and scopes (ids, `id.*` for a scope
+ * and what is in it, `tag:x`, `kind:x`, `*`); a side it names nothing of is not narrowed, so
+ * `include: [orders-team]` shows orders-team with everything it is granted, and `include: [tag:pii]`
+ * everyone granted something tagged pii. A grant is drawn when the view keeps both its ends.
+ * `exclude:` leaves out what it picks with its grants, and grants with a tag it names; `environment: prod` leaves
+ * out what is tagged, but not prod. Every drawing is cut alike: the graph, the who × where matrix
+ * (rows and columns the view keeps, effective access through every grant it does not leave out)
+ * and the roles table (the roles the view's grants give).
+ */
+interface Cut {
+  principals: Set<string>;
+  resources: Set<string>;
+  /** Indexes into the model's assignments: drawn in the graph. */
+  grants: Set<number>;
+  /** Grants that count towards effective access in the matrix: every one the view does not leave out by tag. */
+  counted: Set<number>;
+  /** What the view names itself (not through a side it leaves open): drawn even without a grant. */
+  named: Set<string>;
+  /** Policies and packages the view keeps, where it names some; otherwise those touching what is drawn. */
+  controls?: Set<string>;
+  packages?: Set<string>;
+  excluded: Set<string>;
+}
+
+function cutOf(m: Model, ctx: BuildContext): Cut | undefined {
+  const model = ctx.model;
+  if (!model) return undefined;
+  // The view is this type's to apply: the engine's filter by id would leave the tables whole.
+  model.used = true;
+  const view = model.view;
+  if (!view) return undefined;
+  const at = (key: 'include' | 'exclude', j: number) => (view.at[0] === 'views' ? [...view.at, key, j] : view.at);
+  const pkg = (id: string) => m.packages.find(([p]) => p === id)?.[1];
+  const tagsOf = (id: string) => (m.principal(id) ?? m.resource(id) ?? m.control(id) ?? pkg(id))?.tags ?? [];
+  const kindOf = (id: string) => m.principal(id)?.kind ?? m.resource(id)?.kind ?? m.control(id)?.kind ?? (pkg(id) ? 'package' : undefined);
+  const all = [...m.principals, ...m.resources, ...m.controls, ...m.packages].map(([id]) => id);
+  const known = new Set(all);
+  const pick = (sel: string, path: (string | number)[]): string[] => {
+    const s = sel.trim();
+    if (s === '*') return all;
+    if (s.includes('->')) {
+      ctx.warn(path, 'An access view picks principals and scopes; the grants between them come along');
+      return [];
+    }
+    if (s.startsWith('tag:')) return all.filter((id) => tagsOf(id).includes(s.slice(4)));
+    if (s.startsWith('kind:')) return all.filter((id) => kindOf(id) === s.slice(5));
+    if (s.endsWith('.*') && m.resource(s.slice(0, -2))) return m.covered(s.slice(0, -2));
+    if (known.has(s)) return [s];
+    ctx.warn(path, `There is no principal, resource, policy or package "${s}"`);
+    return [];
+  };
+  const env = view.environment;
+  const away = (tags: string[] | undefined) => !!env && !!tags?.length && !tags.includes(env);
+  const inc = view.include ? new Set(view.include.flatMap((s, j) => pick(s, at('include', j)))) : undefined;
+  const excluded = new Set((view.exclude ?? []).flatMap((s, j) => pick(s, at('exclude', j))));
+  for (const id of all) if (away(tagsOf(id))) excluded.add(id);
+  const outTags = (view.exclude ?? []).filter((s) => s.startsWith('tag:')).map((s) => s.slice(4));
+  // A side the view names nothing of is left open.
+  const side = (ids: string[]) => {
+    const narrowed = !!inc && ids.some((id) => inc.has(id));
+    return { kept: new Set(ids.filter((id) => !excluded.has(id) && (!narrowed || inc!.has(id)))), narrowed };
+  };
+  const principals = side(m.principals.map(([id]) => id));
+  const resources = side(m.resources.map(([id]) => id));
+  const controls = side(m.controls.map(([id]) => id));
+  const packages = side(m.packages.map(([id]) => id));
+  // What it leaves out gives nothing: a group's grants do not reach its members in a view without the group.
+  const counted = new Set(m.assignments.flatMap((a, i) => (away(a.tags) || (a.tags ?? []).some((t) => outTags.includes(t)) || excluded.has(a.principal) || excluded.has(a.scope) ? [] : [i])));
+  const grants = new Set([...counted].filter((i) => principals.kept.has(m.assignments[i]!.principal) && resources.kept.has(m.assignments[i]!.scope)));
+  const named = new Set([...(inc ?? [])].filter((id) => !excluded.has(id)));
+  return {
+    principals: principals.kept,
+    resources: resources.kept,
+    grants,
+    counted,
+    named,
+    ...(controls.narrowed ? { controls: controls.kept } : {}),
+    ...(packages.narrowed ? { packages: packages.kept } : {}),
+    excluded,
+  };
+}
+
+/** What the graph draws of a cut: the ends of its grants, what it names, and what holds them. */
+function drawnOf(m: Model, cut: Cut): Set<string> {
+  const shown = new Set<string>();
+  for (const i of cut.grants) {
+    const a = m.assignments[i]!;
+    shown.add(a.principal);
+    shown.add(a.scope);
+  }
+  for (const id of cut.named) if (cut.principals.has(id) || cut.resources.has(id)) shown.add(id);
+  // A scope is drawn in what holds it, unless the view leaves that out.
+  for (const id of [...shown]) if (m.resource(id)) for (const up of m.ancestors(id)) if (!cut.excluded.has(up)) shown.add(up);
+  const touches = (ids: string[]) => ids.some((x) => shown.has(x));
+  for (const [id, c] of m.controls) {
+    // A data policy is about the data it is on; a Conditional Access policy about who it applies to and the apps it covers.
+    const about = DATA_POLICIES.includes(c.kind ?? '') ? list(c.on) : [...list(c.targets), ...list(c.excludes), ...list(c.apps)];
+    const keep = cut.controls ? cut.controls.has(id) : !cut.excluded.has(id) && touches(about);
+    if (keep) shown.add(id);
+  }
+  // What a policy that is kept asks for (an authentication strength, a named location) comes along.
+  for (const [id, c] of m.controls) if (shown.has(id)) for (const x of [...list(c.requires), ...list(c.locations)]) if (m.control(x) && !cut.excluded.has(x)) shown.add(x);
+  for (const [id, p] of m.packages) {
+    const keep = cut.packages ? cut.packages.has(id) : !cut.excluded.has(id) && touches([...(p.holders ?? []), ...m.grants(p).map((g) => g.target), ...m.policies(p).flatMap((pol) => list(pol.requestors))]);
+    if (keep) shown.add(id);
+  }
+  return shown;
+}
+
+/** A graph read in columns: no access packages or Conditional Access, only who, their groups and where (data policies by their scopes). */
+const inColumns = (src: AccessSource) =>
+  !Object.keys(src.packages ?? {}).length && Object.values(src.policies ?? {}).every((p) => DATA_POLICIES.includes((typeof p === 'string' ? p : p?.kind) ?? ''));
+
 // ---------------------------------------------------------------- graph view
 
-function graphView(m: Model): Graph {
+function graphView(m: Model, cut?: Cut): Graph {
   const groups: GraphGroup[] = [];
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
   const used = new Set<keyof typeof edgeStyles>();
-  const edge = (from: string, to: string, style: keyof typeof edgeStyles, label: string | undefined, path: (string | number)[], tags?: string[], eligible?: GraphEdge['eligible']) => {
+  const drawn = cut ? drawnOf(m, cut) : undefined;
+  const shown = (id: string) => !drawn || drawn.has(id);
+  const edge = (from: string, to: string, style: keyof typeof edgeStyles, label: string | undefined, path: (string | number)[], tags?: string[], eligible?: GraphEdge['eligible'], loose?: boolean) => {
+    if (!shown(from) || !shown(to)) return;
     used.add(style);
     const s: { line: GraphEdge['line']; tone: Tone; kind?: string; loose?: boolean; pattern?: LinePattern } = edgeStyles[style];
     edges.push({
@@ -519,7 +665,7 @@ function graphView(m: Model): Graph {
       end: 'arrow',
       ...(s.kind ? { kind: s.kind } : {}),
       ...(s.pattern ? { pattern: s.pattern } : {}),
-      ...(s.loose ? { loose: true } : {}),
+      ...(s.loose || loose ? { loose: true } : {}),
       ...(tags?.length ? { tags } : {}),
       ...(eligible ? { eligible } : {}),
       path,
@@ -529,34 +675,64 @@ function graphView(m: Model): Graph {
   const at = (base: (string | number)[], v: unknown, i: number) => [...base, ...(Array.isArray(v) ? [i] : [])];
   const tagged = (t: string[] | undefined) => (t?.length ? { tags: t } : {});
 
+  // Who, the groups they are in, then where: a column each, so the grants read left to right
+  // (access packages and Conditional Access find their own places).
+  const rank = new Map<string, number>();
+  if (inColumns(m.src)) {
+    const members = new Map<string, string[]>();
+    for (const [id, p] of m.principals) if (shown(id)) for (const g of list(p['member-of'])) if (shown(g) && m.principal(g)) members.set(g, [...(members.get(g) ?? []), id]);
+    // Where memberships are drawn, groups stand in a column after the people and workloads, a group of groups after those.
+    const nested = members.size > 0;
+    const deep = (id: string, seen: Set<string>): number => {
+      if (rank.has(id)) return rank.get(id)!;
+      if (seen.has(id)) return 0;
+      seen.add(id);
+      const d = Math.max(nested && GROUPS.includes(m.principal(id)?.kind ?? '') ? 1 : 0, ...(members.get(id) ?? []).map((x) => 1 + deep(x, seen)));
+      rank.set(id, d);
+      return d;
+    };
+    for (const [id] of m.principals) if (shown(id)) deep(id, new Set());
+    const after = Math.max(-1, ...rank.values()) + 1;
+    const policies = m.controls.some(([id]) => shown(id));
+    for (const [id] of m.controls) if (shown(id)) rank.set(id, after);
+    for (const [id] of m.resources) if (shown(id)) rank.set(id, after + (policies ? 1 : 0));
+  }
+  const ranked = (id: string) => (rank.has(id) ? { rank: rank.get(id)! } : {});
+
   for (const [id, c] of m.catalogs)
-    groups.push({ id: `catalog:${id}`, label: c.label ?? id, caption: m.word('Catalog'), icon: 'layout-grid', tone: 'violet', border: 'dashed', path: ['catalogs', id] });
+    if (!drawn || m.packages.some(([p, x]) => x.catalog === id && drawn.has(p)))
+      groups.push({ id: `catalog:${id}`, label: c.label ?? id, caption: m.word('Catalog'), icon: 'layout-grid', tone: 'violet', border: 'dashed', path: ['catalogs', id] });
 
   // Resources with children become groups, so a role on a subscription visibly covers what is in it.
-  const parents = new Set(m.resources.map(([, r]) => r.in).filter(Boolean));
+  const parentOf = (r: Resource) => (r.in && shown(r.in) ? r.in : undefined);
+  const parents = new Set(m.resources.filter(([id]) => shown(id)).map(([, r]) => parentOf(r)).filter(Boolean));
   for (const [id, r] of m.resources) {
+    if (!shown(id)) continue;
     const k = resourceKinds[r.kind ?? ''];
+    const caption = r.caption ?? boundCaption(m, r) ?? k?.label;
     if (parents.has(id))
-      groups.push({ id, parent: r.in, label: r.label ?? id, caption: r.caption ?? k?.label, icon: k?.icon, tone: k?.tone ?? 'slate', border: 'solid', ...tagged(r.tags), path: ['resources', id] });
-    else
-      nodes.push({ id, parent: r.in, shape: { kind: 'card', label: r.label ?? id, caption: r.caption ?? k?.label, icon: k?.icon, tone: k?.tone ?? 'slate' }, ...tagged(r.tags), path: ['resources', id] });
+      groups.push({ id, parent: parentOf(r), label: r.label ?? id, caption, icon: k?.icon, tone: k?.tone ?? 'slate', border: 'solid', ...tagged(r.tags), path: ['resources', id] });
+    else nodes.push({ id, parent: parentOf(r), shape: { kind: 'card', label: r.label ?? id, caption, icon: k?.icon, tone: k?.tone ?? 'slate' }, ...tagged(r.tags), ...ranked(id), path: ['resources', id] });
   }
   for (const [id, c] of m.controls) {
+    if (!shown(id)) continue;
     const k = policyKinds[c.kind ?? ''];
-    nodes.push({ id, shape: { kind: 'card', label: c.label ?? id, caption: c.caption ?? controlCaption(m, c), icon: k?.icon, tone: k?.tone ?? 'rose' }, ...tagged(c.tags), path: ['policies', id] });
+    nodes.push({ id, shape: { kind: 'card', label: c.label ?? id, caption: c.caption ?? controlCaption(m, c), icon: k?.icon, tone: k?.tone ?? 'rose' }, ...tagged(c.tags), ...ranked(id), path: ['policies', id] });
   }
   for (const [id, p] of m.principals) {
+    if (!shown(id)) continue;
     const k = principalKinds[p.kind ?? ''];
-    nodes.push({ id, shape: { kind: 'card', label: p.label ?? id, caption: p.caption ?? k?.label, icon: k?.icon, tone: k?.tone ?? 'slate' }, ...tagged(p.tags), path: ['principals', id] });
+    nodes.push({ id, shape: { kind: 'card', label: p.label ?? id, caption: p.caption ?? k?.label, icon: k?.icon, tone: k?.tone ?? 'slate' }, ...tagged(p.tags), ...ranked(id), path: ['principals', id] });
   }
   for (const [id, p] of m.packages)
-    nodes.push({
-      id,
-      parent: p.catalog ? `catalog:${p.catalog}` : undefined,
-      shape: { kind: 'card', label: p.label ?? id, caption: p.caption ?? m.word('Access package'), icon: 'package', tone: 'violet' },
-      ...tagged(p.tags),
-      path: ['packages', id],
-    });
+    if (shown(id))
+      nodes.push({
+        id,
+        parent: p.catalog ? `catalog:${p.catalog}` : undefined,
+        shape: { kind: 'card', label: p.label ?? id, caption: p.caption ?? m.word('Access package'), icon: 'package', tone: 'violet' },
+        ...tagged(p.tags),
+        path: ['packages', id],
+      });
 
   for (const [id, p] of m.principals) {
     const base = ['principals', id];
@@ -570,7 +746,9 @@ function graphView(m: Model): Graph {
   }
   for (const [id, c] of m.controls) {
     const base = ['policies', id];
+    const data = DATA_POLICIES.includes(c.kind ?? '');
     const lines = [
+      ['on', 'guards'],
       ['targets', 'applies'],
       ['excludes', 'excludes'],
       ['apps', 'covers'],
@@ -579,15 +757,18 @@ function graphView(m: Model): Graph {
     ] as const;
     for (const [key, style] of lines)
       for (const [i, t] of list(c[key]).entries())
-        if (m.principal(t) || m.resource(t) || m.control(t)) edge(id, t, style, undefined, at([...base, key], c[key], i), c.tags);
+        // A data policy stands by its scopes: its lines back to the people it applies to do not move it.
+        if (m.principal(t) || m.resource(t) || m.control(t)) edge(id, t, style, key === 'on' ? c.tag : undefined, at([...base, key], c[key], i), c.tags, undefined, data && key !== 'on');
   }
   for (const [id, p] of m.packages) {
+    if (!shown(id)) continue;
     // Each policy is its own card between requestors and package: who approves, for how long.
     for (const [i, pol] of m.policies(p).entries()) {
       const label = pol.auto ? m.word('Assigned automatically') : list(pol.approval).length ? m.word('Approval: {names}', { names: m.approvers(pol.approval) }) : m.word('No approval');
       const caption = [pol.duration, pol.review && m.word('review {when}', { when: pol.review })].filter(Boolean).join(' · ') || m.word('Policy');
       const policyId = pol.id ?? `${id}:policy:${i}`;
       const path = at(['packages', id, 'policy'], p.policy, i);
+      drawn?.add(policyId);
       nodes.push({
         id: policyId,
         parent: p.catalog ? `catalog:${p.catalog}` : undefined,
@@ -602,7 +783,8 @@ function graphView(m: Model): Graph {
     for (const [i, g] of m.grants(p).entries())
       if (m.principal(g.target) || m.resource(g.target)) edge(id, g.target, 'grant', m.principal(g.target) ? undefined : g.role, ['packages', id, 'grants', i]);
   }
-  for (const a of m.assignments) {
+  for (const [i, a] of m.assignments.entries()) {
+    if (cut && !cut.grants.has(i)) continue;
     // On the line, PIM's settings in short: how long at most, and whether someone approves (who, the matrix and describe say).
     const pim = a.eligible ? [a.activation, list(a.approval).length && m.word('approval')].filter(Boolean).join(' · ') : '';
     const parts = a.eligible ? { role: m.label(a.role), ...(a.activation ? { activation: a.activation } : {}), ...(list(a.approval).length ? { approval: m.approvers(a.approval) } : {}) } : undefined;
@@ -618,9 +800,21 @@ function graphView(m: Model): Graph {
   return { title: m.src.title, subtitle: m.src.subtitle, direction: m.src.direction ?? 'right', groups, nodes, edges, legend };
 }
 
+/**
+ * A catalog's caption when none is written: the workspaces it is bound to. A binding is said on the
+ * catalog, not drawn as a line: catalog and workspace stand in one column (both are where), and a line
+ * along it for each of eighteen catalogs would cross every grant.
+ */
+function boundCaption(m: Model, r: Resource): string | undefined {
+  const ws = list(r.bound).filter((w) => m.resource(w));
+  return ws.length ? m.word('Bound to {names}', { names: ws.map(m.label).join(', ') }) : undefined;
+}
+
 /** A Conditional Access card's caption when none is written: its state, and what it blocks or asks for in words. */
 function controlCaption(m: Model, c: Control): string {
   const k = policyKinds[c.kind ?? ''];
+  if (c.kind === 'column-mask' && c.tag) return m.word('Masks columns tagged {tag}', { tag: c.tag });
+  if (c.kind === 'row-filter' && c.tag) return m.word('Filters rows tagged {tag}', { tag: c.tag });
   if (c.kind && c.kind !== 'conditional-access') return k?.label ?? c.kind;
   const words = (v: string | string[] | undefined) => list(v).filter((x) => !m.principal(x) && !m.resource(x) && !m.control(x));
   const apps = words(c.apps);
@@ -653,6 +847,9 @@ const pillLegend = (cells: (MatrixCell | undefined)[][], direct: string, inherit
   ...(cells.some((r) => r.some((c) => c && !c.inherited)) ? [{ label: direct, swatch: checks ? ('check' as const) : ('fill' as const), tone: 'indigo' as Tone }] : []),
   ...(cells.some((r) => r.some((c) => c?.inherited)) ? [{ label: inherited, swatch: checks ? ('check-outline' as const) : ('outline' as const), tone: 'indigo' as Tone }] : []),
 ];
+
+/** A who × where table with more columns than this leaves out their icons. */
+const WIDE_TABLE = 8;
 
 /** Who the who × where matrix has a row for: not who only requests, and not what never holds a role itself (an app registration, a device). */
 const NO_ROW = ['dynamic-group', 'connected-org', 'app-registration', 'federated-credential', 'device', 'paw'];
@@ -688,18 +885,26 @@ function membership(m: Model, p: string, group: string): MatrixCell | undefined 
 }
 
 /** Who × where: every effective role per cell, the strongest on the pill, and where it comes from. With an earlier state: what was gained and lost since. */
-function accessView(m: Model, was?: Model): Graph {
+function accessView(m: Model, was?: Model, cut?: Cut): Graph {
   if (was) return compareView(was, m);
   // A group a package hands out is a column once someone is in it; it is a row as well only when it reaches something itself.
   const granted = grantedGroups(m);
-  const rows = inMatrix(m).filter((id) => !granted.includes(id) || m.reach(id).size);
-  const groups = granted.filter((g) => rows.some((p) => membership(m, p, g)));
-  const scopes = scopesInOrder(m);
+  const reachOf = new Map(inMatrix(m).map((p) => [p, m.reach(p, cut?.counted)]));
+  const kept = (id: string) => !cut || cut.principals.has(id);
+  let rows = inMatrix(m).filter((id) => kept(id) && (!granted.includes(id) || reachOf.get(id)!.size));
+  const groups = granted.filter((g) => kept(g) && rows.some((p) => membership(m, p, g)));
+  let scopes = scopesInOrder(m).filter((id) => !cut || cut.resources.has(id));
+  // A view shows the rows and columns with something in them, and what it names itself.
+  if (cut) {
+    const filled = (p: string, s: string) => !!reachOf.get(p)!.get(s)?.length;
+    scopes = scopes.filter((s) => cut.named.has(s) || rows.some((p) => filled(p, s)));
+    rows = rows.filter((p) => cut.named.has(p) || scopes.some((s) => filled(p, s)) || groups.some((g) => membership(m, p, g)));
+  }
   const columns = [...groups, ...scopes];
   // The ways an outlined pill comes to be, so the key names only those.
   const routes = new Set<'group' | 'package' | 'scope'>();
   const cells = rows.map((p) => {
-    const reach = m.reach(p);
+    const reach = reachOf.get(p)!;
     const groupsOf = m.memberships(p);
     return columns.map((scope) => {
       if (groups.includes(scope)) {
@@ -713,7 +918,10 @@ function accessView(m: Model, was?: Model): Graph {
       if (!best) return undefined;
       if (best.from) routes.add('scope');
       if (best.through) routes.add(best.through);
-      const cell = cellOf(best, m.word);
+      // What a data access policy does to the rows read there: columns tagged pii masked (BROWSE reads none).
+      const guards = best.role && reads(m, best.role) ? guarded(m, p, scope) : [];
+      const plain = cellOf(best, m.word);
+      const cell = guards.length ? { ...plain, note: [plain.note, ...guards].filter(Boolean).join('; ') } : plain;
       if (!others.length) return cell;
       // The pill's own way first, so the words under a pill are about that pill; then every other role
       // there too, each with where it comes from when that is not the pill's way. What it shares with
@@ -734,11 +942,27 @@ function accessView(m: Model, was?: Model): Graph {
       return { ...cell, note: [cell.note, ...more].filter(Boolean).join('; ') };
     });
   });
+  // Columns all of one kind (a dozen catalogs) need no icon each, nor do the columns of a wide table: the caption
+  // under every name says what each is, and the table stays narrow enough for a slide.
+  const kinds = new Set(columns.map((id) => m.resource(id)?.kind ?? m.principal(id)?.kind));
+  const headers = columns.map((id) => (groups.includes(id) ? principalHeader(m, id) : resourceHeader(m, id))).map((h) => ((kinds.size === 1 && columns.length > 1) || columns.length > WIDE_TABLE ? { ...h, icon: undefined } : h));
   return matrixGraph(
     m,
-    { kind: 'matrix', corner: m.word('Who \\ where'), rows: rows.map((id) => principalHeader(m, id)), columns: columns.map((id) => (groups.includes(id) ? principalHeader(m, id) : resourceHeader(m, id))), cells },
+    { kind: 'matrix', corner: m.word('Who \\ where'), rows: rows.map((id) => principalHeader(m, id)), columns: headers, cells },
     pillLegend(cells, 'Assigned directly', inheritedKey(routes)),
   );
+}
+
+/** Whether a role reads data (SELECT, read …), so a mask or filter changes what it sees. */
+const reads = (m: Model, role: string) => [...m.permissions(role).keys()].some((p) => /\b(select|read)\b/i.test(p));
+
+/** What the data access policies on a scope do to what a principal reads there ("columns tagged pii masked"); none where it is exempt. */
+function guarded(m: Model, p: string, scope: string): string[] {
+  const groups = m.memberships(p);
+  const is = (ids: string | string[] | undefined) => list(ids).some((t) => t === p || groups.has(t));
+  return m.controls
+    .filter(([, c]) => DATA_POLICIES.includes(c.kind ?? '') && list(c.on).some((o) => m.covered(o).includes(scope)) && (!list(c.targets).length || is(c.targets)) && !is(c.excludes))
+    .map(([id, c]) => (c.kind === 'row-filter' ? m.word('rows tagged {tag} filtered', { tag: c.tag ?? id }) : m.word('columns tagged {tag} masked', { tag: c.tag ?? id })));
 }
 
 /** The key for outlined pills: only the ways that are drawn ("Through a group or parent scope"). */
@@ -953,30 +1177,34 @@ function check(m: Model, ctx: BuildContext) {
 }
 
 /** Access packages × what they grant. */
-function packagesView(m: Model): Graph {
+function packagesView(m: Model, cut?: Cut): Graph {
+  const packages = cut ? m.packages.filter(([id]) => !cut.excluded.has(id) && (!cut.packages || cut.packages.has(id))) : m.packages;
   const targets: string[] = [];
-  for (const [, p] of m.packages) for (const g of m.grants(p)) if (!targets.includes(g.target)) targets.push(g.target);
+  for (const [, p] of packages) for (const g of m.grants(p)) if (!targets.includes(g.target)) targets.push(g.target);
   const header = (id: string) => (m.principal(id) ? principalHeader(m, id) : resourceHeader(m, id));
-  const rows = m.packages.map(([id, p]): MatrixHeader => {
+  const rows = packages.map(([id, p]): MatrixHeader => {
     const pol = m.policies(p)[0];
     const caption = [p.catalog && m.catalogs.find(([c]) => c === p.catalog)?.[1].label, pol?.duration].filter(Boolean).join(' · ');
     return { label: p.label ?? id, caption: caption || m.word('Access package'), icon: 'package', tone: 'violet' };
   });
-  const cells = m.packages.map(([, p]) => targets.map((t) => m.grants(p).find((g) => g.target === t)).map((g) => (g ? { text: g.role === 'Member' ? m.word('Member') : g.role, tone: 'violet' as Tone } : undefined)));
+  const cells = packages.map(([, p]) => targets.map((t) => m.grants(p).find((g) => g.target === t)).map((g) => (g ? { text: g.role === 'Member' ? m.word('Member') : g.role, tone: 'violet' as Tone } : undefined)));
   return matrixGraph(m, { kind: 'matrix', corner: m.word('Package \\ grants'), rows, columns: targets.map(header), cells }, []);
 }
 
 /** Roles × permissions, with inherited permissions outlined. */
-function rolesView(m: Model): Graph {
+function rolesView(m: Model, cut?: Cut): Graph {
+  // A view lists the roles its grants give.
+  const given = cut && new Set([...cut.grants].map((i) => m.assignments[i]!.role));
+  const roles = given ? m.roles.filter(([id]) => given.has(id)) : m.roles;
   const perms: string[] = [];
-  for (const [id] of m.roles) for (const p of m.permissions(id).keys()) if (!perms.includes(p)) perms.push(p);
-  const rows = m.roles.map(([id, r]): MatrixHeader => ({
+  for (const [id] of roles) for (const p of m.permissions(id).keys()) if (!perms.includes(p)) perms.push(p);
+  const rows = roles.map(([id, r]): MatrixHeader => ({
     label: r.label ?? id,
     caption: list(r.inherits).length ? m.word('includes {names}', { names: list(r.inherits).map(m.label).join(', ') }) : undefined,
     icon: 'shield-check',
     tone: r.tone ?? 'indigo',
   }));
-  const cells = m.roles.map(([id, r]) => {
+  const cells = roles.map(([id, r]) => {
     const own = m.permissions(id);
     return perms.map((p) => (own.has(p) ? { check: true, inherited: !own.get(p), tone: r.tone ?? ('indigo' as Tone) } : undefined));
   });
@@ -992,15 +1220,23 @@ function rolesView(m: Model): Graph {
 function build(src: AccessSource, ctx: BuildContext): Graph {
   const m = new Model(src, ctx);
   check(m, ctx);
+  const cut = cutOf(m, ctx);
+  const graph = drawing(m, src, cut);
+  // A view of the model has its own title, as views of other types do.
+  const view = ctx.model?.view;
+  return view ? { ...graph, title: view.title ?? graph.title, subtitle: view.subtitle ?? (view.title ? undefined : graph.subtitle), ...(view.direction ? { direction: view.direction } : {}) } : graph;
+}
+
+function drawing(m: Model, src: AccessSource, cut: Cut | undefined): Graph {
   switch (src.view ?? 'graph') {
     case 'access':
-      return accessView(m, src.was ? new Model(src.was, { ...silent, word: m.word }) : undefined);
+      return accessView(m, src.was ? new Model(src.was, { ...silent, word: m.word }) : undefined, cut);
     case 'packages':
-      return packagesView(m);
+      return packagesView(m, cut);
     case 'roles':
-      return rolesView(m);
+      return rolesView(m, cut);
     default:
-      return graphView(m);
+      return graphView(m, cut);
   }
 }
 
@@ -1059,6 +1295,7 @@ export const access: DiagramType<AccessSource> = {
     'access', 'permission', 'role', 'rbac', 'group', 'access package', 'entra', 'identity', 'iam', 'who has access', 'who can', 'privilege',
     'governance', 'catalog', 'principal', 'security group', 'matrix', 'least privilege', 'audit',
     'pim', 'conditional access', 'paw', 'app registration', 'service principal', 'workload identity',
+    'unity catalog', 'abac', 'column mask', 'row filter', 'opensharing', 'delta sharing',
   ],
   schema: {
     $schema: 'http://json-schema.org/draft-07/schema#',
@@ -1083,7 +1320,7 @@ export const access: DiagramType<AccessSource> = {
       },
       policies: {
         type: 'object',
-        description: 'Conditional Access policies, and the authentication strengths, named locations and compliance policies they use',
+        description: 'Conditional Access policies, and the authentication strengths, named locations and compliance policies they use; data access policies (column-mask, row-filter) on a governed tag',
         propertyNames: { pattern: idPattern },
         additionalProperties: entry(Object.keys(policyKinds), {
           targets: { ...strings, description: 'Who it applies to: users, groups, directory roles' },
@@ -1093,6 +1330,8 @@ export const access: DiagramType<AccessSource> = {
           requires: { ...strings, description: 'What a sign-in needs: an authentication strength, a device or PAW, a compliance policy, or words such as MFA' },
           block: { type: 'boolean', description: 'Blocks access instead of granting it' },
           state: { enum: ['on', 'report-only', 'off'] },
+          on: { ...strings, description: 'A column-mask or row-filter policy: the catalogs, schemas or tables it is set on' },
+          tag: { type: 'string', description: 'A column-mask or row-filter policy: the governed tag it matches, e.g. pii' },
         }),
       },
       catalogs: {
@@ -1128,6 +1367,7 @@ export const access: DiagramType<AccessSource> = {
         additionalProperties: entry(Object.keys(resourceKinds), {
           in: { type: 'string' },
           'resource-id': { type: 'string', description: 'The id where it lives, e.g. an Azure resource id: an import recognises it by this' },
+          bound: { ...strings, description: 'The workspaces an isolated catalog is bound to (workspace-catalog binding), e.g. dbw-lakehouse-prod' },
         }),
       },
       roles: {
@@ -1183,7 +1423,8 @@ export const access: DiagramType<AccessSource> = {
   views: (src, word = english) => {
     const any = (c: 'packages' | 'roles') => Object.keys(src[c] ?? {}).length > 0;
     return [
-      { name: 'graph', title: word('Who gets what, as a graph') },
+      // Read in columns, who to where, it is drawn left to right as it is: never turned, nor cut into rows.
+      { name: 'graph', title: word('Who gets what, as a graph'), ...(inColumns(src) ? { steady: true } : {}) },
       { name: 'access', title: word('Who × where'), table: true },
       ...(any('packages') ? [{ name: 'packages', title: word('Packages × grants'), table: true }] : []),
       ...(any('roles') ? [{ name: 'roles', title: word('Roles × permissions'), table: true }] : []),
@@ -1220,8 +1461,13 @@ export const access: DiagramType<AccessSource> = {
         ids(c.apps, [...base, 'apps'], 'resources');
         ids(c.locations, [...base, 'locations'], 'policies');
         ids(c.requires, [...base, 'requires'], 'policies', 'principals');
+        ids(c.on, [...base, 'on'], 'resources');
       }
-    for (const [id, r] of Object.entries(src.resources ?? {})) if (r && typeof r === 'object') ids(r.in, ['resources', id, 'in'], 'resources');
+    for (const [id, r] of Object.entries(src.resources ?? {}))
+      if (r && typeof r === 'object') {
+        ids(r.in, ['resources', id, 'in'], 'resources');
+        ids(r.bound, ['resources', id, 'bound'], 'resources');
+      }
     for (const [id, r] of Object.entries(src.roles ?? {})) if (r) ids(r.inherits, ['roles', id, 'inherits'], 'roles');
     for (const [id, p] of Object.entries(src.packages ?? {})) {
       const base = ['packages', id];
