@@ -84,6 +84,10 @@ const CROSS = 70;
 const OVERLAP = 6; // per pixel of running on top of another line
 const SOFT = 4; // per pixel inside a group header
 const PASSES = 3;
+// Of ways that cost the same so far, the search takes the one furthest along first: a long line across a
+// large drawing then runs down one way instead of widening every equal one. (A millionth of the cost: it
+// decides ties, never the cost found.)
+const TIE_DEEP = 1e-6;
 const LABEL_AIR = 6; // a label keeps this far from every other line: nearer, it seems to belong to that one
 const LABEL_NEAR = 16; // and keeps this far when it can
 const CROWD = 2; // per pixel nearer than that, per line
@@ -1409,7 +1413,7 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = In
         stamp[nk] = gen;
         cost[nk] = c;
         prev[nk] = k;
-        heap.push(nk, c + ahead(nx, ny, nd));
+        heap.push(nk, c + ahead(nx, ny, nd) - TIE_DEEP * c);
       }
     }
   }
