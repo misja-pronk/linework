@@ -112,6 +112,7 @@ await page.waitForFunction(() => document.querySelector('.view-picker select')?.
 const again = Date.now() - r0;
 if (again > 2500) fail(`the whole canvas picked again took ${again} ms (it took ${wholeMs} ms the first time)`);
 await page.screenshot({ path: `${out}/heavy-whole-again.png` });
+await page.locator('.view-switch button', { hasText: 'YAML' }).click();
 await page.click('.cm-content');
 await page.keyboard.press('Meta+End');
 await page.keyboard.type('\n# edited');
