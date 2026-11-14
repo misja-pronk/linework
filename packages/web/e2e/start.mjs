@@ -40,7 +40,7 @@ await page.waitForSelector('.start .scenario');
 await wait(1500);
 await page.screenshot({ path: `${out}/1-start.png` });
 const titles = await page.locator('.scenario-title').allInnerTexts();
-if (titles.join() !== 'Azure network,Landing zone,Entra access,Azure solution,Data products,From PR to production,Sequence') fail(`the cards are ${titles}`);
+if (titles.join() !== 'Azure network,Landing zone,Entra access,Azure solution,Data products,Databricks,From PR to production,Sequence') fail(`the cards are ${titles}`);
 const said = await page.locator('.start').innerText();
 for (const jargon of [/PL\. \d/, /type: \w/, /\bHow\b/, /Your AI/]) if (jargon.test(said)) fail(`the start screen says ${jargon}`);
 
