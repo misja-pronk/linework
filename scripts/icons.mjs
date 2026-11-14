@@ -26,6 +26,7 @@ const names = `
   arrow-right
   hand diamond diamond-plus square-plus circle triangle rows-3 sticky-note file refresh-cw
   shield-half laptop-minimal-check file-badge flame layers-2 chart-network
+  library library-big folder-tree plug share-2 import folders folder-cog brain-circuit app-window-mac globe-lock medal
 `.trim().split(/\s+/);
 
 const require = createRequire(import.meta.url);

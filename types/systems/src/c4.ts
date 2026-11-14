@@ -108,6 +108,11 @@ export const c4Config: GraphTypeConfig = {
     bus: 'queue',
     'event-stream': 'queue',
     bucket: 'storage',
+    // Azure Databricks' data stores (the azure type's kinds); its compute and pipelines are containers by depth.
+    'sql-warehouse': 'database',
+    catalog: 'database',
+    volume: 'storage',
+    'external-location': 'storage',
   },
 };
 
