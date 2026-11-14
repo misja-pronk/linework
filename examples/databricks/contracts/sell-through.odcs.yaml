@@ -1,0 +1,61 @@
+# Open Data Contract Standard v3.1 — https://bitol-io.github.io/open-data-contract-standard/
+# The Sell-through product: sales_prod.gold.sell_through, also in the OpenSharing share contoso_sell_through.
+# No personal data: it may leave Northwind.
+apiVersion: v3.1.0
+kind: DataContract
+id: northwind-sell-through
+name: sell_through
+version: 1.0.0
+status: active
+domain: Sales
+dataProduct: Sell-through
+description:
+  purpose: Units and revenue per product, customer country and day, for Northwind and its retail partners.
+servers:
+  - server: prod
+    type: databricks
+    host: dbw-lakehouse-prod
+    catalog: sales_prod
+    schema: gold
+schema:
+  - id: sell_through_tbl
+    name: sell_through
+    physicalType: table
+    classification: internal
+    properties:
+      - name: day
+        logicalType: date
+        physicalType: DATE
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+      - name: sku
+        logicalType: string
+        physicalType: STRING
+        primaryKey: true
+        primaryKeyPosition: 2
+        required: true
+      - name: country
+        logicalType: string
+        physicalType: STRING
+        primaryKey: true
+        primaryKeyPosition: 3
+        required: true
+      - name: units
+        logicalType: integer
+        physicalType: INT
+        required: true
+      - name: revenue_eur
+        logicalType: number
+        physicalType: DECIMAL(14,2)
+        required: true
+    quality:
+      - description: reconciles with orders_prod.gold.orders
+slaProperties:
+  - property: latency
+    value: 1
+    unit: d
+  - property: frequency
+    value: daily by 06:00
+team:
+  name: Sales analytics team

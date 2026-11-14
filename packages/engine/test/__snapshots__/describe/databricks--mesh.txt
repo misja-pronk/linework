@@ -1,0 +1,55 @@
+Data products
+
+Data products diagram: Northwind lakehouse · products per domain, published from Unity Catalog under a data contract. 17 elements in 6 groups, with 19 connections.
+
+Groups and elements
+- ERP (SQL Server · CDC)
+- Orders (Domain · Order management team)
+  - Orders (Gold · v2.3.0)
+- Finance (Domain · Finance data team)
+  - Revenue (Gold · v3.0.0)
+- Supply chain (Domain · Supply chain data team)
+  - Stock levels (Gold · v1.1.0 · Warehouse team)
+  - Demand forecast (Gold · beta · v0.4.0 · Planning analytics)
+  - Supplier files (Bronze · v1.0.0)
+- Sales (Domain · Sales analytics team)
+  - Sell-through (Gold · v1.0.0)
+- Power BI (Reports)
+- Customer 360 (Databricks App)
+- Contoso Retail (OpenSharing)
+- Replenishment (Application)
+- Web shop (Azure SQL · CDC)
+- Web shop (Domain · Web shop team)
+  - Web sessions (Gold · v1.2.0)
+- Clickstream (Event Hubs)
+- Salesforce (Sales Cloud)
+- Customers (Domain · CRM team)
+  - Customers (Gold · v1.6.0)
+- Suppliers (CSV files over SFTP)
+
+Connections
+- ERP connects to Orders (Gold), connects to Revenue and connects to Stock levels.
+- Orders (Gold) connects to Sell-through and connects to Demand forecast.
+- Revenue connects to Power BI.
+- Stock levels connects to Demand forecast.
+- Sell-through connects to Power BI, connects to Customer 360 and connects to Contoso Retail.
+- Demand forecast connects to Replenishment.
+- Web shop (Azure SQL) connects to Web sessions.
+- Clickstream connects to Web sessions.
+- Salesforce connects to Sell-through and connects to Customers (Gold).
+- Customers (Gold) connects to Sell-through and connects to Customer 360.
+- Suppliers connects to Supplier files.
+- Supplier files connects to Stock levels.
+
+Walkthrough
+1. Domains publish products: Each domain publishes from its own prod catalog; one platform team runs the lakehouse.
+2. Read once from the source: Lakeflow Connect reads the ERP, web shop and Salesforce; Auto Loader reads supplier files.
+3. Products built on products: Sell-through and the forecast read other domains' gold tables, never their sources.
+4. Used inside Northwind: Power BI and Customer 360 query gold via a SQL warehouse; replenishment calls an endpoint.
+5. Shared with Contoso: Sell-through is in an OpenSharing share too; Contoso reads it in its own Databricks account.
+6. Under a contract: Five products publish under an ODCS data contract; the detailed views show each one.
+
+Key
+- Orange icon: Bronze
+- Amber icon: Gold
+- Solid line: Data flow

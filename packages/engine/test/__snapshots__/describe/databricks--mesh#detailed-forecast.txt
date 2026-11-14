@@ -1,0 +1,19 @@
+Data products
+
+Data products, demand forecast in detail: Demand forecast in detail. 4 elements in 1 group, with 3 connections.
+
+Groups and elements
+- Orders (Orders · Gold)
+- Supply chain (Domain · Supply chain data team)
+  - Demand forecast (Gold · beta · v0.4.0 · Planning analytics)
+  - Stock levels (Gold · v1.1.0 · Warehouse team)
+- Replenishment (Application)
+
+Connections
+- Orders connects to Demand forecast.
+- Demand forecast.demand-forecast endpoint connects to Replenishment.
+- Stock levels connects to Demand forecast.
+
+Key
+- Amber icon: Gold
+- Solid line: Data flow

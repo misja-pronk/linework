@@ -83,6 +83,9 @@ const crossingBudget: Record<string, number> = {
   'model/deployment.yaml': 0,
   'model/model.yaml': 0,
   'databricks/model.yaml': 0,
+  'databricks/governance.yaml': 4, // one domain through three environments next to prod-wide grants: the prod service principal's and the analysts' lines pass the teams' MANAGE lines
+  'databricks/medallion.yaml': 0,
+  'databricks/mesh.yaml': 1, // the ERP's line to Revenue passes Orders' line down to the demand forecast
   'workspace/access.yaml': 0,
   'workspace/containers.yaml': 0,
   'workspace/containers.yaml#payments': 1, // wrapped for a slide (text 5.6 → 7 pt): the interbank payments pass the nightly extract
@@ -181,6 +184,8 @@ const jogBudget: Record<string, number> = {
   'states/pull-request.yaml': 1, // the return from Changes requested steps into Awaiting review's side
   'systems/data-pipeline.yaml': 1, // two lines into one side
   'systems/saas-platform.yaml': 1, // the overview: the host dashboard's way in steps aside past the guest app's
+  'databricks/governance.yaml': 1, // several grants into one catalog's side: one steps a lane aside
+  'databricks/mesh.yaml': 1, // the web shop's two sources join one line into Web sessions
 };
 
 // Labels sitting on a corner of their line: none, but for the ones named here.
@@ -212,6 +217,7 @@ const orderBudget: Record<string, number> = {
   'kubernetes/platform.yaml': 1,
   'model/deployment.yaml': 1,
   'network/small-office.yaml': 1,
+  'databricks/mesh.yaml': 1, // Orders stands below Customers and Sales: its lines run on to Sell-through and the demand forecast
 };
 
 // Lines on one track that are not one trunk (falseJoins): none, but for the ones named here.
@@ -230,6 +236,7 @@ const touchBudget: Record<string, number> = {
   'systems/web-shop.yaml': 1,
   'workspace/containers.yaml#payments': 1,
   'workspace/containers.yaml#api': 1,
+  'databricks/governance.yaml': 1, // the grants into the sales and customers catalogs run close past each other's labels
   'azure/web-app.yaml': 1, // db_datawriter, on its role line down to SQL, sits against the TDS line running down beside it
 };
 
@@ -269,6 +276,8 @@ const returns: Record<string, number> = {
   'c4/kestrel-bank.yaml#notifications': 2, // the notifier sends to Postbird and the push gateway, drawn under the boundary on the left
   'c4/kestrel-bank.yaml#payment-notice': 1,
   'c4/kestrel-bank.yaml#production': 1, // wrapped for a slide: the line down to the core ledger runs back to its start
+  'databricks/medallion.yaml': 1, // one order: two columns top-down, orders gold runs back up to sales gold in the second
+  'databricks/governance.yaml': 2, // teams on the right MANAGE or own what stands left of them: the sales catalog and the share
 };
 
 describe('layout quality', () => {

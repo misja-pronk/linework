@@ -1,0 +1,53 @@
+# Open Data Contract Standard v3.1 — https://bitol-io.github.io/open-data-contract-standard/
+# The Customers product's output port: customers_prod.gold.customers. Columns tagged pii carry the governed tag
+# pii in Unity Catalog; an ABAC column mask hides them from everyone outside customers-team.
+apiVersion: v3.1.0
+kind: DataContract
+id: northwind-customers
+name: customers
+version: 1.6.0
+status: active
+domain: Customers
+dataProduct: Customers
+description:
+  purpose: One row per customer account, matched across Salesforce and the ERP.
+servers:
+  - server: prod
+    type: databricks
+    host: dbw-lakehouse-prod
+    catalog: customers_prod
+    schema: gold
+schema:
+  - id: customers_tbl
+    name: customers
+    physicalType: table
+    properties:
+      - id: customer_id_pk
+        name: customer_id
+        logicalType: string
+        physicalType: STRING
+        primaryKey: true
+        required: true
+      - name: name
+        logicalType: string
+        physicalType: STRING
+        required: true
+        classification: confidential
+        tags: [pii]
+      - name: email
+        logicalType: string
+        physicalType: STRING
+        classification: confidential
+        tags: [pii]
+        quality:
+          - description: email is valid
+      - name: country
+        logicalType: string
+        physicalType: STRING
+        required: true
+slaProperties:
+  - property: latency
+    value: 24
+    unit: h
+team:
+  name: CRM team

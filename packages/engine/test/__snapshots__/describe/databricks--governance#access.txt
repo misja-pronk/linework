@@ -1,0 +1,25 @@
+Unity Catalog access
+
+Roles, groups and access packages, who × where: Who × where. A table of 9 rows by 9 columns.
+
+By row (Who by where)
+Columns: uc-weu, orders_dev, orders_test, orders_prod, customers_prod, customers_prod.gold, sales_prod, sales_prod.gold and contoso_sell_through.
+- platform-team (Metastore admins): uc-weu: Metastore admin
+- engineers (Every domain team): orders_prod: BROWSE
+- orders-team (Account group): orders_dev: Owner; orders_test: Read; orders_prod: MANAGE (also BROWSE (via engineers))
+- customers-team (Account group): orders_prod: BROWSE, inherited (via engineers); customers_prod: MANAGE; customers_prod.gold: MANAGE, inherited (from customers_prod)
+- analysts (Power BI and Genie): customers_prod.gold: Read · pii masked; sales_prod.gold: Read
+- sales-team (Account group): orders_prod: BROWSE, inherited (via engineers); sales_prod: MANAGE; sales_prod.gold: MANAGE, inherited (from sales_prod); contoso_sell_through: Owner
+- sp-lakehouse-dev (Runs the jobs in dev): orders_dev: Write
+- sp-lakehouse-test (Runs the jobs in test): orders_test: Write
+- sp-lakehouse-prod (Runs the jobs in prod): orders_prod: Write; customers_prod: Write; customers_prod.gold: Write, inherited (from customers_prod); sales_prod: Write; sales_prod.gold: Write, inherited (from sales_prod)
+
+Layers
+Ways to look at this drawing by tag.
+- Development (tags dev; 0 elements).
+- Test (tags test; 0 elements).
+- Production (tags prod; 0 elements).
+
+Key
+- Indigo filled pill: Assigned directly
+- Indigo outlined pill: Through a group or parent scope

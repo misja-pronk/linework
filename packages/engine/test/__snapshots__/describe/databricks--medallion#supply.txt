@@ -1,0 +1,33 @@
+Supply chain domain
+
+Azure infrastructure diagram: Northwind lakehouse · stock and supplier files into supply_prod, a demand forecast served to replenishment. 10 elements in 3 groups, with 9 connections.
+
+Groups and elements
+- ERP (SQL Server · on-premises): Orders and invoices and stock
+- erp-ingest (SQL Server connector · ingestion gateway)
+- supply_prod (Catalog)
+  - bronze (Schema)
+    - supplier_files (Volume)
+  - silver (Schema)
+  - gold (Schema)
+    - demand_forecast (Model)
+    - stock_levels (Table)
+- forecast-training (Weekly · MLflow)
+- demand-forecast (Serving endpoint)
+- Replenishment (Service): Orders stock from suppliers on the demand forecast
+- supply-pipeline (Auto Loader)
+
+Connections
+- ERP sends data to erp-ingest (CDC [SQL Server]).
+- erp-ingest sends data to bronze.
+- bronze sends data to silver (clean).
+- silver sends data to gold (model).
+- gold sends data to forecast-training.
+- forecast-training sends data to demand_forecast (Registers).
+- demand_forecast sends data to demand-forecast (Served by).
+- demand-forecast sends data to Replenishment (Forecast [REST]).
+- supply-pipeline connects to supply_prod (Management: refreshes).
+
+Key
+- Solid violet line with ticks: Data flow
+- Dotted line with ticks: Management

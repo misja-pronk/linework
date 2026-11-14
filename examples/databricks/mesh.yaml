@@ -1,0 +1,152 @@
+# The Northwind lakehouse as a data mesh: each domain publishes data products from its own Unity Catalog catalog.
+#   domains     a domain per <domain>_prod catalog, owned by its team; the platform team runs the lakehouse itself
+#   sources     the operational systems, read by Lakeflow Connect (ERP, web shop, Salesforce) and Auto Loader (files)
+#   products    class: the medallion layer of the output port (bronze, silver, gold); owner: only where a team
+#               other than the domain's answers for it
+#               outputs: catalog.schema.table ports (kind table, volume, model), an endpoint, or an OpenSharing share
+#   contracts   ODCS 3.1 files in contracts/ (orders, customers, sell-through); revenue and stock inline
+#   consumers   Power BI, the Customer 360 app, replenishment and Contoso Retail
+# Products, versions and owners shared with examples/data-products/northwind-mesh.yaml are the same; there Orders and
+# Customers sit in one Sales domain, here each has its own catalog.
+type: data-products
+title: Data products
+subtitle: Northwind lakehouse · products per domain, published from Unity Catalog under a data contract
+view: overview   # overview, or detailed-<domain> or detailed-<product>: ports and contracts (the view picker lists them)
+
+domains:
+  orders: { label: Orders, owner: Order management team }
+  webshop: { label: Web shop, owner: Web shop team }
+  customers: { label: Customers, owner: CRM team }
+  sales: { label: Sales, owner: Sales analytics team }
+  finance: { label: Finance, owner: Finance data team }
+  supply: { label: Supply chain, owner: Supply chain data team }
+
+sources:
+  erp: { kind: erp, label: ERP, caption: SQL Server · CDC }
+  sqldb-webshop-prod: { kind: database, label: Web shop, caption: Azure SQL · CDC }
+  evhns-webshop-prod: { kind: stream, label: Clickstream, caption: Event Hubs }
+  salesforce: { kind: saas, label: Salesforce, caption: Sales Cloud }
+  supplier-sftp: { kind: file, label: Suppliers, caption: CSV files over SFTP }
+
+products:
+  orders:
+    label: Orders
+    class: gold
+    domain: orders
+    version: 2.3.0
+    inputs: [erp]
+    outputs:
+      orders: { kind: table, label: orders_prod.gold.orders, contract: orders }
+  sessions:
+    label: Web sessions
+    class: gold
+    domain: webshop
+    version: 1.2.0
+    inputs: [sqldb-webshop-prod, evhns-webshop-prod]
+    outputs:
+      sessions: { kind: table, label: webshop_prod.gold.sessions }
+  customers:
+    label: Customers
+    class: gold
+    domain: customers
+    version: 1.6.0
+    inputs: [salesforce]
+    outputs:
+      customers: { kind: table, label: customers_prod.gold.customers, contract: customers }
+  sell-through:
+    label: Sell-through
+    class: gold
+    domain: sales
+    version: 1.0.0
+    inputs: [salesforce, orders, customers]
+    outputs:
+      sell-through: { kind: table, label: sales_prod.gold.sell_through, contract: sell-through }
+      share: { kind: share, label: contoso_sell_through }
+  revenue:
+    label: Revenue
+    class: gold
+    domain: finance
+    version: 3.0.0
+    inputs: [erp]
+    outputs:
+      revenue: { kind: table, label: finance_prod.gold.revenue, contract: revenue }
+  supplier-files:
+    label: Supplier files
+    class: bronze
+    domain: supply
+    version: 1.0.0
+    inputs: [supplier-sftp]
+    outputs:
+      files: { kind: volume, label: supply_prod.bronze.supplier_files }
+  stock:
+    label: Stock levels
+    class: gold
+    domain: supply
+    owner: Warehouse team
+    version: 1.1.0
+    inputs: [erp, supplier-files]
+    outputs:
+      stock: { kind: table, label: supply_prod.gold.stock_levels, contract: stock }
+  forecast:
+    label: Demand forecast
+    class: gold
+    domain: supply
+    owner: Planning analytics
+    version: 0.4.0
+    status: beta
+    inputs: [orders, stock]
+    outputs:
+      model: { kind: model, label: supply_prod.gold.demand_forecast }
+      endpoint: { kind: api, label: demand-forecast endpoint }
+
+consumers:
+  power-bi: { kind: dashboard, label: Power BI, caption: Reports, uses: [sell-through.sell-through, revenue] }
+  customer-360: { kind: application, label: Customer 360, caption: Databricks App, uses: [customers, sell-through.sell-through] }
+  replenishment: { kind: application, label: Replenishment, uses: [forecast.endpoint] }
+  contoso-retail: { kind: partner, label: Contoso Retail, caption: OpenSharing, uses: [sell-through.share] }
+
+contracts:
+  orders: { file: contracts/orders.odcs.yaml }
+  customers: { file: contracts/customers.odcs.yaml }
+  sell-through: { file: contracts/sell-through.odcs.yaml }
+  revenue:
+    label: revenue
+    version: 3.0.0
+    classification: internal
+    fields:
+      month: DATE pk
+      country: STRING pk
+      revenue_eur: DECIMAL(14,2)
+    sla: { freshness: daily by 07:00 }
+    quality: [reconciles with the ledger]
+  stock:
+    label: stock_levels
+    version: 1.1.0
+    classification: internal
+    fields:
+      sku: STRING pk
+      warehouse: STRING pk
+      on_hand: INT
+      updated_at: TIMESTAMP
+    sla: { freshness: 1 hour }
+    quality: [on_hand >= 0]
+
+steps:
+  - title: Domains publish products
+    caption: Each domain publishes from its own prod catalog; one platform team runs the lakehouse.
+    focus: [orders, sessions, customers, sell-through, revenue, supplier-files, stock, forecast]
+  - title: Read once from the source
+    caption: Lakeflow Connect reads the ERP, web shop and Salesforce; Auto Loader reads supplier files.
+    path: [erp -> orders, sqldb-webshop-prod -> sessions, evhns-webshop-prod -> sessions, salesforce -> customers, supplier-sftp -> supplier-files -> stock]
+  - title: Products built on products
+    caption: Sell-through and the forecast read other domains' gold tables, never their sources.
+    path: [orders -> sell-through, customers -> sell-through, orders -> forecast, stock -> forecast]
+  - title: Used inside Northwind
+    caption: Power BI and Customer 360 query gold via a SQL warehouse; replenishment calls an endpoint.
+    path: [sell-through -> power-bi, revenue -> power-bi, customers -> customer-360, forecast -> replenishment]
+  - title: Shared with Contoso
+    caption: Sell-through is in an OpenSharing share too; Contoso reads it in its own Databricks account.
+    path: sell-through -> contoso-retail
+  - title: Under a contract
+    caption: Five products publish under an ODCS data contract; the detailed views show each one.
+    focus: [orders, customers, sell-through, revenue, stock]

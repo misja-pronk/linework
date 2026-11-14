@@ -1,0 +1,45 @@
+One order
+
+Azure infrastructure diagram: Northwind lakehouse · an order from the ERP to Power BI and to Contoso Retail. 12 elements in 3 groups, with 11 connections.
+
+Groups and elements
+- ERP (SQL Server · on-premises): Orders and invoices and stock
+- erp-ingest (SQL Server connector · ingestion gateway)
+- orders_prod (Catalog)
+  - bronze (Schema)
+  - silver (Schema)
+  - gold (Schema)
+- sales_prod (Catalog)
+  - gold (Schema)
+    - sell_through (Table)
+- bi-warehouse (Serverless SQL warehouse)
+- Power BI (Fabric capacity F64): Reports on gold through the SQL warehouse
+- Business analysts (Users): Read gold data in Power BI and Genie
+- contoso_sell_through (OpenSharing)
+- contoso (Databricks-to-Databricks)
+- Contoso Retail (External system): Retail partner; reads sell-through in its own Databricks account
+
+Connections
+- ERP sends data to erp-ingest (CDC [SQL Server]).
+- erp-ingest sends data to bronze.
+- bronze sends data to silver (clean).
+- silver sends data to gold (Schema) (model).
+- gold (Schema) sends data to gold (Schema) (orders).
+- gold (Schema) sends data to bi-warehouse.
+- bi-warehouse sends data to Power BI (DirectQuery).
+- Power BI sends data to Business analysts (Reports).
+- sell_through sends data to contoso_sell_through (Shared in).
+- contoso_sell_through connects to contoso (Granted to).
+- contoso sends data to Contoso Retail (OpenSharing).
+
+Walkthrough
+1. An order in the ERP: A customer orders 40 crates from Northwind; the order is a new row in the ERP's SQL Server.
+2. Captured by Lakeflow Connect: erp-ingest's gateway reads the change from SQL Server (CDC); the ingestion pipeline lands it in orders_prod.bronze.
+3. Silver, then gold: orders-pipeline removes duplicates and checks the row in silver, then models it into orders_prod.gold.orders.
+4. Sell-through: At night sales-pipeline joins the order with its customer into sales_prod.gold.sell_through, another domain's gold.
+5. In Power BI: In the morning the order is in the sales report; Power BI queries gold through bi-warehouse (DirectQuery).
+6. Shared with Contoso: sell_through is in the share contoso_sell_through; Contoso reads it in its own Databricks account, no copy made.
+
+Key
+- Solid line: Connection
+- Solid violet line with ticks: Data flow
