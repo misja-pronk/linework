@@ -2,8 +2,9 @@
 // before buildGraph draws them, so each type's own kinds, styles and legend still apply. Other types
 // are filtered by id after they built their graph.
 //
-// A view picks elements (ids, `id.*`, `tag:x`, `kind:x`, `*`) and relations (`a -> b`, `* -> shop`);
-// `expand` opens an element into a boundary with its parts. Relations of the model are drawn between
+// A view picks elements (ids, a group with what is in it, `id.*`, `tag:x`, `kind:x`, `env:x`, `*`) and relations
+// (`a -> b`, `* -> shop`); `expand` opens an element into a boundary with its parts, and so does drawing it with
+// some of its parts. `exclude:` at the top of the file leaves relations out of every drawing. Relations of the model are drawn between
 // whatever is shown: one to a part of a closed element ends on that element (C4's implied relations).
 //
 // Deployments: a node or group with `of: shop.api` runs that element. It is an instance, so several
@@ -150,6 +151,15 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     for (let p = local.get(id)?.entry.in; p && !out.includes(p); p = local.get(p)?.entry.in) out.push(p);
     return out;
   };
+  /** Written for environment `x`: its own env: or that of a group around it names x, and none names another. */
+  const inEnv = (id: string, x: string) => {
+    const written = (g: string) => {
+      const raw = src.groups?.[g] ?? src.nodes?.[g];
+      return raw && typeof raw === 'object' ? envsOf(raw.env) : undefined;
+    };
+    const envs = [id, ...around(id)].map(written).filter((e) => !!e);
+    return envs.length > 0 && envs.every((e) => e.includes(x));
+  };
   /** Of several instances the ones closest to `a`: in the same zone, else the same region, …; all when none is closer. */
   const nearest = (a: string, list: string[]) => {
     const mine = around(a);
@@ -186,7 +196,9 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
     else if (items.get(id)!.coll) ctx.warn(vat('expand', j), `"${x}" is drawn as written here; expand opens model elements`);
     else expanded.add(id);
   }
-  const open = (id: string | undefined) => !!id && (expanded.has(id) || items.get(id)?.coll === 'groups');
+  // An element drawn together with parts of it is their boundary, as if expanded: a VNet with its subnets.
+  const implied = new Set<string>();
+  const open = (id: string | undefined) => !!id && (expanded.has(id) || implied.has(id) || items.get(id)?.coll === 'groups');
   // What stands for an element at this level of detail: itself, or its outermost closed parent.
   const shown = (id: string) => {
     let cur = id;
@@ -201,11 +213,19 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
   const matches = (sel: string, it: Item): boolean => {
     if (sel === '*') return !!it.coll || !it.parent;
     if (sel.startsWith('tag:')) return it.tags.includes(sel.slice(4));
+    if (sel.startsWith('env:')) return inEnv(it.id, sel.slice(4));
     if (sel.startsWith('kind:')) return it.kind === sel.slice(5);
     if (sel.endsWith('.*')) return !!it.parent && it.parent === find(sel.slice(0, -2));
     // An element's id also picks what runs it.
     return find(sel) === it.id || (els.has(sel) && runner.get(it.id) === sel);
   };
+  /** What is written in a group drawn here, at any depth: picking the group picks it whole, as steps and a focus read it. */
+  const inside = (group: string) => {
+    const out: string[] = [];
+    for (const id of local.keys()) if (around(id).includes(group)) out.push(id);
+    return out;
+  };
+  const plainId = (sel: string) => !sel.includes('*') && !sel.includes(':') && !isRelation(sel);
   const deep = (sel: string, id: string) => sel === '*' || ancestry(id).some((a) => matches(sel, items.get(a)!));
   const relMatch = (sel: string, r: { from: string; to: string }) => {
     const [a, b] = sides(sel);
@@ -223,21 +243,38 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
       let hit = false;
       if (isRelation(sel)) {
         for (const r of relations) if (relMatch(sel, r)) (show.add(shown(r.from)), show.add(shown(r.to)), (hit = true));
-      } else for (const it of items.values()) if (matches(sel, it)) (show.add(it.id), (hit = true));
+      } else
+        for (const it of items.values())
+          if (matches(sel, it)) {
+            show.add(it.id);
+            hit = true;
+            if (it.coll === 'groups' && plainId(sel)) for (const x of inside(it.id)) show.add(x);
+          }
       if (!hit && !sel.includes('*') && !sel.includes(':') && !isRelation(sel)) ctx.warn(vat('include', j), `There is no element "${sel}"`);
     }
     for (const x of expanded) {
       show.add(x);
       for (const c of children.get(x) ?? []) show.add(c);
     }
-    for (const sel of view.exclude ?? []) if (!isRelation(sel)) for (const it of items.values()) if (matches(sel, it)) show.delete(it.id);
+    for (const sel of view.exclude ?? [])
+      if (!isRelation(sel))
+        for (const it of items.values())
+          if (matches(sel, it)) {
+            show.delete(it.id);
+            if (it.coll === 'groups' && plainId(sel)) for (const x of inside(it.id)) show.delete(x);
+          }
   }
-  // A relation between instances is also hidden by the ids of the elements they run.
-  const hidden = (r: { from: string; to: string; of?: { from: string; to: string } }) =>
-    (view?.exclude ?? []).some((sel) => isRelation(sel) && (relMatch(sel, r) || (!!r.of && relMatch(sel, r.of))));
+  // A relation between instances is also hidden by the ids of the elements they run. The file's own
+  // `exclude:` leaves relations of the model out of every drawing; the lines written here stay.
+  const cuts = (rules: string[] | undefined) => (r: { from: string; to: string; of?: { from: string; to: string } }) =>
+    (rules ?? []).some((sel) => isRelation(sel) && (relMatch(sel, r) || (!!r.of && relMatch(sel, r.of))));
+  const hidden = cuts(view?.exclude);
+  const unmodelled = cuts([...(m.exclude ?? []), ...(view?.exclude ?? [])]);
+  // Model elements drawn with parts of them open around those parts.
+  for (const id of show) for (let c = id, p = items.get(c)?.parent; p && !items.get(p)?.coll && show.has(p); c = p, p = items.get(c)?.parent) implied.add(p);
   // What sits inside a drawn group keeps that group.
   for (const id of [...show]) for (let p = items.get(id)?.parent; p && open(p) && !show.has(p); p = items.get(p)?.parent) show.add(p);
-  const asGroup = (id: string) => items.get(id)?.coll === 'groups' || (expanded.has(id) && !items.get(id)?.coll);
+  const asGroup = (id: string) => items.get(id)?.coll === 'groups' || ((expanded.has(id) || implied.has(id)) && !items.get(id)?.coll);
 
   // 4. The plain source.
   const out: GraphSource & { origin: Origins } = {
@@ -303,7 +340,7 @@ export function resolveSource(src: GraphSource, cfg: GraphTypeConfig, m: ModelCo
   };
   const drawn = new Map<string, { labels: string[]; style?: string; tags: string[]; at: Path; index: number; exact: boolean }>();
   for (const r of relations) {
-    if (r.model == null || hidden(r)) continue;
+    if (r.model == null || unmodelled(r)) continue;
     const rel = m.relations[r.model]!;
     const from = lift(r.from);
     const to = lift(r.to);
