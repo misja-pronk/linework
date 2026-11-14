@@ -186,6 +186,23 @@ describe('carto validate on a slide', () => {
   }, 60_000);
 });
 
+describe('carto validate on a folder of files that include one model', () => {
+  it('says a warning in the model once, in the model, not again in every file that includes it', async () => {
+    const dir = path.join(tmp, 'shared');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'model.yaml'), 'type: model\nelements:\n  api: { kind: api }\n  db: { kind: database }\nrelations:\n  - api -> db\n  - api -> nothere\n');
+    fs.writeFileSync(path.join(dir, 'a.yaml'), 'type: systems\ninclude: [model.yaml]\nnodes:\n  api:\n  db:\n');
+    fs.writeFileSync(path.join(dir, 'b.yaml'), 'type: azure\ninclude: [model.yaml]\nnodes:\n  api: { ref: api, kind: app-service }\n');
+    const nothere = (err: string) => err.split('\n').filter((l) => l.includes('There is no element "nothere"'));
+    const folder = await carto('validate', 'shared');
+    expect(folder.code).toBe(0);
+    expect(nothere(folder.err)).toEqual([expect.stringMatching(/model\.yaml:7:5 {2}warning/)]);
+    // Without the model among the files checked: said once, by the first file that includes it.
+    const two = await carto('validate', 'shared/a.yaml', 'shared/b.yaml');
+    expect(nothere(two.err)).toEqual([expect.stringMatching(/a\.yaml:2:\d+ {2}warning/)]);
+  }, 60_000);
+});
+
 describe('carto diff', () => {
   const grown = shop.replace('  kv: key-vault\n', '  kv: { kind: key-vault, label: Secrets }\n  cache: { kind: redis, in: rg }\n').replace('  - web -> kv\n', '  - web -> cache\n');
 

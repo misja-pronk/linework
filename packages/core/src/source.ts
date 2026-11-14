@@ -15,6 +15,11 @@ export interface Diagnostic {
   to?: number;
   /** The values allowed here, when the message names only a few of them (editors offer them as fixes). */
   choices?: string[];
+  /**
+   * The included file (relative to the diagram) the problem is in: it is said there too when that file is
+   * checked itself, so a folder or an editor says it once, there, not in every file that includes it.
+   */
+  file?: string;
 }
 
 export interface Source {

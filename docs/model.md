@@ -19,6 +19,7 @@ nodes:
 - Maps (`nodes`, `groups`, `tables`, …) merge key by key; lists (`edges`, ERD `relations`, …) are appended. The diagram's own entries come first, so their ids, edge numbers and pins stay as they are.
 - An id that is in two files is an error, shown on the `include:` line with the file it came from. So are include cycles (`a.yaml → b.yaml → a.yaml`), unreadable files and problems inside an included file (`parts.yaml:4: …`).
 - A file reached twice through different includes is read once.
+- A warning about something in an included file (a relation of the model to an element it does not have) is said once: `carto validate` on a folder says it in that file, and not again in every file that includes it (checking only the files that include it, the first one says it); the editor says it when that file is open. Errors are said in every file that includes it, since none of them can be drawn.
 - What an included file says about itself stays its own: its `title`, `subtitle`, `direction`, `focus` and `steps`, and its look and language (`theme`, `icons`, `aspect`, `lang`). The diagram that includes it decides those for the drawing, so a file made in the Dutch editor (`lang: nl`) can be included in an English diagram and the other way round.
 - `carto watch` re-renders when an included file changes; the editor reads includes from the open folder, and the bundled examples read them from the bundle.
 - In the editor, entries from another file can be selected and moved, but are edited in that file.

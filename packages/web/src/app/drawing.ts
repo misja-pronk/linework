@@ -8,6 +8,9 @@ import type { LayersOptions } from '../layers-control.tsx';
 
 const NONE: Diagnostic[] = [];
 
+/** A warning about an included file (core's Diagnostic.file). */
+export const inOtherFile = (d: Diagnostic) => d.severity === 'warning' && !!d.file;
+
 /** Debounced value that passes straight through when `key` changes (another document). */
 function useDebounced<T>(value: T, ms: number, key: unknown): T {
   const [state, setState] = useState({ value, key });
@@ -65,7 +68,9 @@ export function useDrawing({ text, theme, pins, load, docKey, viewName, docFile,
   const bent = useMemo(() => new Set(Object.keys(vpins?.edges ?? {})), [vpins?.edges]);
   const pinnedIds = useMemo(() => new Set([...Object.keys(vpins?.nodes ?? {}), ...Object.keys(vpins?.groups ?? {})]), [vpins?.nodes, vpins?.groups]);
   const type = result?.type ?? drawn?.type;
-  const diagnostics = result?.diagnostics ?? NONE;
+  // A warning in an included file is said in that file, which opens from the same folder: not again in each that includes it.
+  const all = result?.diagnostics ?? NONE;
+  const diagnostics = useMemo(() => (all.some(inOtherFile) ? all.filter((d) => !inOtherFile(d)) : all), [all]);
   const errors = diagnostics.filter((d) => d.severity === 'error').length;
   const warnings = diagnostics.length - errors;
   const entries = useMemo(() => entryRanges(rendered?.text ?? '', result?.graph), [rendered?.text, result?.graph]);
