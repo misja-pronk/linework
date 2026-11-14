@@ -4,8 +4,9 @@
 #   resources    the uc-weu metastore, a workspace per environment, <domain>_<env> catalogs and the <domain>_<env>_landing
 #                external locations (each ISOLATED and bound to its environment's workspace only; the cred_<domain>_<env>
 #                storage credentials are bound the same way), the gold schemas analysts read, and the share
-#   roles        Unity Catalog privileges, each role granted on one level: BROWSE and USE CATALOG on a catalog;
-#                USE SCHEMA and SELECT on a schema (or on a catalog, for all its schemas); READ FILES on an external location
+#   roles        Unity Catalog privileges, each with on: the securables it can be granted on: BROWSE and USE CATALOG on
+#                a catalog; USE SCHEMA and SELECT on a schema (or a catalog, for all its schemas); READ FILES on an
+#                external location
 #   ownership    a domain team owns its dev catalog. sp-lakehouse-test and sp-lakehouse-prod own the test and prod
 #                catalogs: an owner has every privilege implied and can grant, so in test and prod only a reviewed,
 #                approved release changes data or grants (environments.yaml). Teams read their own test and prod catalog
@@ -71,18 +72,28 @@ resources:
   contoso_sell_through: { kind: share, label: contoso_sell_through, caption: sales_prod.gold.sell_through, tags: [prod] }
 
 roles:
-  # Privileges as Unity Catalog names them; each role is granted on one level of securable (in its comment)
-  metastore-admin: { label: Metastore admin, tone: rose, permissions: [CREATE CATALOG, CREATE EXTERNAL LOCATION, take ownership] }
+  # Privileges as Unity Catalog names them; on: says on which securables each can be granted, so carto validate
+  # warns about a grant on the wrong level
+  metastore-admin: { label: Metastore admin, tone: rose, permissions: [{ CREATE CATALOG: { on: metastore } }, { CREATE EXTERNAL LOCATION: { on: metastore } }, take ownership] }
   workspace-admin: { label: Workspace admin, tone: rose, permissions: [manage workspace] }
   workspace-user: { label: Workspace user, tone: slate, permissions: [sign in] }
-  browse: { label: BROWSE, tone: slate, permissions: [BROWSE] }                      # on a catalog: names and comments, no rows
-  use-catalog: { label: Use catalog, tone: teal, permissions: [USE CATALOG] }          # on a catalog
-  read-schema: { label: Read schema, tone: teal, permissions: [USE SCHEMA, SELECT] }   # on a schema
-  # on a catalog: every schema, table, volume and model in it
-  read-catalog: { label: Read catalog, tone: teal, inherits: [use-catalog, read-schema], permissions: [READ VOLUME, EXECUTE] }
+  browse: { label: BROWSE, tone: slate, permissions: [{ BROWSE: { on: [catalog, external-location] } }] }   # names and comments, no rows
+  use-catalog: { label: Use catalog, tone: teal, permissions: [{ USE CATALOG: { on: catalog } }] }
+  read-schema: { label: Read schema, tone: teal, permissions: [{ USE SCHEMA: { on: [schema, catalog] } }, { SELECT: { on: [table, schema, catalog] } }] }
+  # on a catalog: every schema, table, volume and model in it (a model is a function to Unity Catalog)
+  read-catalog: { label: Read catalog, tone: teal, inherits: [use-catalog, read-schema], permissions: [{ READ VOLUME: { on: [volume, schema, catalog] } }, { EXECUTE: { on: [function, schema, catalog] } }] }
   # on a catalog: what a Lakeflow pipeline, a job and model training need to build the medallion layers
-  pipeline: { label: Pipeline, tone: indigo, inherits: read-catalog, permissions: [MODIFY, CREATE SCHEMA, CREATE TABLE, CREATE MATERIALIZED VIEW, CREATE MODEL] }
-  read-files: { label: READ FILES, tone: teal, permissions: [READ FILES] }             # on an external location
+  pipeline:
+    label: Pipeline
+    tone: indigo
+    inherits: read-catalog
+    permissions:
+      - MODIFY: { on: [table, schema, catalog] }
+      - CREATE SCHEMA: { on: catalog }
+      - CREATE TABLE: { on: [schema, catalog] }
+      - CREATE MATERIALIZED VIEW: { on: [schema, catalog] }
+      - CREATE MODEL: { on: [schema, catalog] }
+  read-files: { label: READ FILES, tone: teal, permissions: [{ READ FILES: { on: external-location } }] }
   # Ownership is not a grant: the owner has every privilege implied, and MANAGE (grant, transfer, drop) on what is in it
   owner: { label: Owner, tone: violet, permissions: [ALL PRIVILEGES, MANAGE] }
   share-read: { label: SELECT on share, tone: teal, permissions: [SELECT on share] }
