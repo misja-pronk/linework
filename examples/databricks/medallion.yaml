@@ -1,6 +1,6 @@
 # The medallion of the Northwind lakehouse, production: how data moves from the sources through bronze, silver and
 # gold in each domain's catalog to the people and partners who use it. Elements come from model.yaml.
-#   journey     one order from the ERP to Power BI and to Contoso Retail, step by step
+#   journey     one order from the ERP into orders_prod.gold, step by step; then reported (Power BI) and shared (Contoso)
 #   <domain>    one view per domain: its sources, its catalog's three schemas, its pipeline, who reads its gold
 # Data lines run schema to schema; a domain's Lakeflow pipeline refreshes its silver and gold (dotted line).
 type: azure
@@ -8,6 +8,10 @@ title: Medallion
 subtitle: Northwind lakehouse · bronze, silver and gold per domain, production
 direction: right
 include: [model.yaml]
+
+elements:
+  # The ABAC column mask of governance.yaml, drawn where the customers' data lives
+  mask-pii: { kind: policy, label: mask_pii, technology: ABAC column mask · governed tag pii, icon: eye-off, description: Masks every column tagged pii for everyone but the CRM team and the jobs }
 
 relations:
   # Inside each catalog: bronze is cleaned into silver, silver modelled into gold, by the domain's pipeline
@@ -32,15 +36,15 @@ relations:
   - lakehouse.sales-pipeline ..> uc-weu.sales_prod: { label: refreshes, style: management }
   - lakehouse.customers-pipeline ..> uc-weu.customers_prod: { label: refreshes, style: management }
   - lakehouse.supply-pipeline ..> uc-weu.supply_prod: { label: refreshes, style: management }
+  - mask-pii ..> uc-weu.customers_prod.gold.customers: { label: masks pii columns, style: management }
 
 views:
   journey:
     title: One order
-    subtitle: Northwind lakehouse · an order from the ERP to Power BI and to Contoso Retail
-    direction: down
-    include: [erp, lakehouse.erp-ingest, uc-weu.orders_prod, uc-weu.sales_prod, lakehouse.bi-warehouse, power-bi, analysts, uc-weu.contoso_sell_through, uc-weu.contoso, contoso-retail]
-    expand: [uc-weu.orders_prod, uc-weu.sales_prod, uc-weu.sales_prod.gold]
-    exclude: [uc-weu.sales_prod.bronze, uc-weu.sales_prod.silver, 'lakehouse.erp-ingest -> uc-weu.sales_prod']
+    subtitle: Northwind lakehouse · an order from the ERP into orders_prod.gold
+    include: [erp, lakehouse.erp-ingest, uc-weu.orders_prod, lakehouse.orders-pipeline]
+    expand: [uc-weu.orders_prod, uc-weu.orders_prod.gold]
+    exclude: ['uc-weu.orders_prod.bronze -> lakehouse.orders-pipeline', 'lakehouse.orders-pipeline -> uc-weu.orders_prod.gold']
     steps:
       - title: An order in the ERP
         caption: A customer orders 40 crates from Northwind; the order is a new row in the ERP's SQL Server.
@@ -50,13 +54,29 @@ views:
         path: erp -> lakehouse.erp-ingest -> uc-weu.orders_prod.bronze
       - title: Silver, then gold
         caption: orders-pipeline removes duplicates and checks the row in silver, then models it into orders_prod.gold.orders.
-        path: uc-weu.orders_prod.bronze -> uc-weu.orders_prod.silver -> uc-weu.orders_prod.gold
+        path: [uc-weu.orders_prod.bronze -> uc-weu.orders_prod.silver -> uc-weu.orders_prod.gold, lakehouse.orders-pipeline -> uc-weu.orders_prod]
+  journey-readers:
+    title: One order, reported
+    subtitle: Northwind lakehouse · the order joined into sell-through and read in Power BI
+    include: [uc-weu.orders_prod, uc-weu.customers_prod, uc-weu.sales_prod, lakehouse.sales-pipeline, lakehouse.bi-warehouse, power-bi, analysts]
+    expand: [uc-weu.orders_prod, uc-weu.customers_prod, uc-weu.sales_prod, uc-weu.sales_prod.gold]
+    exclude: [uc-weu.orders_prod.bronze, uc-weu.orders_prod.silver, uc-weu.customers_prod.bronze, uc-weu.customers_prod.silver, uc-weu.sales_prod.bronze, uc-weu.sales_prod.silver,
+      'uc-weu.orders_prod.gold -> lakehouse.sales-pipeline', 'uc-weu.customers_prod.gold -> lakehouse.sales-pipeline', 'lakehouse.sales-pipeline -> uc-weu.sales_prod.gold',
+      'uc-weu.customers_prod.gold -> lakehouse.bi-warehouse']
+    steps:
       - title: Sell-through
         caption: At night sales-pipeline joins the order with its customer into sales_prod.gold.sell_through, another domain's gold.
-        path: uc-weu.orders_prod.gold -> uc-weu.sales_prod.gold
+        path: [uc-weu.orders_prod.gold -> uc-weu.sales_prod.gold, uc-weu.customers_prod.gold -> uc-weu.sales_prod.gold, lakehouse.sales-pipeline -> uc-weu.sales_prod]
       - title: In Power BI
         caption: In the morning the order is in the sales report; Power BI queries gold through bi-warehouse (DirectQuery).
         path: uc-weu.sales_prod.gold -> lakehouse.bi-warehouse -> power-bi -> analysts
+  journey-shared:
+    title: One order, shared
+    subtitle: Northwind lakehouse · sell_through in an OpenSharing share, read by Contoso Retail
+    include: [uc-weu.sales_prod, uc-weu.contoso_sell_through, uc-weu.contoso, contoso-retail]
+    expand: [uc-weu.sales_prod, uc-weu.sales_prod.gold]
+    exclude: [uc-weu.sales_prod.bronze, uc-weu.sales_prod.silver]
+    steps:
       - title: Shared with Contoso
         caption: sell_through is in the share contoso_sell_through; Contoso reads it in its own Databricks account, no copy made.
         path: uc-weu.sales_prod.gold.sell_through -> uc-weu.contoso_sell_through -> uc-weu.contoso -> contoso-retail
@@ -65,7 +85,6 @@ views:
   orders:
     title: Orders domain
     subtitle: Northwind lakehouse · orders from the ERP into orders_prod, read by Sales
-    direction: down
     include: [erp, lakehouse.erp-ingest, uc-weu.orders_prod, lakehouse.orders-pipeline, uc-weu.sales_prod]
     expand: [uc-weu.orders_prod, uc-weu.orders_prod.gold]
     exclude: ['uc-weu.orders_prod.bronze -> lakehouse.orders-pipeline', 'lakehouse.orders-pipeline -> uc-weu.orders_prod.gold']
@@ -85,18 +104,18 @@ views:
     title: Sales domain
     subtitle: Northwind lakehouse · Salesforce, orders and customers into sell_through, for Power BI and Contoso
     direction: down
-    include: [salesforce, lakehouse.salesforce-ingest, uc-weu.orders_prod, uc-weu.customers_prod, uc-weu.sales_prod, lakehouse.sales-pipeline, lakehouse.bi-warehouse, power-bi, analysts, uc-weu.contoso_sell_through, uc-weu.contoso, contoso-retail]
+    include: [salesforce, lakehouse.salesforce-ingest, uc-weu.orders_prod, uc-weu.customers_prod, uc-weu.sales_prod, lakehouse.sales-pipeline, uc-weu.contoso_sell_through, uc-weu.contoso, contoso-retail, lakehouse.bi-warehouse, power-bi, analysts]
     expand: [uc-weu.sales_prod, uc-weu.sales_prod.gold]
-    exclude: ['uc-weu.sales_prod.bronze -> lakehouse.sales-pipeline', 'uc-weu.orders_prod.gold -> lakehouse.sales-pipeline', 'uc-weu.customers_prod.gold -> lakehouse.sales-pipeline', 'lakehouse.sales-pipeline -> uc-weu.sales_prod.gold', 'lakehouse.salesforce-ingest -> uc-weu.customers_prod.bronze']
+    exclude: ['uc-weu.sales_prod.bronze -> lakehouse.sales-pipeline', 'uc-weu.orders_prod.gold -> lakehouse.sales-pipeline', 'uc-weu.customers_prod.gold -> lakehouse.sales-pipeline', 'lakehouse.sales-pipeline -> uc-weu.sales_prod.gold', 'lakehouse.salesforce-ingest -> uc-weu.customers_prod.bronze', 'uc-weu.customers_prod.gold -> lakehouse.bi-warehouse']
   customers:
     title: Customers domain
-    subtitle: Northwind lakehouse · accounts from Salesforce into customers_prod, personal data tagged pii, read by Sales and the Customer 360 app
-    include: [salesforce, lakehouse.salesforce-ingest, uc-weu.customers_prod, lakehouse.customers-pipeline, uc-weu.sales_prod, lakehouse.bi-warehouse, lakehouse.customer-360, sales-reps]
+    subtitle: Northwind lakehouse · accounts from Salesforce into customers_prod, pii columns masked, read by Sales and Customer 360
+    include: [salesforce, lakehouse.salesforce-ingest, uc-weu.customers_prod, lakehouse.customers-pipeline, mask-pii, uc-weu.sales_prod, lakehouse.bi-warehouse, lakehouse.customer-360, sales-reps]
     expand: [uc-weu.customers_prod, uc-weu.customers_prod.gold]
-    exclude: ['uc-weu.customers_prod.bronze -> lakehouse.customers-pipeline', 'lakehouse.customers-pipeline -> uc-weu.customers_prod.gold', 'lakehouse.salesforce-ingest -> uc-weu.sales_prod.bronze']
+    exclude: ['uc-weu.customers_prod.bronze -> lakehouse.customers-pipeline', 'lakehouse.customers-pipeline -> uc-weu.customers_prod.gold', 'lakehouse.salesforce-ingest -> uc-weu.sales_prod.bronze', 'uc-weu.sales_prod.gold -> lakehouse.bi-warehouse']
   supply:
     title: Supply chain domain
     subtitle: Northwind lakehouse · stock and supplier files into supply_prod, a demand forecast served to replenishment
-    include: [erp, lakehouse.erp-ingest, uc-weu.supply_prod, lakehouse.supply-pipeline, lakehouse.forecast-training, lakehouse.demand-forecast, replenishment]
+    include: [erp, supplier-sftp, lakehouse.erp-ingest, uc-weu.supply_prod, lakehouse.supply-pipeline, lakehouse.forecast-training, lakehouse.demand-forecast, replenishment]
     expand: [uc-weu.supply_prod, uc-weu.supply_prod.bronze, uc-weu.supply_prod.gold]
     exclude: ['uc-weu.supply_prod.bronze -> lakehouse.supply-pipeline', 'lakehouse.supply-pipeline -> uc-weu.supply_prod.gold']
