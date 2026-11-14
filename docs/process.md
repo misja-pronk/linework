@@ -56,7 +56,7 @@ A chain may be as long as the process: `a -> b -> c -> d`. A line that leads bac
 
 ### Lanes
 
-`lanes:` lists the roles or systems, top to bottom in the order written: `id: Label`, or `id: { label, tone, description, links }`. A step says where it stands with `in:`; a step without `in:` stands in the lane of the step before it, so a run of steps by one role needs the lane only once. Lanes do not nest.
+`lanes:` lists the roles or systems, top to bottom in the order written: `id: Label`, or `id: { label, tone, description, links }`. A step says where it stands with `in:`; a step without `in:` stands in the lane of the step before it, so a run of steps by one role needs the lane only once. Lanes do not nest. A lane's `description` is written under its name in the header, smaller (up to four lines where lanes are rows, one line where they are columns), and the lane grows to hold it.
 
 Without `lanes:` the same file is a flowchart.
 
