@@ -1,6 +1,6 @@
 // Moving through one diagram without changing it: its views (V), a focus on part of it (F), its steps
 // ([ ], S) and presenting them (P), and links to other views and diagrams.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Link } from '@cartography/core';
 import { t } from '../i18n/index.ts';
 import { linkTarget } from '../links.ts';
@@ -202,11 +202,19 @@ export function useNavigation(p: Props) {
   const stepList = drawn?.steps ?? [];
   /** Steps somebody wrote: PowerPoint and PDF get a slide or page for each. */
   const written = stepList.length > 0 && !drawn?.stepsImplied;
-  const pickStep = (n: number | undefined) => setStepAt(n ? { doc: docId, view: viewName, n } : undefined);
+  // The step last asked for: [ and ] pressed again before the drawing of the first has come (it is
+  // drawn in a worker) go on from there, not from the step still on screen.
+  const asked = useRef<{ doc: string; view?: string; n?: number }>(undefined);
+  const pickStep = (n: number | undefined) => {
+    asked.current = { doc: docId, view: viewName, n };
+    setStepAt(n ? { doc: docId, view: viewName, n } : undefined);
+  };
   /** [ and ]: through the steps, and past the last one back to the whole drawing. */
   const stepBy = (dir: 1 | -1) => {
     if (!stepList.length) return notify(t('No steps yet: select what a step is about and press S'));
-    pickStep(((drawn?.step ?? 0) + dir + stepList.length + 1) % (stepList.length + 1) || undefined);
+    const a = asked.current;
+    const now = a && a.doc === docId && a.view === viewName ? Math.min(a.n ?? 0, stepList.length) : (drawn?.step ?? 0);
+    pickStep((now + dir + stepList.length + 1) % (stepList.length + 1) || undefined);
   };
   /** A step edit as one undo step; without text the YAML could not take it. */
   const editSteps = (next: string | undefined, show?: number) => {
