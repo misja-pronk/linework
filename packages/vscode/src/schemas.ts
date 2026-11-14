@@ -1,12 +1,12 @@
 // JSON Schemas for the YAML extension (completion, hover): the engine's own, per type. The extension
 // checks what the engine checks again in its own words, so the copy it gets leaves out what only
 // rejects (unknown keys, required keys): the Problems list then holds each problem once, as the CLI says it.
-import { modelKeys, modelProperties, modelSchema } from '@cartography/core';
+import { eachSchema, modelKeys, modelProperties, modelSchema } from '@cartography/core';
 import { findType, schemaOf, types } from '@cartography/engine';
 
 type Json = Record<string, unknown>;
 
-/** A copy without `additionalProperties: false` and `required`, everywhere. Schemas under additionalProperties stay. */
+/** A copy without `additionalProperties: false`, `required` and `propertyNames`, everywhere. Schemas under additionalProperties stay. */
 export function relaxed(schema: unknown): unknown {
   if (Array.isArray(schema)) return schema.map(relaxed);
   if (!schema || typeof schema !== 'object') return schema;
@@ -14,6 +14,8 @@ export function relaxed(schema: unknown): unknown {
   for (const [k, v] of Object.entries(schema as Json)) {
     if (k === 'required' && Array.isArray(v)) continue;
     if (k === 'additionalProperties' && v === false) continue;
+    // Names are checked by the engine after each: wrote its patterns out: <domain>_<env> is a fine key here.
+    if (k === 'propertyNames') continue;
     out[k] = relaxed(v);
   }
   return out;
@@ -26,7 +28,7 @@ const shared = {
 
 /** What a diagram of this type may hold, as an editor completes it; `model` for a model file. */
 export function editorSchema(id: string): Json | undefined {
-  if (id === 'model') return relaxed({ ...modelSchema, properties: { ...shared, ...(modelSchema as { properties?: Json }).properties } }) as Json;
+  if (id === 'model') return relaxed({ ...modelSchema, properties: { ...shared, each: eachSchema, ...(modelSchema as { properties?: Json }).properties } }) as Json;
   const type = findType(id);
   if (!type) return undefined;
   const full = schemaOf(type) as { properties?: Json };

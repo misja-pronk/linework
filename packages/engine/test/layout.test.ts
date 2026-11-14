@@ -94,6 +94,10 @@ const crossingBudget: Record<string, number> = {
   'databricks/overview.yaml': 0,
   'databricks/deployment.yaml': 0,
   'databricks/environments.yaml': 0,
+  'databricks-at-scale/model.yaml': 0, // a canvas: drawn as its first view, the landscape
+  'databricks-at-scale/model.yaml#orders-storage': 0,
+  'databricks-at-scale/governance.yaml': 0, // a canvas: drawn as its first view, who administers
+  'databricks-at-scale/governance.yaml#orders': 1,
   'workspace/access.yaml': 0,
   'workspace/containers.yaml': 0,
   'workspace/containers.yaml#payments': 1, // wrapped for a slide (text 5.6 → 7 pt): the interbank payments pass the nightly extract
@@ -193,6 +197,7 @@ const jogBudget: Record<string, number> = {
   'systems/data-pipeline.yaml': 1, // two lines into one side
   'systems/saas-platform.yaml': 1, // the overview: the host dashboard's way in steps aside past the guest app's
   'databricks/governance.yaml#orders': 1, // two grants into orders_dev's side: one steps a lane aside
+  'databricks-at-scale/governance.yaml#orders': 1, // two grants into orders_test's side: one steps a lane aside
   'databricks/mesh.yaml': 2, // the web shop's two sources join one line into Web sessions; three lines into Power BI's side: one steps aside
 };
 
@@ -237,6 +242,7 @@ const joinBudget: Record<string, number> = {
 // Labels with another line running through or right beside them (nearer than 6 px): none, but for the ones named here.
 const touchBudget: Record<string, number> = {
   'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
+  'databricks-at-scale/governance.yaml#orders': 1, // MANAGE sits where orders-team's line up to prod passes the test service principal's
   'c4/kestrel-bank.yaml#containers': 1,
   'c4/kestrel-bank.yaml#components': 1,
   'kubernetes/inference.yaml': 1,

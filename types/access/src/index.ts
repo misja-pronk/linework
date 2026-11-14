@@ -7,10 +7,12 @@
 // A view of the file (views: at the top) cuts each of them to the principals and scopes it picks.
 import {
   english,
+  fillIn,
   idPattern,
   tones,
   type BuildContext,
   type DiagramType,
+  type EachContext,
   type Graph,
   type GraphEdge,
   type GraphGroup,
@@ -953,6 +955,127 @@ function accessView(m: Model, was?: Model, cut?: Cut): Graph {
   );
 }
 
+// ---------------------------------------------------------------- who × where, pivoted on each: lists
+
+/** A view's `rows:` (and `columns:`): lists of the file's `each:` the who × where matrix is laid out by. */
+interface Pivot {
+  rows: string;
+  columns?: string;
+  /** Which part of the rows: page 1 of 2. */
+  page?: { at: number; of: number };
+  each: EachContext;
+}
+
+/** The pivot a view asks for, when the file has the lists it names; said where it is written when not. */
+function pivotOf(ctx: BuildContext, drawn: string): Pivot | undefined {
+  const view = ctx.model?.view;
+  if (!view || (view.rows == null && view.columns == null)) return undefined;
+  const at = (key: string) => (view.at[0] === 'views' ? [...view.at, key] : view.at);
+  if (drawn !== 'access') return void ctx.warn(at(view.rows != null ? 'rows' : 'columns'), 'rows: and columns: lay out the who × where matrix: add show: access');
+  if (view.rows == null) return void ctx.warn(at('columns'), 'columns: goes with rows:, a list of each: such as rows: domain');
+  const lists = ctx.each?.lists;
+  for (const key of ['rows', 'columns'] as const) {
+    const name = view[key];
+    if (name != null && !lists?.has(name)) return void ctx.warn(at(key), lists?.size ? `${key}: names a list of each: (${[...lists.keys()].join(', ')}); there is no list "${name}"` : `${key}: names a list of each: at the top of this file, such as domain: [orders, webshop]`);
+  }
+  if (view.columns === view.rows) return void ctx.warn(at('columns'), 'columns: is another list than rows:');
+  const page = view.page == null ? undefined : /^\s*(\d+)\s*(?:of|\/)\s*(\d+)\s*$/.exec(view.page);
+  if (view.page != null && (!page || +page[1]! < 1 || +page[1]! > +page[2]!)) ctx.warn(at('page'), `page: says which part of the rows this view shows, like page: 1 of 2; "${view.page}" is not one`);
+  const ok = page && +page[1]! >= 1 && +page[1]! <= +page[2]!;
+  return { rows: view.rows, ...(view.columns ? { columns: view.columns } : {}), ...(ok ? { page: { at: +page[1]!, of: +page[2]! } } : {}), each: ctx.each! };
+}
+
+/**
+ * Who × where for many of one thing: a row per value of a list (domain), a column per value of
+ * another (env) and per who holds a role there. A principal written once per domain (<domain>-team)
+ * is one column, its own row's team in each row; one written per environment (sp-lakehouse-<env>) or
+ * once (analysts) is a column of its own. A cell is what that principal holds on what is written for
+ * the row's value (and the column's): orders-team on orders_dev. What is written for neither list
+ * (a workspace, the metastore) has no cell: other views show it.
+ */
+function pivotView(m: Model, cut: Cut | undefined, p: Pivot): Graph {
+  const of = (coll: string, id: string) => p.each.entry([coll, id]);
+  const keptWho = (id: string) => !cut || cut.principals.has(id);
+  const keptWhere = (id: string) => !cut || cut.resources.has(id);
+  const rowsOf = p.each.lists.get(p.rows)!;
+  const colsOf = p.columns ? p.each.lists.get(p.columns)! : undefined;
+  // A principal is a column by the name it is written as, its row's value left open: <domain>-team.
+  const shapeOf = (id: string) => {
+    const e = of('principals', id);
+    return e && p.rows in e.binding ? fillIn(e.pattern, { ...e.binding, [p.rows]: `<${p.rows}>` }) : id;
+  };
+  const who = inMatrix(m).filter(keptWho);
+  const shapes = [...new Set(who.map(shapeOf))];
+  const scopes = scopesInOrder(m).filter(keptWhere);
+  // Without columns:, a column per way a scope is written, its row's value left open: <domain>_prod.
+  const whereOf = (id: string): string | undefined => {
+    const e = of('resources', id);
+    if (!e || !(p.rows in e.binding)) return undefined;
+    // A scope written for the row alone (<domain>_prod_gold) is in the column of the scope it is in.
+    if (p.columns) return e.binding[p.columns] ?? (m.resource(id)?.in ? whereOf(m.resource(id)!.in!) : undefined);
+    return fillIn(e.pattern, { ...e.binding, [p.rows]: `<${p.rows}>` });
+  };
+  const wheres = colsOf ? colsOf.map((v) => v.name) : [...new Set(scopes.map(whereOf).filter((w): w is string => !!w))];
+  type Found = { reach: Reach; principal: string; scope: string };
+  const found = new Map<string, Found[]>();
+  const key = (row: string, where: string, shape: string) => `${row}\0${where}\0${shape}`;
+  const rowScopes = new Map<string, Set<string>>();
+  for (const scope of scopes) {
+    const row = whereOf(scope) === undefined ? undefined : of('resources', scope)?.binding[p.rows];
+    if (row !== undefined) rowScopes.set(row, (rowScopes.get(row) ?? new Set()).add(m.label(scope)));
+  }
+  const inRow = (row: string) => rowScopes.get(row) ?? new Set<string>();
+  for (const principal of who) {
+    const own = of('principals', principal)?.binding[p.rows];
+    const reach = m.reach(principal, cut?.counted);
+    for (const scope of scopes) {
+      const where = whereOf(scope);
+      const row = of('resources', scope)?.binding[p.rows];
+      if (where === undefined || row === undefined || (own !== undefined && own !== row)) continue;
+      // What comes down from a scope that has a cell of its own in this row (a catalog over its gold schema) is said there.
+      const all = [...(reach.get(scope) ?? [])].filter((r) => !r.from || !inRow(row).has(r.from)).sort((a, b) => +!!a.from - +!!b.from);
+      if (!all.length) continue;
+      const k = key(row, where, shapeOf(principal));
+      found.set(k, [...(found.get(k) ?? []), ...all.map((r) => ({ reach: r, principal, scope }))]);
+    }
+  }
+  const columns = wheres.flatMap((where) => shapes.map((shape) => ({ where, shape }))).filter((c) => rowsOf.some((r) => found.has(key(r.name, c.where, c.shape))));
+  const filled = rowsOf.filter((r) => columns.some((c) => found.has(key(r.name, c.where, c.shape))));
+  // page: 1 of 2 — the rows in even parts, a view each, so twenty domains are two slides; the columns stay those of all of them.
+  const size = p.page ? Math.ceil(filled.length / p.page.of) : filled.length;
+  const rows = p.page ? filled.slice((p.page.at - 1) * size, p.page.at * size) : filled;
+  const routes = new Set<'group' | 'package' | 'scope'>();
+  const cells = rows.map((r) =>
+    columns.map((c): MatrixCell | undefined => {
+      const all = found.get(key(r.name, c.where, c.shape));
+      if (!all) return undefined;
+      // The strongest on the pill, as in the matrix by name: what is assigned on that very scope first.
+      const best = all.find((x) => x.reach.direct) ?? all[0]!;
+      if (best.reach.from) routes.add('scope');
+      if (best.reach.through) routes.add(best.reach.through);
+      const guards = best.reach.role && reads(m, best.reach.role) ? guarded(m, best.principal, best.scope) : [];
+      const plain = cellOf(best.reach, m.word);
+      // More than one scope of the row in a cell (a catalog and its gold schema): the pill says which.
+      const where = new Set(all.map((x) => x.scope)).size > 1 ? m.label(best.scope) : undefined;
+      const note = [where, plain.note, ...guards].filter(Boolean).join('; ');
+      return { ...plain, ...(note ? { note } : {}) };
+    }),
+  );
+  const label = (list: string, name: string) => p.each.lists.get(list)?.find((v) => v.name === name)?.fields.label ?? name;
+  const headers: MatrixHeader[] = columns.map((c) => {
+    const sample = who.find((id) => shapeOf(id) === c.shape)!;
+    const h = principalHeader(m, sample);
+    // A column of one principal per row is named as it is written (<domain>-team); the environment is a band over its columns.
+    const where = p.columns ? label(p.columns, c.where) : c.where;
+    return { ...h, label: c.shape === sample ? h.label : c.shape, icon: undefined, ...(p.columns ? { group: where, caption: undefined } : { caption: where }) };
+  });
+  return matrixGraph(
+    m,
+    { kind: 'matrix', corner: `${p.rows} \\ ${p.columns ?? 'where'}`, rows: rows.map((r) => ({ label: label(p.rows, r.name) })), columns: headers, cells },
+    pillLegend(cells, 'Assigned directly', inheritedKey(routes)),
+  );
+}
+
 /** Whether a role reads data (SELECT, read …), so a mask or filter changes what it sees. */
 const reads = (m: Model, role: string) => [...m.permissions(role).keys()].some((p) => /\b(select|read)\b/i.test(p));
 
@@ -1221,15 +1344,16 @@ function build(src: AccessSource, ctx: BuildContext): Graph {
   const m = new Model(src, ctx);
   check(m, ctx);
   const cut = cutOf(m, ctx);
-  const graph = drawing(m, src, cut);
+  const graph = drawing(m, src, cut, pivotOf(ctx, src.view ?? 'graph'));
   // A view of the model has its own title, as views of other types do.
   const view = ctx.model?.view;
   return view ? { ...graph, title: view.title ?? graph.title, subtitle: view.subtitle ?? (view.title ? undefined : graph.subtitle), ...(view.direction ? { direction: view.direction } : {}) } : graph;
 }
 
-function drawing(m: Model, src: AccessSource, cut: Cut | undefined): Graph {
+function drawing(m: Model, src: AccessSource, cut: Cut | undefined, pivot: Pivot | undefined): Graph {
   switch (src.view ?? 'graph') {
     case 'access':
+      if (pivot && !src.was) return pivotView(m, cut, pivot);
       return accessView(m, src.was ? new Model(src.was, { ...silent, word: m.word }) : undefined, cut);
     case 'packages':
       return packagesView(m, cut);

@@ -292,6 +292,25 @@ views:
 
 Name a view other than `graph`, `access`, `packages` or `roles`: asked for by that name, the type's own drawing of the whole is drawn. [examples/databricks/governance.yaml](../examples/databricks/governance.yaml) has eleven views of one lakehouse.
 
+**Many of one thing: rows by a list.** Twenty domains through three environments are sixty catalogs, too many columns for a slide. A file that writes them with `each:` (see [model.md](model.md#each-a-pattern-for-a-list-of-values)) can lay the matrix out by its lists: `rows: domain` gives a row per domain, `columns: env` a band per environment, and in it a column per who holds a role there. A principal written once per domain (`<domain>-team`) is one column, each row its own team; one written per environment (`sp-lakehouse-<env>`) or once (`analysts`) a column of its own. A cell is what that principal holds on what is written for the row's domain and the band's environment (orders-team on `orders_dev`); a scope written for the domain alone (`<domain>_prod_gold`, `in: <domain>_prod`) goes under its parent's environment. Without `columns:` there is a column per way a scope is written (`<domain>_prod`, `<domain>_prod_gold`), and what a scope above holds is said there only. `page: 1 of 2` shows a part of the rows, the columns the same on every part, so ten domains go on a slide; with `each: { part: [1, 2] }` the views are written once:
+
+```yaml
+each:
+  domain: [orders, webshop, finance, …]
+  env: [dev, test, prod]
+  part: [1, 2]
+views:
+  team-access-<part>:
+    title: Every domain, every environment (<part> of 2)
+    show: access
+    rows: domain
+    columns: env
+    page: <part> of 2
+    exclude: [engineers, analysts, kind:databricks, uc-weu]
+```
+
+What is written for neither list (a workspace, the metastore) has no cell: other views show it. `include:`, `exclude:` and `environment:` cut the pivoted matrix as they cut the plain one. [examples/databricks-at-scale/governance.yaml](../examples/databricks-at-scale/governance.yaml) grants twenty domains in about a hundred lines; its 171 grants are 11 lines.
+
 Not for: where the resources run (use `azure`), GitHub teams and repository permissions (use `github`).
 
 ```yaml

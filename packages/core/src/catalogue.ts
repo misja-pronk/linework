@@ -102,6 +102,12 @@ export interface ViewSpec {
   complete?: true | string[];
   /** One of the type's own drawings (an access diagram's graph, access matrix or roles table) this view draws. */
   show?: string;
+  /** An access matrix pivoted on the file's `each:` lists: a row per value of this list (rows: domain) … */
+  rows?: string;
+  /** … and a column per value of this one (columns: env), each split by who holds a role there. */
+  columns?: string;
+  /** With rows: which part of them this view shows, as written: "1 of 2". */
+  page?: string;
   at: Path;
 }
 
@@ -258,6 +264,9 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
         ...(list('layers') ? { layers: list('layers') } : {}),
         ...(o.complete === true ? { complete: true as const } : list('complete') ? { complete: list('complete') } : {}),
         ...(typeof o.show === 'string' ? { show: o.show } : {}),
+        ...(typeof o.rows === 'string' ? { rows: o.rows } : {}),
+        ...(typeof o.columns === 'string' ? { columns: o.columns } : {}),
+        ...(typeof o.page === 'string' || typeof o.page === 'number' ? { page: String(o.page) } : {}),
         at: at(['views', name]),
       });
     }
@@ -392,6 +401,9 @@ const viewSchema = {
     environment: { type: 'string', description: 'One environment of a deployment, e.g. prod: nodes and groups with another env: are left out' },
     layers: viewLayersSchema,
     show: { type: 'string', description: 'Which of the type’s own drawings this view is, e.g. graph, access (who × where) or roles in an access diagram' },
+    rows: { type: 'string', description: 'show: access as a table of a list of each: (rows: domain): a row per value, what is written for that value in it' },
+    columns: { type: 'string', description: 'With rows: a column per value of another list of each: (columns: env), split by who holds a role there' },
+    page: { type: 'string', description: 'With rows: which part of the rows this view shows, e.g. 1 of 2: twenty domains on two slides' },
     complete: {
       anyOf: [{ type: 'boolean' }, { type: 'string' }, { type: 'array', items: { type: 'string' } }],
       description: 'Warn about parts of the model that nothing runs here: true for every system, or the elements it is about, e.g. [shop]',

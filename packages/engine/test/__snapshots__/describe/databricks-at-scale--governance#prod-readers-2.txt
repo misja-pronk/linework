@@ -1,0 +1,25 @@
+Who reads production (2 of 2)
+
+Roles, groups and access packages diagram: Each team MANAGEs its catalog, the jobs write, every engineer may BROWSE and analysts read gold. A table of 10 rows by 4 columns.
+
+By row (domain by where)
+Columns: engineers, <domain>-team, sp-lakehouse-prod and analysts.
+- payroll: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
+- pricing: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
+- inventory: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
+- returns: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
+- loyalty: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
+- fraud: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
+- support: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
+- products: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
+- partners: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
+- risk: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
+
+Layers
+Ways to look at this drawing by tag.
+- dev (tags dev; 0 elements).
+- test (tags test; 0 elements).
+- prod (tags prod; 0 elements).
+
+Key
+- Indigo filled pill: Assigned directly

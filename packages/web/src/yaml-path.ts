@@ -22,7 +22,7 @@ export function cursorContext(text: string, pos: number): CursorContext {
   const word = wordMatch[0];
   const from = pos - word.length;
 
-  // Parent keys: walk up to lines with smaller indentation.
+  // Parent keys: walk up to lines with smaller indentation (a pattern of each: such as <domain>_<env> is one too).
   const lines = text.slice(0, lineStart).split('\n');
   lines.pop();
   let indent = indentOf(before);
@@ -33,7 +33,7 @@ export function cursorContext(text: string, pos: number): CursorContext {
     if (!l.trim() || l.trim().startsWith('#')) continue;
     const ind = indentOf(l);
     if (ind >= indent) continue;
-    const m = /^\s*(-\s+)?([\w.-]+)\s*:/.exec(l);
+    const m = /^\s*(-\s+)?((?:[\w.-]|<[A-Za-z][\w-]*>)+)\s*:/.exec(l);
     if (m?.[1]) {
       // "- key: x": the cursor is in this item's map; the key is a parent only when the cursor is deeper still.
       if (indent > ind + m[1].length) path.unshift(m[2]!);
@@ -49,7 +49,7 @@ export function cursorContext(text: string, pos: number): CursorContext {
   const flowClose = before.lastIndexOf('}');
   let rest = before.trimStart().replace(/^-\s+/, '');
   if (flowOpen > flowClose) {
-    const owner = /([\w.-]+)\s*:\s*\{[^{]*$/.exec(before)?.[1];
+    const owner = /((?:[\w.-]|<[A-Za-z][\w-]*>)+)\s*:\s*\{[^{]*$/.exec(before)?.[1];
     if (owner) path.push(owner);
     rest = before.slice(flowOpen + 1).split(',').pop()!.trimStart();
   } else if (/^[\w.-]+\s*:\s*\[[^\]]*$/.test(rest)) {
