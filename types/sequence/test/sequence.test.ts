@@ -362,6 +362,92 @@ messages:
     expect(svg).not.toContain(`<path d="M${Math.round(side * 10) / 10} `);
   });
 
+  it('lets a frame that starts inside a box and reaches out of it take in the whole box across', async () => {
+    const { g } = await geometry(`type: sequence
+participants:
+  api: { label: Orders API }
+  topic: { label: order-events, box: bus }
+  dlq: { label: Dead-letter queue, box: bus }
+  inv: { label: Invoicing }
+boxes:
+  bus: { label: Service Bus sb-northwind-prod }
+messages:
+  - api ->> topic: OrderPlaced
+  - par: Subscription invoicing
+    messages:
+      - topic ->> inv: OrderPlaced (peek-lock)
+    and:
+      Dead letters:
+        - topic ->> dlq: dead-lettered
+`);
+    const box = g.boxes[0]!.box;
+    const f = g.frames[0]!.box;
+    // Not one edge inside the box and the other out past its side.
+    expect(f.x).toBeLessThan(box.x);
+    expect(f.x + f.width).toBeGreaterThan(box.x + box.width);
+  });
+
+  it('writes a box name in the theme capitals but keeps the name of a resource as it is', async () => {
+    const { r } = await geometry(`type: sequence
+participants:
+  app: { label: Orders API, box: appservice }
+  kv: { label: Key Vault }
+boxes:
+  appservice: { label: App Service app-orders-prod }
+messages: [ app -> kv: Get secret ]
+`);
+    expect(r.svg).toContain('APP SERVICE <tspan letter-spacing="0">app-orders-prod</tspan>');
+    expect(r.svg).not.toContain('APP-ORDERS-PROD');
+  });
+
+  it('gives a system that starts a conversation itself a bar until its last answer, but not a person', async () => {
+    const { g } = await geometry(`type: sequence
+participants:
+  app: { kind: service, label: Orders API }
+  kv: { kind: key-vault, label: Key Vault }
+  sql: { kind: database, label: Azure SQL }
+messages:
+  - app -> kv: Get secret
+  - kv --> app: Secret value
+  - app -> sql: Connect
+  - sql --> app: Rows
+  - divider: Later
+  - app -> kv: Get secret again
+  - kv --> app: Secret value
+`);
+    const x = g.headers[0]!.x;
+    const own = g.bars.filter((b) => b.box.x < x && b.box.x + b.box.width > x);
+    // One bar from the first call to the last answer, a new one after the divider.
+    expect(own).toHaveLength(2);
+    const ys = g.messages.map((m) => m.y);
+    expect(own[0]!.box.y).toBeCloseTo(ys[0]!, 0);
+    expect(own[0]!.box.y + own[0]!.box.height).toBeCloseTo(ys[3]!, 0);
+    const person = await geometry(`type: sequence
+participants:
+  you: person
+  app: { kind: service, label: Orders API }
+messages:
+  - you -> app: Open
+  - app --> you: Page
+`);
+    const px = person.g.headers[0]!.x;
+    expect(person.g.bars.filter((b) => b.box.x < px && b.box.x + b.box.width > px)).toHaveLength(0);
+  });
+
+  it('keeps a label only a little wider than the wrap width on one line', async () => {
+    const { g } = await geometry(`type: sequence
+participants:
+  app: { label: Orders API, box: appservice }
+  blob: { label: Storage account }
+boxes:
+  appservice: { label: App Service }
+messages:
+  - app -> blob: Put blob
+  - blob --> app: "201 Created (role: Storage Blob Data Contributor)"
+`);
+    expect(g.messages[1]!.lines).toEqual(['201 Created (role: Storage Blob Data Contributor)']);
+  });
+
   it('gives a participant that acts on a message it does not answer an activation for as long as it does', async () => {
     const yaml = `type: sequence
 participants:

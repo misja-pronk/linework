@@ -1,6 +1,6 @@
 Sign in with Entra ID
 
-Sequence, sign in: Sign in. 3 participants and 8 messages.
+Sequence diagram: Sign in with PKCE and Conditional Access. 3 participants and 8 messages.
 
 Participants
 - Employee
@@ -12,7 +12,7 @@ In order, top to bottom.
 - 1. Employee calls Orders portal: Open the portal.
 - 2. Orders portal does: Make code_verifier and challenge.
 - 3. Orders portal calls Microsoft Entra ID: /authorize: scope, code_challenge.
-- 4. Employee calls Microsoft Entra ID: Sign in with password or passkey.
+- 4. Employee calls Microsoft Entra ID: Sign in with password.
 - 5. Microsoft Entra ID does: Evaluate Conditional Access.
 - Optional: Policy requires MFA
   - 6. Microsoft Entra ID calls Employee: Approve in Authenticator (number match).

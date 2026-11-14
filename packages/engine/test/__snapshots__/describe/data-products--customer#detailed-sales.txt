@@ -15,7 +15,7 @@ Connections
 - Orders connects to Customer 360, connects to Sales dashboard and is linked with orders.
 
 Key
-- Teal filled pill: Source-aligned
-- Indigo filled pill: Aggregate
+- Teal icon: Source-aligned
+- Indigo icon: Aggregate
 - Solid line: Data flow
 - Dashed violet line: Data contract

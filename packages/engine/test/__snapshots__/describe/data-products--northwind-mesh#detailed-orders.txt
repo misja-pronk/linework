@@ -1,10 +1,10 @@
-Northwind data mesh
+Data mesh
 
 Data products, orders in detail: Orders in detail. 6 elements in 1 group, with 5 connections.
 
 Groups and elements
 - Sales (Domain · Sales analytics)
-  - ERP (Orders and invoices)
+  - ERP (Source · ERP)
   - Orders (Source-aligned · v2.3.0 · Order management team)
   - orders (Data contract · v2.3.0 · internal)
 - Demand forecast (Supply chain · Consumer-aligned)
@@ -16,8 +16,8 @@ Connections
 - Orders connects to Demand forecast, connects to Revenue, connects to Sales dashboard and is linked with orders.
 
 Key
-- Teal filled pill: Source-aligned
-- Indigo filled pill: Aggregate
-- Amber filled pill: Consumer-aligned
+- Teal icon: Source-aligned
+- Indigo icon: Aggregate
+- Amber icon: Consumer-aligned
 - Solid line: Data flow
 - Dashed violet line: Data contract

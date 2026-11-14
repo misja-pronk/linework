@@ -1,20 +1,26 @@
 Events through Service Bus
 
-Sequence, dead-lettered and resubmitted: Dead-lettered and resubmitted. 4 participants and 4 messages.
+Sequence, dead-lettered and resubmitted: Dead-lettered and resubmitted. 6 participants and 8 messages.
 
 Participants
 - Service Bus sb-northwind-prod
   - order-events (topic)
   - Dead-letter queue (per subscription)
+- Invoicing (Azure Function)
+- Warehouse (Container App)
 - Azure Monitor (alert rule)
 - Operations
 
 Message flow
 In order, top to bottom.
-- 9. Azure Monitor sends to Operations: Alert: dead-lettered > 0.
-- 10. Operations calls Dead-letter queue: Peek the dead-lettered message.
-- 11. Dead-letter queue replies to Operations: OrderPlaced, reason: MaxDeliveryCountExceeded.
-- 12. Operations sends to order-events: Fix the cause, resubmit.
+- 10. Azure Monitor sends to Operations: Alert: dead-lettered > 0.
+- 11. Operations calls Dead-letter queue: Peek the dead-lettered message.
+- 12. Dead-letter queue replies to Operations: OrderPlaced, reason: MaxDeliveryCountExceeded.
+- 13. Operations sends to order-events: Fix the cause, resubmit with a new MessageId.
+- 14. order-events sends to Invoicing: OrderPlaced again.
+- 15. Invoicing replies to order-events: Complete, invoiced already.
+- 16. order-events sends to Warehouse: OrderPlaced again.
+- 17. Warehouse replies to order-events: Complete, stock reserved.
 
 Key
 - Arrow with a filled head: Call

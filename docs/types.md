@@ -254,7 +254,7 @@ Principals are people and groups, and also workload identities and devices: `ser
 
 ```yaml
 policies:
-  ca-admins: { kind: conditional-access, label: CA001 Admins, targets: [sg-tier0], excludes: break-glass, requires: [paw, phish-mfa] }
+  ca-admins: { kind: conditional-access, label: CA001 Admins, targets: [sg-entra-tier0-admins], excludes: break-glass, requires: [paw, phish-mfa] }
   phish-mfa: { kind: authentication-strength, label: Phishing-resistant MFA }
 principals:
   paw: { kind: paw, label: PAW }

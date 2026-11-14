@@ -6,7 +6,7 @@ Groups and elements
 - Amsterdam DC (10.10.0.0/16)
   - Servers (VLAN 100 · 10.10.100.0/24)
     - dc01 (AD DS + DNS · 10.10.100.10)
-  - rtr-ams (BGP AS 65010 · HA pair)
+  - rtr-ams (BGP AS 65010 · BFD · HA pair)
 - ExpressRoute circuit (1 Gbps · Equinix AM)
   - MSEE (Microsoft edge · AS 12076 · HA pair)
 - Azure West Europe (Cloud region)
@@ -16,10 +16,10 @@ Groups and elements
       - ergw-hub (ErGw1AZ)
     - AzureFirewallSubnet (10.0.0.64/26)
       - afw-hub (Azure Firewall Premium · 10.0.0.68)
-  - vnet-erp-weu (10.1.0.0/22)
-    - vmss-erp (rt-erp · propagation off)
-  - vnet-intranet-weu (10.1.4.0/22)
-    - vmss-intranet (rt-intranet · propagation off)
+  - vnet-erp-prod (10.1.0.0/22)
+    - vmss-erp-prod (VM scale set)
+  - vnet-intranet-prod (10.1.4.0/22)
+    - vmss-intranet-prod (VM scale set)
 
 Connections
 - dc01 is linked with rtr-ams (2×10G).
@@ -27,22 +27,22 @@ Connections
 - MSEE connects to ergw-hub (Private circuit: private peering).
 - vpng-hub is linked with afw-hub.
 - ergw-hub is linked with afw-hub.
-- afw-hub connects to vmss-erp (Peering) and connects to vmss-intranet (Peering).
+- afw-hub connects to vmss-erp-prod (Peering) and connects to vmss-intranet-prod (Peering).
 
 Walkthrough
-1. Two ways from the data centre into the Azure hub, both through the hub firewall.
-2. Normal operation: Traffic takes ExpressRoute. Azure prefers it over the VPN for the same prefix.
-3. Circuit down: BGP withdraws the ExpressRoute routes within seconds. The VPN, until now the longer path, takes over.
+1. Two ways in: Two ways from the data centre into the Azure hub, both through the hub firewall.
+2. Normal operation: Traffic takes ExpressRoute. Azure prefers it over the VPN for the same prefix; so does the DC router.
+3. Circuit down: BFD notices within a second and BGP withdraws the ExpressRoute routes. The VPN takes over.
   - MSEE: Down
-4. Spokes stay put: Spokes send 0.0.0.0/0 to the firewall and never learn on-premises routes, so a failover does not touch them.
+4. Spokes stay put: Spoke route tables (gateway routes off) send 0.0.0.0/0 to the firewall, so a failover does not touch them.
 
 Layers
 Ways to look at this drawing by tag.
 - ExpressRoute: The normal path. Private, 1 Gbps, BGP over two links to the Microsoft edge. (tags expressroute; 7 elements).
-- VPN failover: Only used when ExpressRoute is down. Same prefixes, but Azure prefers ExpressRoute and the DC prepends its AS on the VPN. (tags vpn; 6 elements).
+- VPN failover: Only used when ExpressRoute is down. Azure prefers ExpressRoute for the same prefix; the DC router prefers it by local preference. (tags vpn; 6 elements).
 
 Key
-- Solid line: Ethernet, or routed in the VNet
+- Solid line: Link
 - Solid teal line with beads, thick: Private circuit
 - Dashed teal line: VPN tunnel
 - Dashed blue line with ticks: Peering

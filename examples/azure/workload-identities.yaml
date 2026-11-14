@@ -1,62 +1,66 @@
-# Workload identities: how code signs in to Azure without a secret, and what each identity may do.
-#   app-registration + service-principal   for code outside Azure (here GitHub Actions), through a federated-credential
-#                                          on the app registration: no secret, GitHub's token is trusted instead
-#   system-assigned managed identity       part of one resource, gone when the resource is deleted (in the caption)
-#   managed-identity (user-assigned)       a resource of its own, shared by the workloads that use it
-# Lines: identity is "signs in as"; role is a role assignment, the role as its label (identity → scope);
-# management ties an app registration to its federated credential and its service principal.
 type: azure
-title: Northwind workload identities
-subtitle: Which identity each workload signs in with, and which roles it holds where
+title: Workload identities
+subtitle: Northwind shop · which identity each workload signs in with, and which roles it holds where
+
+# Three kinds: an app registration with its service principal for code outside Azure (GitHub Actions, through a
+# federated credential: no secret), a system-assigned managed identity (part of one resource), and a user-assigned
+# one (a resource of its own). Role lines run identity → scope with the role as the label; Graph's is an app role.
 
 groups:
   github: { kind: boundary, label: GitHub, caption: northwind/shop }
   tenant: { kind: tenant, label: Northwind, caption: Entra ID tenant }
-  prod: { kind: subscription, label: sub-shop-prod }
-  rg: { kind: resource-group, label: rg-shop-prod, in: prod }
+  sub-shop-prod: { kind: subscription, label: sub-shop-prod }
+  rg-shop-prod: { kind: resource-group, label: rg-shop-prod, in: sub-shop-prod }
 
 nodes:
-  # Outside Azure: a workflow that deploys, with no secret stored anywhere.
-  workflow: { kind: external, label: deploy.yml, caption: GitHub Actions · environment prod, icon: git-branch, in: github }
-  # In Entra ID: the federated credential on the app registration (the definition), and its service principal (what holds roles).
-  fic: { kind: federated-credential, label: github-prod, caption: "Federated credential · repo:northwind/shop", in: tenant }
-  app-reg: { kind: app-registration, label: app-shop-deploy, in: tenant }
-  sp: { kind: service-principal, label: app-shop-deploy, caption: Service principal (enterprise app), in: tenant }
-  graph: { kind: external, label: Microsoft Graph, caption: Microsoft API, icon: webhook }
-  # In the subscription: workloads, their identities, and what they reach.
-  web: { kind: app-service, label: app-shop-web, caption: App Service · system-assigned identity, in: rg }
-  jobs: { kind: function-app, label: func-shop-jobs, in: rg }
-  uami: { kind: managed-identity, label: id-shop-jobs, caption: User-assigned managed identity, in: rg }
-  vault: { kind: key-vault, label: kv-shop-prod, in: rg }
-  blob: { kind: storage, label: stshopexports, in: rg }
+  # Outside Azure: a workflow that deploys, with no secret stored anywhere
+  deploy-yml: { kind: external, label: deploy.yml, caption: GitHub Actions · environment prod, icon: git-branch, in: github }
+  # In Entra ID: the app registration (the definition) with its federated credential, and its service principal (what holds roles)
+  github-prod: { kind: federated-credential, label: github-prod, caption: "repo:northwind/shop:environment:prod", in: tenant }
+  sp-shop-deploy-registration: { kind: app-registration, label: sp-shop-deploy-prod, in: tenant }
+  sp-shop-deploy-prod: { kind: service-principal, label: sp-shop-deploy-prod, caption: Service principal (enterprise app), in: tenant }
+  # Graph's app role is granted on its service principal in the tenant
+  microsoft-graph: { kind: external, label: Microsoft Graph, caption: Service principal (Microsoft), icon: webhook, in: tenant }
+  # In the subscription: workloads, their identities, and what they reach
+  app-shop-web-prod: { kind: app-service, label: app-shop-web-prod, caption: App Service · system-assigned identity, in: rg-shop-prod }
+  func-shop-jobs-prod: { kind: function-app, label: func-shop-jobs-prod, in: rg-shop-prod }
+  id-shop-jobs-prod: { kind: managed-identity, label: id-shop-jobs-prod, caption: User-assigned managed identity, in: rg-shop-prod }
+  kv-shop-prod: { kind: key-vault, label: kv-shop-prod, in: rg-shop-prod }
+  stshopexportsprod: { kind: storage, label: stshopexportsprod, in: rg-shop-prod }
+
+# Signing in and the parts of an app registration have no style of their own: the key names them by their line.
+key:
+  dotted: Signs in with
+  solid: Part of the app registration
 
 edges:
-  # GitHub's OIDC token is exchanged for an Entra token: the federated credential trusts this repo and environment only.
-  - workflow -> fic: { label: OIDC token, style: identity }
-  - fic -> app-reg: { label: set on, style: management }
-  - app-reg -> sp: { label: service principal, style: management }
-  - sp -> rg: { label: Contributor, style: role }
-  # The web app's own identity reads secrets.
-  - web -> vault: { label: Key Vault Secrets User, style: role }
-  # The function signs in as the shared identity, which writes exports and reads users from Graph.
-  - jobs -> uami: { label: signs in as, style: identity }
-  - uami -> blob: { label: Storage Blob Data Contributor, style: role }
-  - uami -> graph: { label: User.Read.All (application), style: role }
+  # GitHub's OIDC token is exchanged for an Entra token: the federated credential trusts this repo and environment only
+  - deploy-yml ..> github-prod: { label: OIDC token }
+  - github-prod -> sp-shop-deploy-registration: { label: set on }
+  - sp-shop-deploy-registration -> sp-shop-deploy-prod: { label: service principal }
+  - sp-shop-deploy-prod -> rg-shop-prod: { label: Contributor, style: role }
+  # The web app's own identity reads secrets
+  - app-shop-web-prod -> kv-shop-prod: { label: Key Vault Secrets User, style: role }
+  # The function signs in as the shared identity, which writes exports and reads users from Graph
+  - func-shop-jobs-prod ..> id-shop-jobs-prod: { label: signs in as }
+  - id-shop-jobs-prod -> stshopexportsprod: { label: Storage Blob Data Contributor, style: role }
+  - id-shop-jobs-prod -> microsoft-graph: { label: User.Read.All (application), style: role }
 
 steps:
   - title: Three kinds
     caption: An app registration for code outside Azure, managed identities for code inside it. None has a secret to leak.
+    focus: [sp-shop-deploy-prod, app-shop-web-prod, id-shop-jobs-prod]
   - title: Deploying from GitHub
-    caption: Only northwind/shop in environment prod can swap GitHub's OIDC token for a service principal token.
-    path: workflow -> fic -> app-reg -> sp
-    note: { fic: "subject: northwind/shop, environment prod" }
+    caption: Only northwind/shop's prod environment gets an Entra token as the service principal, for its OIDC token.
+    path: deploy-yml -> github-prod -> sp-shop-deploy-registration -> sp-shop-deploy-prod
+    note: { github-prod: "Trusts this subject only" }
   - title: Pipeline, least privilege
     caption: The service principal is Contributor on one resource group, not on the subscription.
-    path: sp -> rg
+    path: sp-shop-deploy-prod -> rg-shop-prod
   - title: System-assigned
     caption: The web app's identity lives and dies with the app, and may only read secrets from its own vault.
-    path: web -> vault
+    path: app-shop-web-prod -> kv-shop-prod
   - title: User-assigned
-    caption: The jobs' own identity can be shared and outlives a redeploy; it writes exports and reads users in Graph.
-    path: [jobs -> uami -> blob, uami -> graph]
-    note: { graph: Needs admin consent }
+    caption: A resource of its own, so it can be shared and outlives a redeploy. It writes exports and reads users.
+    path: [func-shop-jobs-prod -> id-shop-jobs-prod -> stshopexportsprod, id-shop-jobs-prod -> microsoft-graph]
+    note: { microsoft-graph: Granted by an admin as an app role }

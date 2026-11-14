@@ -140,11 +140,14 @@ export function bodyLines(text: string, width: number, theme: Theme): string[] {
 
 export const bodyHeight = (lines: string[]) => (lines.length ? BODY.top + lines.length * BODY.line + BODY.bottom : 0);
 
+/** Where text may break: any space but a no-break space ("4\u00a0h" stays whole). */
+export const BREAK = /[^\S\u00a0]+/;
+
 /** Words in lines of at most `width`; the last line ends in an ellipsis when the text goes on. */
 export function wrapText(text: string, size: number, weight: 400 | 500 | 600, width: number, max: number): string[] {
   const lines: string[] = [];
   let line = '';
-  const words = text.trim().split(/\s+/);
+  const words = text.trim().split(BREAK);
   for (const [i, w] of words.entries()) {
     const next = line ? `${line} ${w}` : w;
     if (!line || measureText(next, size, weight) <= width) {

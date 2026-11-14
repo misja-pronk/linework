@@ -114,7 +114,7 @@ try {
     const undoOff = () => page.locator('.canvas-tools button[aria-label="Undo"]').isDisabled();
     const redoOff = () => page.locator('.canvas-tools button[aria-label="Redo"]').isDisabled();
     if (!(await undoOff()) || !(await redoOff())) fail('Undo or Redo is not greyed out on a diagram just opened');
-    const b = await box('router');
+    const b = await box('edge-router');
     await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
     await page.keyboard.press('ArrowRight');
     await wait(400);
@@ -185,8 +185,8 @@ try {
       await page.locator('.layers-chip button[aria-label="The whole drawing"]').click().catch(() => {});
       await wait(800);
     } else fail('no layer to switch on in Azure network');
-    const a = await box('erp-vm');
-    const b = await box('web-vm');
+    const a = await box('vmss-erp-prod');
+    const b = await box('vmss-intranet-prod');
     await page.mouse.click(a.x + 10, a.y + 10);
     await page.keyboard.down('Shift');
     await page.mouse.click(b.x + 10, b.y + 10);
@@ -245,7 +245,7 @@ try {
   // 7. Plain words: the add menu's shapes are "Shapes", the properties say what a card is (its id on
   //    hover), the page frame names the page and its smallest text, a sequence's steps are its messages.
   {
-    const b = await box('router');
+    const b = await box('edge-router');
     await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
     await wait(300);
     const sub = await page.locator('.inspector-title span').innerText();

@@ -1,6 +1,6 @@
 Sign in with Entra ID
 
-Sequence, tokens and the API: Tokens and the API. 3 participants and 5 messages.
+Sequence, tokens and the API call: Tokens and the API call. 3 participants and 5 messages.
 
 Participants
 - Orders portal (SPA in the browser)

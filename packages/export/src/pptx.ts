@@ -4,13 +4,13 @@
 import { zipSync, strToU8 } from 'fflate';
 import type { Faded, Graph, Placed, StepState } from '@cartography/core';
 import { icon } from '@cartography/icons';
-import { inThemeFonts, isDark, look, themes, type Theme } from '@cartography/theme';
+import { bundledFamily, inThemeFonts, isDark, look, themes, type Theme } from '@cartography/theme';
 import * as ox from './ooxml.ts';
 import { group, shape, type Run } from './shapes.ts';
 import { describe } from '@cartography/describe';
 import { altOf } from './alt.ts';
 import { drawDiagram, type IconRef, type PictureKind, type SlideImages } from './slide.ts';
-import { CAPTION, fitSlide, INCH, MARGIN, ownRoom, ROWS, words, type SlideRoom } from './fit.ts';
+import { CAPTION, fitSlide, INCH, MARGIN, NUMBER, ownRoom, ROWS, words, type SlideRoom } from './fit.ts';
 import { pages } from './steps.ts';
 import { chooseLayout, readTemplate, type PptxTemplate } from './template/read.ts';
 import { filled, footer, planSlide } from './template/place.ts';
@@ -50,12 +50,13 @@ export interface PptxOptions {
   theme?: 'light' | 'dark' | Theme;
   aspect?: '16:9' | '4:3';
   /**
-   * Typeface for the text; by default the theme's own (Instrument Sans for Survey, Inter for classic).
-   * Slides hold native text, so the face is not embedded: where it is not installed the app
-   * substitutes a sans (Arial, Helvetica). Name one here to choose it yourself, e.g. 'Arial'.
+   * Typeface for the text. By default the theme's own, unless it is one Cartography brings along
+   * (Instrument Sans, Inter, Geist Mono…): those are on few machines, so the slides name Arial
+   * instead (see slideFace). Name one here to choose it yourself, e.g. 'Instrument Sans' where it is
+   * installed on every machine that shows the deck.
    */
   font?: string;
-  /** Typeface for what the theme sets in monospace; by default the theme's (Geist Mono for Survey). Substituted by a fixed-pitch face (Consolas, Menlo, Courier New) where it is not installed. */
+  /** Typeface for what the theme sets in monospace; by default the theme's, or Courier New for one Cartography brings along (Geist Mono). */
   monoFont?: string;
   /** Adds a title slide in front. */
   title?: string;
@@ -95,6 +96,19 @@ export interface SlideText {
   scale: number;
 }
 
+/**
+ * The face a slide names for a theme's face. Slides hold native text, and an app shows a face only
+ * where it is installed: PowerPoint then substitutes a similar one, but Apple's importer (Quick Look,
+ * Keynote, Mail, an iPhone) sets the text in Times. Embedding the face does not help there (Apple's
+ * importer leaves embedded fonts out), so the faces Cartography brings along (Instrument Sans, Inter,
+ * Geist Mono and the others), which few machines have, are named as faces every Mac and Windows
+ * machine has: Arial, no wider than Instrument Sans or Inter, and Courier New, as wide as Geist Mono.
+ * A brand theme's own face is the brand's: it stays.
+ */
+export function slideFace(family: string, kind: 'sans' | 'mono'): string {
+  return bundledFamily(family) ? (kind === 'mono' ? 'Courier New' : 'Arial') : family;
+}
+
 /** The first name of a CSS font stack. */
 const firstFamily = (stack: string | undefined) => stack?.split(',')[0]?.trim().replace(/^['"]|['"]$/g, '') || undefined;
 
@@ -130,8 +144,8 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     if (isDark(page) === (theme.mode === 'dark')) theme = { ...theme, canvas: page };
     else opts.onWarning?.(`The template's slides are ${isDark(page) ? 'dark' : 'light'} (${page}) and the diagram's theme is ${theme.mode}: leave out --keep-look, or pick a ${isDark(page) ? 'dark' : 'light'} theme`);
   }
-  const font = opts.font ?? (tpl && !opts.keepLook ? tpl.fonts.minor : (theme.font.sans ?? 'Inter'));
-  const fonts = { sans: font, mono: opts.monoFont ?? (tpl && !opts.keepLook ? font : (theme.font.monoFace ?? firstFamily(theme.font.mono) ?? 'Courier New')) };
+  const font = opts.font ?? (tpl && !opts.keepLook ? tpl.fonts.minor : slideFace(theme.font.sans ?? 'Inter', 'sans'));
+  const fonts = { sans: font, mono: opts.monoFont ?? (tpl && !opts.keepLook ? font : slideFace(theme.font.monoFace ?? firstFamily(theme.font.mono) ?? 'Courier New', 'mono')) };
   // The title as the theme sets it: in capitals or the monospace face where asked.
   const tl = look(theme).title;
   const titleRun = (text: string): Run => ({ text: tl.caps ? text.toUpperCase() : text, size: 24, bold: tl.weight >= 600, color: theme.text, ...(tl.mono ? { font: fonts.mono, mono: true } : {}), ...(tl.tracking ? { spacing: tl.tracking } : {}), ...(tpl ? { font: tpl.fonts.major } : {}) });
@@ -197,11 +211,11 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     const captionPh = plan?.caption;
     // Where the title, the subtitle or the step's caption and the drawing go, and how large: fit.ts, which validate measures with too.
     const told = !!view && view.caption !== false;
-    const { k, area, content: c, side, titled, subtitled, header, titleTop, capTop, bottom, below } = await fitSlide(graph, placed, theme, slideRoom, view);
+    const { k, area, content: c, side, titled, subtitled, inline, titleTop, stepTop, capTop, bottom, below } = await fitSlide(graph, placed, theme, slideRoom, view);
     if (graph.title && plan?.title) tree += filled(next(), plan.title, [{ text: graph.title }]);
-    else if (graph.title) tree += shape({ id: next(), name: 'Title', ph: tpl ? undefined : 'title', textBox: !!tpl, frame: { x: room.x, y: room.y, w: room.w - (told && !captionPh ? INCH : 0), h: ROWS.title * INCH }, geom: { prst: 'rect' }, text: { anchor: 'ctr', paras: [{ runs: [titleRun(graph.title)] }] } }, font);
+    else if (graph.title) tree += shape({ id: next(), name: 'Title', ph: tpl ? undefined : 'title', textBox: !!tpl, frame: { x: room.x, y: room.y, w: room.w - (inline ? NUMBER * INCH : told && !captionPh ? INCH : 0), h: ROWS.title * INCH }, geom: { prst: 'rect' }, text: { anchor: 'ctr', paras: [{ runs: [titleRun(graph.title), ...(inline ? [{ text: '   ', size: 13, color: theme.textMuted }, { text: graph.subtitle!, size: 13, color: theme.textMuted }] : [])] }] } }, font);
     if (graph.subtitle && captionPh && !told) tree += filled(next(), captionPh, [{ text: graph.subtitle }], true);
-    else if (subtitled && !header) tree += shape({ id: next(), name: 'Subtitle', textBox: true, frame: { x: room.x, y: titleTop, w: room.w, h: ROWS.line * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ runs: [{ text: graph.subtitle!, size: 13, color: theme.textMuted }] }] } }, font);
+    else if (subtitled && !inline) tree += shape({ id: next(), name: 'Subtitle', textBox: true, frame: { x: room.x, y: titleTop, w: room.w, h: ROWS.line * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', paras: [{ runs: [{ text: graph.subtitle!, size: 13, color: theme.textMuted }] }] } }, font);
     let smallest = Infinity;
     // Measured in the theme's own faces, like the SVG, so text boxes are as wide as the words in them.
     // The drawing is one group with alt text: a screen reader hears what the diagram shows, then each shape's own.
@@ -237,9 +251,9 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
       if (paras.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: side.x, y, w: side.w, h: bottom - y - ROWS.line * INCH }, geom: { prst: 'rect' }, text: { anchor: 't', wrap: true, paras } }, font);
       tree += number({ x: room.x + room.w - INCH, y: bottom - ROWS.line * INCH, w: INCH, h: ROWS.line * INCH }, 't');
     } else if (told && state) {
-      // Under the title, where the subtitle would be: the title in bold, the caption after it.
+      // Under the title and the subtitle: the step's title in bold, the caption after it.
       const runs = [...title(state), ...(state.title && state.caption ? [{ text: '  ', size: CAPTION.text, color: theme.text }] : []), ...caption(state)];
-      if (runs.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: room.x, y: titleTop, w: room.w - (titled ? 0 : INCH), h: capTop - titleTop }, geom: { prst: 'rect' }, text: { anchor: 't', wrap: true, paras: [{ runs }] } }, font);
+      if (runs.length) tree += shape({ id: next(), name: 'Step caption', textBox: true, frame: { x: room.x, y: stepTop, w: room.w - (titled || stepTop > titleTop ? 0 : INCH), h: capTop - stepTop }, geom: { prst: 'rect' }, text: { anchor: 't', wrap: true, paras: [{ runs }] } }, font);
       tree += number(titled ? { x: room.x + room.w - INCH, y: room.y, w: INCH, h: ROWS.title * INCH } : { x: room.x + room.w - INCH, y: titleTop, w: INCH, h: ROWS.line * INCH }, titled ? 'ctr' : 't');
     }
     // The template's footer and slide number, as its layout shows them.
@@ -253,7 +267,7 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     const about = [graph.title ?? d.name ?? tr(lang, 'Diagram'), graph.subtitle ?? ''];
     const from = d.name ? tr(lang, ', from {file}', { file: d.name }) : '';
     // What the presenter says at this step leads the speaker notes.
-    const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `${tr(lang, 'Step {n} of {count} — {title}', { n: view.index + 1, count: view.states.length, title: about[0]! })}${from}.`, ...(header && graph.subtitle ? [graph.subtitle] : [])] : [...about, '', `${size.replace(/[.!?]$/, '')}${from}.`];
+    const notes = told && state ? [...[state.title, state.caption].filter((s): s is string => !!s), '', `${tr(lang, 'Step {n} of {count} — {title}', { n: view.index + 1, count: view.states.length, title: about[0]! })}${from}.`, ...(graph.subtitle ? [graph.subtitle] : [])] : [...about, '', `${size.replace(/[.!?]$/, '')}${from}.`];
     slides.push({ xml: ox.slideXml(tree, !!view && view.index > 0), rels, notes, ...(layout ? { layout: layout.path } : {}) });
   }
 

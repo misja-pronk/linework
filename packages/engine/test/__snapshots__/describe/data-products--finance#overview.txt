@@ -17,6 +17,6 @@ Connections
 - General ledger connects to Revenue (nightly).
 
 Key
-- Teal filled pill: Source-aligned
-- Amber filled pill: Consumer-aligned
+- Teal icon: Source-aligned
+- Amber icon: Consumer-aligned
 - Solid line: Data flow

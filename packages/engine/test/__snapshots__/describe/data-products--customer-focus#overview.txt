@@ -24,7 +24,7 @@ Connections
 - Customers connects to Customer 360.
 
 Key
-- Teal filled pill: Source-aligned
-- Indigo filled pill: Aggregate
-- Amber filled pill: Consumer-aligned
+- Teal icon: Source-aligned
+- Indigo icon: Aggregate
+- Amber icon: Consumer-aligned
 - Solid line: Data flow

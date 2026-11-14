@@ -7,6 +7,8 @@ Lanes and steps
   - Order received (start event)
   - Confirm order
   - Ask for prepayment
+- Warehouse (lane)
+  - Pick, pack and ship
 - Finance (lane)
   - Check credit
   - Credit ok? (decision)
@@ -17,8 +19,6 @@ Lanes and steps
   - Book payment
   - Send reminder
   - Closed (end event)
-- Warehouse (lane)
-  - Pick, pack and ship
 
 Main path
 1. Order received

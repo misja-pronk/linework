@@ -1,4 +1,4 @@
-Northwind data mesh
+Data mesh
 
 Data products, supply chain in detail: Supply chain in detail. 5 elements in 1 group, with 4 connections.
 
@@ -17,6 +17,6 @@ Connections
 - Orders connects to Demand forecast.
 
 Key
-- Teal filled pill: Source-aligned
-- Amber filled pill: Consumer-aligned
+- Teal icon: Source-aligned
+- Amber icon: Consumer-aligned
 - Solid line: Data flow

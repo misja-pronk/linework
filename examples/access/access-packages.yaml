@@ -6,17 +6,19 @@
 #                          a list of policies gives a package several ways in (staff and guests, say);
 #                          id: names its card, for steps and focus
 #                holders:  who holds it today (used by the who × where view)
-#   principals   connected-org is a partner organisation whose users may request as guests
+#   principals   connected-org is a partner organization whose users may request as guests
 # Switch the view to packages for the packages × grants table, or to access for who × where.
 type: access
-title: Northwind finance access packages
-subtitle: Who may request what, who approves, and for how long
+title: Finance access packages
+subtitle: Northwind finance · who may request what, who approves, and for how long
 view: graph   # graph, access or packages
 
 principals:
   finance-staff: { kind: dynamic-group, label: Finance staff, caption: department = Finance }
-  fabrikam: { kind: connected-org, label: Fabrikam, caption: Connected organisation · auditors }
+  fabrikam: { kind: connected-org, label: Fabrikam, caption: Connected organization · auditors }
   finance-team: { kind: m365-group, label: Finance team, caption: Microsoft 365 group · Teams }
+  # A Power BI app has no role to hand out: its audience is a group, and the package grants membership.
+  report-viewers: { kind: group, label: Finance report viewers, caption: Security group · Power BI app audience }
   emma: { kind: user, label: Emma de Wit, caption: Accountant }
   auditor: { kind: guest, label: Sam Okafor, caption: Guest · Fabrikam }
 
@@ -29,7 +31,7 @@ packages:
   basic:
     catalog: finance
     label: Finance basics
-    grants: [finance-team, team-site: Member, erp: Finance user]
+    grants: [finance-team, intranet: Member, erp: Finance user]
     policy: { id: basic-auto, requestors: [finance-staff], auto: true }
     holders: [emma]
   # More rights in the ERP: two approval stages, an end date and a quarterly review.
@@ -42,15 +44,15 @@ packages:
   audit:
     catalog: partners
     label: Year-end audit
-    grants: [team-site: Visitor, reports: Viewer]
+    grants: [intranet: Visitor, report-viewers]
     policy: { id: audit-approval, requestors: [fabrikam], approval: [Finance controller], duration: 90 days, review: monthly }
     holders: [auditor]
 
 resources:
   # What the packages hand out: an app role on an enterprise app, or a role on a SharePoint site.
-  team-site: { kind: sharepoint-site, label: Finance team site }
+  # A communication site, not the Finance team's own site: that one comes with the group.
+  intranet: { kind: sharepoint-site, label: Finance intranet, caption: SharePoint communication site }
   erp: { kind: app, label: Northwind ERP, caption: Enterprise application }
-  reports: { kind: app, label: Finance reports, caption: Power BI app }
 
 # For presenting. A policy card goes by its id (without one: <package>:policy:<n>, the first policy 0).
 steps:
@@ -58,15 +60,15 @@ steps:
     caption: Finance keeps its packages in its own catalog. Partner access lives in a separate catalog.
     focus: [basic, key-user, audit, basic-auto, key-user-approval, audit-approval]
   - title: Basics, automatically
-    caption: Everyone in Finance gets the team, the site and the ERP without asking, and loses them when they leave Finance.
+    caption: Everyone in Finance gets the team, the intranet and the ERP without asking, and loses them when they leave Finance.
     focus: [finance-staff, basic-auto, basic]
-    path: [basic -> finance-team, basic -> team-site, basic -> erp]
+    path: [basic -> finance-team, basic -> intranet, basic -> erp]
   - title: More rights, two approvals
-    caption: Key users are approved by their manager and then by the controllers. The access ends after 180 days; a quarterly review can remove it sooner.
+    caption: Key users are approved by their manager and then by the Finance controller. The access ends after 180 days; a quarterly review can remove it sooner.
     focus: [finance-staff, key-user-approval, key-user]
     path: key-user -> erp
   - title: Guests
-    caption: Fabrikam's auditors request access themselves. The controllers approve, it is read-only, and it ends after 90 days.
+    caption: Fabrikam's auditors request access themselves. The Finance controller approves, it is read-only, and it ends after 90 days.
     focus: [fabrikam, audit-approval, auditor, audit]
-    path: [audit -> team-site, audit -> reports]
-    note: { auditor: Guest removed when the last package ends }
+    path: [audit -> intranet, audit -> report-viewers]
+    note: { auditor: "Blocked when the last package ends, removed 30 days later" }

@@ -291,7 +291,10 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
   if (top === 'steps') ctx.warn(['steps'], 'In a sequence this is now called messages: (steps: are for presenting elsewhere); rename it');
   if (src.messages !== undefined && src.steps !== undefined) ctx.error(['steps'], 'Both messages: and steps: here: steps: is the old name of messages:, keep one');
   walk(src[top], [top]);
-  if (auto) activateOnSignals(events);
+  if (auto) {
+    activateOnSignals(events);
+    activateCallers(events, new Set(participants.filter((p) => quietKind(src, p.id)).map((p) => p.id)));
+  }
   const phases = typeof src.view === 'string' && src.view.startsWith('phase-') ? sequencePhases(src) : [];
   const phase = phases.find((p) => p.name === src.view);
   const drawn = phase ? phaseOf(events, participants, phase, phases, top, wide) : { events, participants };
@@ -307,6 +310,48 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
     edges: [],
     ...(key.length ? { legend: key } : {}),
   };
+}
+
+/** A person (or people): someone who asks, not a system that is busy while it waits. */
+function quietKind(src: SequenceSource, id: string): boolean {
+  const raw = src.participants?.[id];
+  const e: ParticipantEntry = typeof raw === 'string' ? { kind: raw } : (raw ?? {});
+  const kind = e.kind ? kinds[e.kind] : kindFromName(`${id} ${e.label ?? ''}`);
+  return !!kind?.quiet;
+}
+
+/**
+ * A system that starts a conversation itself (a call while nothing has called it) is busy from that
+ * call until it last takes part in what follows, as a callee is: its bar shows it waits for the
+ * answers. The conversation ends at a divider, at the end of its frame or branch, or where another
+ * message (not an answer) reaches it. People get no bar: they ask, they do not run.
+ */
+function activateCallers(events: SequenceEvent[], people: Set<string>): void {
+  const open = new Map<string, number>();
+  const bump = (lane: string, by: number) => open.set(lane, Math.max(0, (open.get(lane) ?? 0) + by));
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i]!;
+    if (e.kind === 'activate' || e.kind === 'deactivate') bump(e.lane, e.kind === 'activate' ? 1 : -1);
+    if (e.kind !== 'message') continue;
+    if (e.closes) bump(e.from, -1);
+    if (e.opens && e.from !== e.to) bump(e.to, 1);
+    if (e.arrow !== 'sync' || e.from === e.to || people.has(e.from) || (open.get(e.from) ?? 0) > 0) continue;
+    let last = -1;
+    let depth = 0;
+    for (let j = i + 1; j < events.length; j++) {
+      const x = events[j]!;
+      if (x.kind === 'frame') depth++;
+      else if (x.kind === 'end' && --depth < 0) break;
+      else if ((x.kind === 'branch' && depth === 0) || x.kind === 'divider') break;
+      else if (x.kind === 'message' && x.to === e.from && x.from !== e.from && x.arrow !== 'reply') break;
+      else if (x.kind === 'message' && (x.from === e.from || x.to === e.from)) last = j;
+    }
+    if (last < 0) continue;
+    events.splice(last + 1, 0, { kind: 'deactivate', lane: e.from, path: events[last]!.path });
+    events.splice(i + 1, 0, { kind: 'activate', lane: e.from, path: e.path });
+    bump(e.from, 1);
+    i++;
+  }
 }
 
 /**

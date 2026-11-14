@@ -4,41 +4,42 @@ Azure infrastructure diagram: Northwind · every PaaS service behind a private e
 
 Groups and elements
 - Head office (10.10.0.0/16)
-  - dc01.northwind.local (Forwards privatelink.*)
+  - dc01.northwind.local (Conditional forwarders)
 - sub-connectivity (Platform · Connectivity)
   - vnet-hub-weu (10.0.0.0/22)
     - snet-dns-in (10.0.1.0/28)
-      - dnspr-hub (Inbound · 10.0.1.4)
+      - dnspr-hub (Inbound endpoint · 10.0.1.4)
     - snet-dns-out (10.0.1.16/28)
-      - dnsfrs-hub (northwind.local → 10.10.0.10)
-  - rg-dns-privatelink (Linked to the hub)
+      - Outbound endpoint (Ruleset · northwind.local → 10.10.0.10)
+  - rg-dns-privatelink (Zones linked to the hub)
     - privatelink.database.windows.net (Private DNS zone)
     - privatelink.blob.core.windows.net (Private DNS zone)
-- sub-claims-prd (Landing zone · Corp)
-  - vnet-claims-weu (10.1.8.0/22)
+- sub-claims-prod (Landing zone · Corp)
+  - vnet-claims-prod (10.1.8.0/22)
     - snet-app (10.1.8.0/24)
-      - vmss-claims (Claims API)
+      - vmss-claims-prod (Claims API)
     - snet-pe (10.1.9.0/24)
-      - pe-sql-claims (10.1.9.4)
-      - pe-st-claims (10.1.9.5)
+      - pep-sql-claims-prod (10.1.9.4)
+      - pep-st-claims-prod (10.1.9.5)
   - rg-claims-data (Public access off)
-    - sql-claims-prd (SQL Database)
-    - stclaimsprd (Storage account)
+    - sql-claims-prod (Database sqldb-claims-prod)
+    - stclaimsprod (Storage account)
 
 Connections
-- dc01.northwind.local connects to dnspr-hub (Private network).
-- dnspr-hub connects to privatelink.database.windows.net (Management), connects to privatelink.blob.core.windows.net (Management) and connects to dnsfrs-hub (Management).
-- vmss-claims connects to dnspr-hub (Management: DNS), connects to pe-sql-claims (Private network) and connects to pe-st-claims (Private network).
-- pe-sql-claims connects to sql-claims-prd (Private network: TDS 1433).
-- pe-st-claims connects to stclaimsprd (Private network: HTTPS 443).
+- dc01.northwind.local connects to dnspr-hub.
+- dnspr-hub connects to privatelink.database.windows.net, connects to privatelink.blob.core.windows.net and connects to Outbound endpoint.
+- vmss-claims-prod connects to dnspr-hub, connects to pep-sql-claims-prod (Private network) and connects to pep-st-claims-prod (Private network).
+- pep-sql-claims-prod connects to sql-claims-prod (Private network: TDS 1433).
+- pep-st-claims-prod connects to stclaimsprod (Private network: HTTPS 443).
 
 Walkthrough
-1. Two PaaS services show the pattern, each reachable only through a private endpoint in the spoke.
+1. Two services, one pattern: SQL and Storage are each reachable only through a private endpoint in the spoke.
 2. The app asks for a name: The SQL name is a CNAME to its privatelink name; the resolver answers 10.1.9.4 from the private zone.
 3. And connects privately: The connection goes to the endpoint's private IP in snet-pe, never over the internet.
-4. From the office: Office DNS forwards privatelink.* to the resolver's inbound endpoint, so on-premises gets the same private IPs.
+4. From the office: Office DNS forwards database.windows.net and blob.core.windows.net to 10.0.1.4, so it gets the same private IPs.
+  - dc01.northwind.local: database.windows.net → 10.0.1.4
 5. Every service the same way: Key Vault, Service Bus… each gets an endpoint in snet-pe and a zone, linked to the hub once.
-  - pe-sql-claims: Next: pe-kv-claims · 10.1.9.6
+  - pep-sql-claims-prod: Next: pep-kv-claims-prod · 10.1.9.6
   - privatelink.database.windows.net: Next: privatelink.vaultcore.azure.net
 
 Layers
@@ -46,5 +47,5 @@ Ways to look at this drawing by tag.
 - Name resolution: One resolver, one set of privatelink zones, used by the spokes and the office alike. (tags dns; 6 elements).
 
 Key
+- Dotted line: DNS query
 - Dashed teal line: Private network
-- Dotted line with ticks: Management
