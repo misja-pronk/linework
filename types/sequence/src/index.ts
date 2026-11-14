@@ -42,7 +42,7 @@ import {
   type Tone,
   type Word,
   tones,
-} from '@cartography/core';
+} from '@linework/core';
 
 export const kinds: KindTable = {
   person: { label: 'Person', icon: 'user', tone: 'slate', quiet: true, keywords: ['actor', 'user', 'customer'] },
@@ -527,7 +527,7 @@ function stepsSchema(inner: object): object {
 
 const schema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography sequence diagram',
+  title: 'Linework sequence diagram',
   type: 'object',
   required: ['type'],
   properties: {

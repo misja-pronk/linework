@@ -1,5 +1,5 @@
 {
-  "name": "@cartography/export",
+  "name": "@linework/export",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
@@ -9,18 +9,18 @@
     "./fit": "./src/fit.ts"
   },
   "dependencies": {
-    "@cartography/core": "workspace:*",
-    "@cartography/describe": "workspace:*",
-    "@cartography/i18n": "workspace:*",
-    "@cartography/icons": "workspace:*",
-    "@cartography/render": "workspace:*",
-    "@cartography/theme": "workspace:*",
+    "@linework/core": "workspace:*",
+    "@linework/describe": "workspace:*",
+    "@linework/i18n": "workspace:*",
+    "@linework/icons": "workspace:*",
+    "@linework/render": "workspace:*",
+    "@linework/theme": "workspace:*",
     "fflate": "0.8.3",
     "pdfkit": "0.20.2",
     "svg-to-pdfkit": "0.1.8"
   },
   "devDependencies": {
-    "@cartography/engine": "workspace:*",
+    "@linework/engine": "workspace:*",
     "@resvg/resvg-js": "^2.6.2",
     "@types/pdfkit": "^0.17.7"
   }

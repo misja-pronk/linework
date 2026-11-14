@@ -10,7 +10,7 @@
 //     plan: { pm: A, arch: R }        # several values: "C R U", "CRU" or "A/R"
 //
 // Row and column ids that name model elements (with include:) take their names from the model.
-import { english, parseLinks, tones, type BuildContext, type DiagramType, type Graph, type LegendItem, type Link, type MatrixCell, type MatrixHeader, type Path, type Reference, type Tone } from '@cartography/core';
+import { english, parseLinks, tones, type BuildContext, type DiagramType, type Graph, type LegendItem, type Link, type MatrixCell, type MatrixHeader, type Path, type Reference, type Tone } from '@linework/core';
 
 type Rule = 'exactly-one' | 'at-least-one' | 'at-most-one';
 interface Value {
@@ -78,7 +78,7 @@ const header = {
 
 const schema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography matrix',
+  title: 'Linework matrix',
   type: 'object',
   required: ['type'],
   properties: {

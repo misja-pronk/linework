@@ -2,7 +2,7 @@
 // show SVG) fitted under it, speaker notes per slide. For what native shapes cannot carry, such as a
 // comparison's marks: "Before" and "After" of a change, each with its own marks.
 import { zipSync, strToU8 } from 'fflate';
-import { themes, type Theme } from '@cartography/theme';
+import { themes, type Theme } from '@linework/theme';
 import * as ox from './ooxml.ts';
 import { picture, shape } from './shapes.ts';
 
@@ -69,8 +69,8 @@ export function toPictureDeck(list: PictureSlide[], opts: { theme?: 'light' | 'd
   put('ppt/presProps.xml', ox.presProps());
   put('ppt/viewProps.xml', ox.viewProps());
   put('ppt/tableStyles.xml', ox.tableStyles());
-  put('ppt/theme/theme1.xml', ox.theme('Cartography', palette));
-  put('ppt/theme/theme2.xml', ox.theme('Cartography Notes', { ...palette, canvas: '#FFFFFF', text: '#000000' }));
+  put('ppt/theme/theme1.xml', ox.theme('Linework', palette));
+  put('ppt/theme/theme2.xml', ox.theme('Linework Notes', { ...palette, canvas: '#FFFFFF', text: '#000000' }));
   put('ppt/slideMasters/slideMaster1.xml', ox.master(W, H, MARGIN, palette));
   put('ppt/slideMasters/_rels/slideMaster1.xml.rels', ox.masterRels());
   put('ppt/slideLayouts/slideLayout1.xml', ox.layout('titleOnly', W, H, MARGIN));

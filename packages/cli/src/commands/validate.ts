@@ -1,9 +1,9 @@
-// carto validate <file.yaml…|folder>: each diagram and each of its views, the problems printed; --drift the sidecar too.
+// linework validate <file.yaml…|folder>: each diagram and each of its views, the problems printed; --drift the sidecar too.
 import fs from 'node:fs';
 import path from 'node:path';
-import { isDiagramFile, type Diagnostic, type LayoutSidecar } from '@cartography/core';
-import { drift, render, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@cartography/engine';
-import { stepCaptionLines, toPptx, type PptxOptions, type SlideText } from '@cartography/export';
+import { isDiagramFile, type Diagnostic, type LayoutSidecar } from '@linework/core';
+import { drift, render, SLIDE_MIN_PT, slideTextPt, type RenderResult } from '@linework/engine';
+import { stepCaptionLines, toPptx, type PptxOptions, type SlideText } from '@linework/export';
 import type { ValidateOptions } from '../args.ts';
 import { langOption, templateFlags } from '../draw.ts';
 import { t } from '../i18n.ts';
@@ -29,7 +29,7 @@ async function checkDrift(ctx: Ctx, o: ValidateOptions, file: string): Promise<b
   const fixing = !!o.fix;
   for (const s of r.stale) ctx.error(`${p}  ${fixing ? yellow(t('fixed')) : red(t('stale'))}  ${s.path}: ${s.message}`);
   const count = r.stale.length;
-  if (!fixing) return (ctx.error(`${p}  ${t('{count} stale entry; carto validate --drift --fix {file} drops it|{count} stale entries; carto validate --drift --fix {file} drops them', { count, file })}`), false);
+  if (!fixing) return (ctx.error(`${p}  ${t('{count} stale entry; linework validate --drift --fix {file} drops it|{count} stale entries; linework validate --drift --fix {file} drops them', { count, file })}`), false);
   writeSidecar(file, r.fixed);
   ctx.log(`${p} ${dim(r.fixed ? t('{count} stale entry dropped|{count} stale entries dropped', { count }) : t('{count} stale entry dropped, nothing left: file removed|{count} stale entries dropped, nothing left: file removed', { count }))}`);
   return true;
@@ -88,7 +88,7 @@ export async function validateCommand(ctx: Ctx, files: string[], o: ValidateOpti
   const folders = files.filter(isFolder);
   const checked: { given: string; f: string; shown: string; stdin: boolean; diagnostics: Diagnostic[]; hints: string[] }[] = [];
   for (const given of files.filter((x) => !isFolder(x)).concat(folders.flatMap((d) => dataFiles(d).filter((x) => isDiagramFile(x, fs.readFileSync(x, 'utf8')))))) {
-    // `-` reads the diagram from standard input, as carto render - does.
+    // `-` reads the diagram from standard input, as linework render - does.
     const stdin = given === '-';
     const f = stdin ? path.resolve('stdin.yaml') : given;
     const shown = stdin ? 'stdin' : given;

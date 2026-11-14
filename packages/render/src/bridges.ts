@@ -1,8 +1,8 @@
 // Line bridges: where two lines cross, the upright one hops over the level one. A short gap in the
 // ground colour is cut into the line underneath and the line on top is drawn again, so a crossing
 // never reads as a junction.
-import type { Graph, GraphEdge, Marker, Placed, Point } from '@cartography/core';
-import { look, type Theme } from '@cartography/theme';
+import type { Graph, GraphEdge, Marker, Placed, Point } from '@linework/core';
+import { look, type Theme } from '@linework/theme';
 import type { Ground } from './ground.ts';
 import { r1 } from './paint.ts';
 

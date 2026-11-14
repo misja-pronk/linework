@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import * as fontkit from 'fontkit';
 import wawoff2 from 'wawoff2';
-import { measureText, SCALE_SAMPLE, type FontFace } from '@cartography/theme';
+import { measureText, SCALE_SAMPLE, type FontFace } from '@linework/theme';
 
 const SIZE = 100;
 
@@ -27,7 +27,7 @@ export function fontScale(faces: FontFace[]): number | undefined {
   }
 }
 
-const cache = path.join(os.tmpdir(), 'cartography-fonts');
+const cache = path.join(os.tmpdir(), 'linework-fonts');
 
 /**
  * resvg picks fonts by the family name inside the file, and web-font builds often carry odd ones

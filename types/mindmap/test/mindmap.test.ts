@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { BlockShape } from '@cartography/core';
+import type { BlockShape } from '@linework/core';
 import { render } from '../../../packages/engine/src/index.ts';
 import { moved } from '../../../packages/engine/test/stability.ts';
 import { CENTER, mindmap, readTopics, type MindmapSource } from '../src/index.ts';

@@ -44,19 +44,19 @@ importers:
 
   docs/site:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@cartography/embed':
+      '@linework/embed':
         specifier: workspace:*
         version: link:../../packages/embed
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../../packages/icons
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../../packages/theme
       markdown-it:
@@ -75,16 +75,16 @@ importers:
 
   packages/action:
     dependencies:
-      '@cartography/cli':
+      '@linework/cli':
         specifier: workspace:*
         version: link:../cli
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
-      '@cartography/diff':
+      '@linework/diff':
         specifier: workspace:*
         version: link:../diff
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../engine
       tsx:
@@ -93,43 +93,43 @@ importers:
 
   packages/cli:
     dependencies:
-      '@cartography/access':
+      '@linework/access':
         specifier: workspace:*
         version: link:../../types/access
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
-      '@cartography/describe':
+      '@linework/describe':
         specifier: workspace:*
         version: link:../describe
-      '@cartography/diff':
+      '@linework/diff':
         specifier: workspace:*
         version: link:../diff
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../engine
-      '@cartography/export':
+      '@linework/export':
         specifier: workspace:*
         version: link:../export
-      '@cartography/github':
+      '@linework/github':
         specifier: workspace:*
         version: link:../../types/github
-      '@cartography/html-export':
+      '@linework/html-export':
         specifier: workspace:*
         version: link:../html-export
-      '@cartography/i18n':
+      '@linework/i18n':
         specifier: workspace:*
         version: link:../i18n
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../icons
-      '@cartography/layout':
+      '@linework/layout':
         specifier: workspace:*
         version: link:../layout
-      '@cartography/mcp':
+      '@linework/mcp':
         specifier: workspace:*
         version: link:../mcp
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../theme
       '@resvg/resvg-js':
@@ -157,7 +157,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@cartography/i18n':
+      '@linework/i18n':
         specifier: workspace:*
         version: link:../i18n
       ajv:
@@ -169,25 +169,25 @@ importers:
 
   packages/describe:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
-      '@cartography/i18n':
+      '@linework/i18n':
         specifier: workspace:*
         version: link:../i18n
 
   packages/diff:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../engine
-      '@cartography/render':
+      '@linework/render':
         specifier: workspace:*
         version: link:../render
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../theme
       yaml:
@@ -196,94 +196,94 @@ importers:
 
   packages/embed:
     devDependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../engine
 
   packages/engine:
     dependencies:
-      '@cartography/access':
+      '@linework/access':
         specifier: workspace:*
         version: link:../../types/access
-      '@cartography/azure':
+      '@linework/azure':
         specifier: workspace:*
         version: link:../../types/azure
-      '@cartography/capabilities':
+      '@linework/capabilities':
         specifier: workspace:*
         version: link:../../types/capabilities
-      '@cartography/class':
+      '@linework/class':
         specifier: workspace:*
         version: link:../../types/class
-      '@cartography/cloud':
+      '@linework/cloud':
         specifier: workspace:*
         version: link:../../types/cloud
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
-      '@cartography/data-products':
+      '@linework/data-products':
         specifier: workspace:*
         version: link:../../types/data-products
-      '@cartography/describe':
+      '@linework/describe':
         specifier: workspace:*
         version: link:../describe
-      '@cartography/erd':
+      '@linework/erd':
         specifier: workspace:*
         version: link:../../types/erd
-      '@cartography/gitflow':
+      '@linework/gitflow':
         specifier: workspace:*
         version: link:../../types/gitflow
-      '@cartography/github':
+      '@linework/github':
         specifier: workspace:*
         version: link:../../types/github
-      '@cartography/i18n':
+      '@linework/i18n':
         specifier: workspace:*
         version: link:../i18n
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../icons
-      '@cartography/journey':
+      '@linework/journey':
         specifier: workspace:*
         version: link:../../types/journey
-      '@cartography/kubernetes':
+      '@linework/kubernetes':
         specifier: workspace:*
         version: link:../../types/kubernetes
-      '@cartography/layout':
+      '@linework/layout':
         specifier: workspace:*
         version: link:../layout
-      '@cartography/matrix':
+      '@linework/matrix':
         specifier: workspace:*
         version: link:../../types/matrix
-      '@cartography/mindmap':
+      '@linework/mindmap':
         specifier: workspace:*
         version: link:../../types/mindmap
-      '@cartography/network':
+      '@linework/network':
         specifier: workspace:*
         version: link:../../types/network
-      '@cartography/process':
+      '@linework/process':
         specifier: workspace:*
         version: link:../../types/process
-      '@cartography/render':
+      '@linework/render':
         specifier: workspace:*
         version: link:../render
-      '@cartography/roadmap':
+      '@linework/roadmap':
         specifier: workspace:*
         version: link:../../types/roadmap
-      '@cartography/sequence':
+      '@linework/sequence':
         specifier: workspace:*
         version: link:../../types/sequence
-      '@cartography/states':
+      '@linework/states':
         specifier: workspace:*
         version: link:../../types/states
-      '@cartography/systems':
+      '@linework/systems':
         specifier: workspace:*
         version: link:../../types/systems
-      '@cartography/teams':
+      '@linework/teams':
         specifier: workspace:*
         version: link:../../types/teams
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../theme
       yaml:
@@ -296,22 +296,22 @@ importers:
 
   packages/export:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
-      '@cartography/describe':
+      '@linework/describe':
         specifier: workspace:*
         version: link:../describe
-      '@cartography/i18n':
+      '@linework/i18n':
         specifier: workspace:*
         version: link:../i18n
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../icons
-      '@cartography/render':
+      '@linework/render':
         specifier: workspace:*
         version: link:../render
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../theme
       fflate:
@@ -324,7 +324,7 @@ importers:
         specifier: 0.1.8
         version: 0.1.8
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../engine
       '@resvg/resvg-js':
@@ -336,25 +336,25 @@ importers:
 
   packages/html-export:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
-      '@cartography/describe':
+      '@linework/describe':
         specifier: workspace:*
         version: link:../describe
-      '@cartography/embed':
+      '@linework/embed':
         specifier: workspace:*
         version: link:../embed
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../engine
-      '@cartography/i18n':
+      '@linework/i18n':
         specifier: workspace:*
         version: link:../i18n
-      '@cartography/render':
+      '@linework/render':
         specifier: workspace:*
         version: link:../render
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../theme
       fflate:
@@ -380,31 +380,31 @@ importers:
 
   packages/layout:
     dependencies:
-      '@cartography/core':
-        specifier: workspace:*
-        version: link:../core
       '@hpcc-js/wasm-graphviz':
         specifier: 1.30.0
         version: 1.30.0
+      '@linework/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/mcp:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
-      '@cartography/describe':
+      '@linework/describe':
         specifier: workspace:*
         version: link:../describe
-      '@cartography/diff':
+      '@linework/diff':
         specifier: workspace:*
         version: link:../diff
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../engine
-      '@cartography/layout':
+      '@linework/layout':
         specifier: workspace:*
         version: link:../layout
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../theme
       '@modelcontextprotocol/sdk':
@@ -419,28 +419,28 @@ importers:
 
   packages/render:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
-      '@cartography/i18n':
+      '@linework/i18n':
         specifier: workspace:*
         version: link:../i18n
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../icons
-      '@cartography/lanes':
+      '@linework/lanes':
         specifier: workspace:*
         version: link:../lanes
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../theme
 
   packages/theme:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
-      '@cartography/i18n':
+      '@linework/i18n':
         specifier: workspace:*
         version: link:../i18n
       yaml:
@@ -449,28 +449,28 @@ importers:
 
   packages/tree:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
 
   packages/vscode:
     devDependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../core
-      '@cartography/diff':
+      '@linework/diff':
         specifier: workspace:*
         version: link:../diff
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../engine
-      '@cartography/export':
+      '@linework/export':
         specifier: workspace:*
         version: link:../export
-      '@cartography/mcp':
+      '@linework/mcp':
         specifier: workspace:*
         version: link:../mcp
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../theme
       '@playwright/test':
@@ -494,36 +494,6 @@ importers:
 
   packages/web:
     dependencies:
-      '@cartography/core':
-        specifier: workspace:*
-        version: link:../core
-      '@cartography/describe':
-        specifier: workspace:*
-        version: link:../describe
-      '@cartography/diff':
-        specifier: workspace:*
-        version: link:../diff
-      '@cartography/engine':
-        specifier: workspace:*
-        version: link:../engine
-      '@cartography/export':
-        specifier: workspace:*
-        version: link:../export
-      '@cartography/html-export':
-        specifier: workspace:*
-        version: link:../html-export
-      '@cartography/i18n':
-        specifier: workspace:*
-        version: link:../i18n
-      '@cartography/icons':
-        specifier: workspace:*
-        version: link:../icons
-      '@cartography/layout':
-        specifier: workspace:*
-        version: link:../layout
-      '@cartography/theme':
-        specifier: workspace:*
-        version: link:../theme
       '@codemirror/autocomplete':
         specifier: ^6.20.4
         version: 6.20.4
@@ -551,6 +521,36 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.5
         version: 1.2.5
+      '@linework/core':
+        specifier: workspace:*
+        version: link:../core
+      '@linework/describe':
+        specifier: workspace:*
+        version: link:../describe
+      '@linework/diff':
+        specifier: workspace:*
+        version: link:../diff
+      '@linework/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@linework/export':
+        specifier: workspace:*
+        version: link:../export
+      '@linework/html-export':
+        specifier: workspace:*
+        version: link:../html-export
+      '@linework/i18n':
+        specifier: workspace:*
+        version: link:../i18n
+      '@linework/icons':
+        specifier: workspace:*
+        version: link:../icons
+      '@linework/layout':
+        specifier: workspace:*
+        version: link:../layout
+      '@linework/theme':
+        specifier: workspace:*
+        version: link:../theme
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -585,32 +585,32 @@ importers:
 
   types/access:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
 
   types/azure:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
 
   types/capabilities:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@cartography/tree':
+      '@linework/tree':
         specifier: workspace:*
         version: link:../../packages/tree
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/render':
+      '@linework/render':
         specifier: workspace:*
         version: link:../../packages/render
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../../packages/theme
       yaml:
@@ -619,11 +619,11 @@ importers:
 
   types/class:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
       yaml:
@@ -632,48 +632,48 @@ importers:
 
   types/cloud:
     dependencies:
-      '@cartography/azure':
+      '@linework/azure':
         specifier: workspace:*
         version: link:../azure
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../../packages/icons
 
   types/data-products:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
 
   types/erd:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
 
   types/gitflow:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../../packages/icons
-      '@cartography/render':
+      '@linework/render':
         specifier: workspace:*
         version: link:../../packages/render
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../../packages/theme
       yaml:
@@ -682,29 +682,29 @@ importers:
 
   types/github:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
 
   types/journey:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@cartography/i18n':
+      '@linework/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../../packages/icons
-      '@cartography/render':
+      '@linework/render':
         specifier: workspace:*
         version: link:../../packages/render
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../../packages/theme
       yaml:
@@ -713,37 +713,37 @@ importers:
 
   types/kubernetes:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../../packages/icons
 
   types/matrix:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
 
   types/mindmap:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@cartography/tree':
+      '@linework/tree':
         specifier: workspace:*
         version: link:../../packages/tree
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
       yaml:
@@ -752,33 +752,33 @@ importers:
 
   types/network:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../../packages/icons
 
   types/process:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../../packages/icons
-      '@cartography/render':
+      '@linework/render':
         specifier: workspace:*
         version: link:../../packages/render
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../../packages/theme
       yaml:
@@ -787,20 +787,20 @@ importers:
 
   types/roadmap:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../../packages/icons
-      '@cartography/render':
+      '@linework/render':
         specifier: workspace:*
         version: link:../../packages/render
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../../packages/theme
       yaml:
@@ -809,23 +809,23 @@ importers:
 
   types/sequence:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../../packages/icons
-      '@cartography/lanes':
+      '@linework/lanes':
         specifier: workspace:*
         version: link:../../packages/lanes
-      '@cartography/render':
+      '@linework/render':
         specifier: workspace:*
         version: link:../../packages/render
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../../packages/theme
       yaml:
@@ -834,20 +834,20 @@ importers:
 
   types/states:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../../packages/icons
-      '@cartography/render':
+      '@linework/render':
         specifier: workspace:*
         version: link:../../packages/render
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../../packages/theme
       yaml:
@@ -856,14 +856,14 @@ importers:
 
   types/systems:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/icons':
+      '@linework/icons':
         specifier: workspace:*
         version: link:../../packages/icons
       yaml:
@@ -872,20 +872,20 @@ importers:
 
   types/teams:
     dependencies:
-      '@cartography/core':
+      '@linework/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@cartography/tree':
+      '@linework/tree':
         specifier: workspace:*
         version: link:../../packages/tree
     devDependencies:
-      '@cartography/engine':
+      '@linework/engine':
         specifier: workspace:*
         version: link:../../packages/engine
-      '@cartography/render':
+      '@linework/render':
         specifier: workspace:*
         version: link:../../packages/render
-      '@cartography/theme':
+      '@linework/theme':
         specifier: workspace:*
         version: link:../../packages/theme
       yaml:

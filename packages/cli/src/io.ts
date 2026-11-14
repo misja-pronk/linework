@@ -2,14 +2,14 @@
 // the files a diagram refers to, its layout sidecar, and where pictures go.
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseSidecar, pictureName, type Diagnostic, type LayoutSidecar } from '@cartography/core';
+import { parseSidecar, pictureName, type Diagnostic, type LayoutSidecar } from '@linework/core';
 import { t, type Lang } from './i18n.ts';
 
 /** The terminal of a run: process.stdout and friends for the real CLI, buffers in tests. */
 export interface Io {
   stdout: { write(data: string | Uint8Array): unknown; isTTY?: boolean };
   stderr: { write(data: string): unknown; isTTY?: boolean };
-  /** Standard input, read whole (carto render -). */
+  /** Standard input, read whole (linework render -). */
   stdin(): string;
   env: NodeJS.ProcessEnv;
 }
@@ -21,7 +21,7 @@ export const processIo: Io = {
   env: process.env,
 };
 
-/** A mistake in how carto was called: said in one line, without a stack. */
+/** A mistake in how linework was called: said in one line, without a stack. */
 export class UsageError extends Error {}
 
 /** One run of the CLI: its terminal, and the files each diagram read (so watch can follow them). */
@@ -41,7 +41,7 @@ export class Ctx {
   readonly dim: (s: string) => string;
   readonly bold: (s: string) => string;
 
-  /** The language asked for on purpose (--lang or CARTO_LANG): the drawing's, for a diagram without lang:. */
+  /** The language asked for on purpose (--lang or LINEWORK_LANG): the drawing's, for a diagram without lang:. */
   readonly lang: Lang | undefined;
 
   constructor(io: Io, lang?: Lang) {

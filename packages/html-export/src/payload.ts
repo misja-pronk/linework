@@ -13,7 +13,7 @@ export interface Payload {
   files: PFile[];
   drawings: PDrawing[];
   elements: PElement[];
-  /** Pictures that repeat (official icons), referred to from the SVGs as data-carto-icon="n". */
+  /** Pictures that repeat (official icons), referred to from the SVGs as data-linework-icon="n". */
   icons: string[];
 }
 

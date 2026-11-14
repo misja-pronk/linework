@@ -7,11 +7,11 @@
 // icons) with their final colours. The SVG drawer below and the slide drawer in the export package
 // both walk that list, so a slide gets the same picture as native, editable shapes.
 import { esc } from './paint.ts';
-import { journeyMood, type Box, type JourneyPersona, type JourneyPhase, type JourneyRow, type JourneyShape, type JourneyStep, type Tone } from '@cartography/core';
-import { baselineOffset, fitText, measureText, type Theme } from '@cartography/theme';
-import { icon } from '@cartography/icons';
+import { journeyMood, type Box, type JourneyPersona, type JourneyPhase, type JourneyRow, type JourneyShape, type JourneyStep, type Tone } from '@linework/core';
+import { baselineOffset, fitText, measureText, type Theme } from '@linework/theme';
+import { icon } from '@linework/icons';
 import { quietTheme, wrap } from './steps.ts';
-import { term, tr } from '@cartography/i18n/drawing';
+import { term, tr } from '@linework/i18n/drawing';
 
 type Weight = 400 | 500 | 600;
 export type JourneySeg = ['M', number, number] | ['L', number, number] | ['C', number, number, number, number, number, number] | ['Z'];

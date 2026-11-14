@@ -1,10 +1,10 @@
 // Official icons (BYO packs) reach the slides as the vendor's own pictures, and the sketch look keeps its typeface.
 import { unzipSync, strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { render } from '@cartography/engine';
-import { themes } from '@cartography/theme';
+import { render } from '@linework/engine';
+import { themes } from '@linework/theme';
 import fs from 'node:fs';
-import { fontFiles } from '@cartography/theme/node';
+import { fontFiles } from '@linework/theme/node';
 import { toPdf, toPptx } from '../src/index.ts';
 
 const vendor = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18"><rect width="18" height="18" fill="#0A7"/></svg>';

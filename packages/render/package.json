@@ -1,5 +1,5 @@
 {
-  "name": "@cartography/render",
+  "name": "@linework/render",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
@@ -7,10 +7,10 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@cartography/core": "workspace:*",
-    "@cartography/i18n": "workspace:*",
-    "@cartography/theme": "workspace:*",
-    "@cartography/icons": "workspace:*",
-    "@cartography/lanes": "workspace:*"
+    "@linework/core": "workspace:*",
+    "@linework/i18n": "workspace:*",
+    "@linework/theme": "workspace:*",
+    "@linework/icons": "workspace:*",
+    "@linework/lanes": "workspace:*"
   }
 }

@@ -1,7 +1,7 @@
 # The platform described once, drawn twice so each fits a slide: the overview (the first view, what
 # the file opens on) shows who uses it and the way in, with the cluster and the data tier closed;
 # "Inside the cluster" opens them up: the teams, their services and the data stores.
-#   carto render examples/systems/saas-platform.yaml --view cluster
+#   linework render examples/systems/saas-platform.yaml --view cluster
 type: systems
 title: Booking platform
 subtitle: Multi-tenant SaaS on Kubernetes

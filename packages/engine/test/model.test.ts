@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { linkHref, parseLink, viewPins, withViewPins } from '@cartography/core';
+import { linkHref, parseLink, viewPins, withViewPins } from '@linework/core';
 import { render } from '../src/index.ts';
 
 const files = (map: Record<string, string>) => (f: string) => {

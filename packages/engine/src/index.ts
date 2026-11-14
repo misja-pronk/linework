@@ -54,38 +54,38 @@ import {
   type Source,
   type StepState,
   type Word,
-} from '@cartography/core';
-import { layout, portOrder, withPortOrder, type Tuning } from '@cartography/layout';
-import { drawSvg, size, smallestTextPx, type SvgOptions } from '@cartography/render';
-import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type FontFace, type Theme } from '@cartography/theme';
+} from '@linework/core';
+import { layout, portOrder, withPortOrder, type Tuning } from '@linework/layout';
+import { drawSvg, size, smallestTextPx, type SvgOptions } from '@linework/render';
+import { loadFonts, resolveTheme, themes, themeTextFonts, withTextFonts, type FontFace, type Theme } from '@linework/theme';
 import { resolveIcons, type IconMode, type IconPackFile } from './icons.ts';
-import { accessibleSvg, describe, toText } from '@cartography/describe';
-import { vendors as iconVendors, type KindInfo } from '@cartography/icons';
-import { format, type Lang } from '@cartography/i18n';
-import { term, tr } from '@cartography/i18n/drawing';
+import { accessibleSvg, describe, toText } from '@linework/describe';
+import { vendors as iconVendors, type KindInfo } from '@linework/icons';
+import { format, type Lang } from '@linework/i18n';
+import { term, tr } from '@linework/i18n/drawing';
 import { diagramLang, translateGraph } from './lang.ts';
 
 const typesOfVendor = (vendor: string) => (iconVendors as Record<string, { types: string[] }>)[vendor]?.types ?? [];
-import { c4, contextMap, systems } from '@cartography/systems';
-import { azure } from '@cartography/azure';
-import { cloud } from '@cartography/cloud';
-import { kubernetes } from '@cartography/kubernetes';
-import { network } from '@cartography/network';
-import { erd } from '@cartography/erd';
-import { access } from '@cartography/access';
-import { github } from '@cartography/github';
-import { dataProducts } from '@cartography/data-products';
-import { sequence } from '@cartography/sequence';
-import { gitflow } from '@cartography/gitflow';
-import { roadmap } from '@cartography/roadmap';
-import { journey } from '@cartography/journey';
-import { process } from '@cartography/process';
-import { states } from '@cartography/states';
-import { matrix } from '@cartography/matrix';
-import { capabilities } from '@cartography/capabilities';
-import { teams } from '@cartography/teams';
-import { classDiagram } from '@cartography/class';
-import { mindmap } from '@cartography/mindmap';
+import { c4, contextMap, systems } from '@linework/systems';
+import { azure } from '@linework/azure';
+import { cloud } from '@linework/cloud';
+import { kubernetes } from '@linework/kubernetes';
+import { network } from '@linework/network';
+import { erd } from '@linework/erd';
+import { access } from '@linework/access';
+import { github } from '@linework/github';
+import { dataProducts } from '@linework/data-products';
+import { sequence } from '@linework/sequence';
+import { gitflow } from '@linework/gitflow';
+import { roadmap } from '@linework/roadmap';
+import { journey } from '@linework/journey';
+import { process } from '@linework/process';
+import { states } from '@linework/states';
+import { matrix } from '@linework/matrix';
+import { capabilities } from '@linework/capabilities';
+import { teams } from '@linework/teams';
+import { classDiagram } from '@linework/class';
+import { mindmap } from '@linework/mindmap';
 
 // Systems first: the generic type people reach for, and what imports produce.
 export const types: DiagramType[] = [systems, c4, network, azure, cloud, kubernetes, erd, access, github, dataProducts, sequence, gitflow, roadmap, journey, process, states, contextMap, matrix, capabilities, teams, classDiagram, mindmap];
@@ -126,10 +126,10 @@ export function schemaOf(type: DiagramType): Record<string, unknown> {
 }
 
 /** `lang:`, the language of the words the drawing adds itself (the key, step counters, kind names). */
-const langSchema = { enum: ['en', 'nl'], description: 'The language of the words Cartography adds to the drawing itself (the key, kind names, step counters): en or nl. Your own labels stay as written.' };
+const langSchema = { enum: ['en', 'nl'], description: 'The language of the words Linework adds to the drawing itself (the key, kind names, step counters): en or nl. Your own labels stay as written.' };
 
 export interface RenderOptions extends SvgOptions {
-  /** The language of the drawing's own words when the diagram has no `lang:` (--lang, CARTO_LANG). */
+  /** The language of the drawing's own words when the diagram has no `lang:` (--lang, LINEWORK_LANG). */
   lang?: Lang;
   /** Used when the diagram names no `theme:` of its own: light, dark, a built-in brand theme, or a Theme. */
   theme?: string | Theme;
@@ -349,9 +349,9 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   if (!type) {
     const ids = types.map((t) => t.id);
     if (data.type == null) return { diagnostics: [...diagnostics, source.at([], `Add "type:" at the top, one of: ${ids.join(', ')} (or model)`)] };
-    // The type meant, or a few common ones: the whole list is in completion and carto types, with what each is for.
+    // The type meant, or a few common ones: the whole list is in completion and linework types, with what each is for.
     const near = nearest(String(data.type), [...ids, 'model']);
-    const message = `Unknown type "${String(data.type)}": ${near ? `did you mean ${near}?` : 'use a type such as systems, azure, sequence or process'} (completion in the editor and carto types list them all)`;
+    const message = `Unknown type "${String(data.type)}": ${near ? `did you mean ${near}?` : 'use a type such as systems, azure, sequence or process'} (completion in the editor and linework types list them all)`;
     return { diagnostics: [...diagnostics, { ...source.at(['type'], message), choices: [...ids, 'model'] }] };
   }
 
@@ -601,7 +601,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     const at = step ? steps[step - 1] : undefined;
     const title = at ? `${said.title}, ${tr(lang, 'step {n} of {count}', { n: step!, count: steps.length })}${at.title ? `: ${at.title}` : ''}` : said.title;
     const desc = toText(said, { title: false }).trim();
-    out.svg = accessibleSvg(out.svg, { title, desc: at?.caption ? `${at.caption}\n\n${desc}` : desc, id: `${opts.idPrefix ?? 'carto'}-${hashText(title + desc)}`, lang });
+    out.svg = accessibleSvg(out.svg, { title, desc: at?.caption ? `${at.caption}\n\n${desc}` : desc, id: `${opts.idPrefix ?? 'linework'}-${hashText(title + desc)}`, lang });
   }
   // A model's views, and the views the type draws besides: its first own view is the drawing itself.
   // The type's own view this file is written for: model views and includes come first, so not with those.
@@ -781,7 +781,7 @@ export function pageFor(aspect: number | 'auto' | undefined): Page | undefined {
 }
 
 // Which text counts: render's smallestTextPx (and DETAIL_PX), the rule the deck reports its slides by too.
-export { DETAIL_PX, smallestTextPx } from '@cartography/render';
+export { DETAIL_PX, smallestTextPx } from '@linework/render';
 
 /**
  * The smallest text a reader needs in a drawing (smallestTextPx), in points, at `ptPerPx` points per
@@ -796,7 +796,7 @@ export function textPtAt(svg: string, ptPerPx: number): number | undefined {
 /**
  * The smallest text of a drawing, in points, when the whole SVG (its own title and margins with it)
  * is fitted onto a page (a 16:9 slide, 13.33 inches wide, unless another is given): what an SVG or PNG
- * placed on that page shows, and what `carto validate` measures a sheet of paper (aspect: a4) by. A
+ * placed on that page shows, and what `linework validate` measures a sheet of paper (aspect: a4) by. A
  * slide is measured on the slide the PowerPoint export makes instead (textPtAt with its scale).
  * Undefined when it has no text.
  */

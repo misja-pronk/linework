@@ -1,6 +1,6 @@
 # Diagrams-as-code tool market (as of 2026-11-09)
 
-Research scope: Mermaid (+ Mermaid Chart, now mermaid.ai), D2 (+ TALA), PlantUML, Structurizr, Graphviz, mingrammer Diagrams, Ilograph, Kroki, Eraser, LikeC4, newer entrants. Purpose: positioning "Cartography" (YAML + interactive builder that writes YAML back, sidecar layout pins, own orthogonal router on Graphviz dot, 9 domain diagram types).
+Research scope: Mermaid (+ Mermaid Chart, now mermaid.ai), D2 (+ TALA), PlantUML, Structurizr, Graphviz, mingrammer Diagrams, Ilograph, Kroki, Eraser, LikeC4, newer entrants. Purpose: positioning "Linework" (YAML + interactive builder that writes YAML back, sidecar layout pins, own orthogonal router on Graphviz dot, 9 domain diagram types).
 
 Repo snapshot (GitHub API, fetched 2026-11-09 via `gh api`):
 
@@ -88,13 +88,13 @@ The market splits into (a) ubiquitous-but-ugly renderers (Mermaid, PlantUML, Gra
 - Free $0 (3 files, 3 AI credits, 7-day history); Business $45/member/mo annual ($60 monthly), 100 AI credits/mo, 1 Git repo; Business Plus $42/member/mo annual, 10-seat min, 250 credits, SAML; Enterprise custom, unlimited AI. All plans: AI diagrams, diagram-as-code, 3,000+ tech icons, infinite canvas, export PDF/PNG/SVG/MD, Notion and Confluence integrations, VS Code extension. GitHub integration paid only. Starter plan discontinued for new teams. — [eraser.io/pricing](https://www.eraser.io/pricing)
 
 **Newer entrants**
-- oxdraw (Show HN 2025-10-25, 266 pts): reads Mermaid, GUI drag to customise layout, manual changes saved as comments so files still render in stock Mermaid — the closest analogue to Cartography's sidecar pins. — [HN 45706792](https://news.ycombinator.com/item?id=45706792)
+- oxdraw (Show HN 2025-10-25, 266 pts): reads Mermaid, GUI drag to customise layout, manual changes saved as comments so files still render in stock Mermaid — the closest analogue to Linework's sidecar pins. — [HN 45706792](https://news.ycombinator.com/item?id=45706792)
 - Scryer (canvas editor docs surfaced), small animated/AI arch-diagram projects on GitHub topics; adoption not verifiable. — [scryer](https://aklos.github.io/scryer/editor/canvas), [GitHub topic diagrams-as-code](https://github.com/topics/diagrams-as-code)
 
 ### Inferences
-- Across Mermaid, PlantUML, mingrammer Diagrams and LikeC4 the most persistent pain is layout control on large/clustered graphs (cluster-to-cluster edges, ports, wrapping). Cartography's orthogonal router + pins addresses the single loudest complaint category.
-- Mermaid's top-voted open requests include **network topology** (+329) and **component diagrams** (+364) — domain diagram types Cartography targets (networking, Azure/K8s) are visibly underserved by the market leader.
-- TALA going open source removes D2's main paywall; D2 now has free pinning + orthogonal layout, so it is Cartography's closest direct competitor on layout quality — but its future is uncertain (company shut, non-profit, AI-driven development) and it still has no GitHub rendering.
+- Across Mermaid, PlantUML, mingrammer Diagrams and LikeC4 the most persistent pain is layout control on large/clustered graphs (cluster-to-cluster edges, ports, wrapping). Linework's orthogonal router + pins addresses the single loudest complaint category.
+- Mermaid's top-voted open requests include **network topology** (+329) and **component diagrams** (+364) — domain diagram types Linework targets (networking, Azure/K8s) are visibly underserved by the market leader.
+- TALA going open source removes D2's main paywall; D2 now has free pinning + orthogonal layout, so it is Linework's closest direct competitor on layout quality — but its future is uncertain (company shut, non-profit, AI-driven development) and it still has no GitHub rendering.
 
 ### Gaps
 - Could not retrieve Structurizr server price figures or LikeC4's exact drag-and-save UX (whether positions live in a separate file).
@@ -116,7 +116,7 @@ Manual overrides exist in TALA (inline `top`/`left` in the source), Structurizr 
 - TALA warns that adding a node can noticeably change layout (random seeds). — [TALA OSS blog](https://d2lang.com/blog/tala-is-open-source/)
 
 ### Inferences
-- Cartography's sidecar pin file is a differentiator vs D2 (pins inline in source, polluting text) and similar in spirit to Structurizr/LikeC4 (layout stored separately); LikeC4's "layout drift" check is a feature worth copying (warn when pins reference removed nodes or model changed).
+- Linework's sidecar pin file is a differentiator vs D2 (pins inline in source, polluting text) and similar in spirit to Structurizr/LikeC4 (layout stored separately); LikeC4's "layout drift" check is a feature worth copying (warn when pins reference removed nodes or model changed).
 - Layout stability ("jumps around snapshot to snapshot", TALA reshuffles on node add) is a distinct complaint; deterministic dot + pins can be marketed as stable diffs.
 
 ### Gaps
@@ -135,7 +135,7 @@ Complaints cluster into: (1) uncontrollable/spaghetti layouts and edge routing a
 - Reddit: no high-quality r/devops / r/softwarearchitecture threads retrieved this session; one r/dataengineering thread on AI technical diagrams exists. — [r/dataengineering mirror](https://reddit.birdcat.cafe/r/dataengineering/comments/1jmmf52/how_to_use_ai_to_create_better_technical_diagrams)
 
 ### Inferences
-- Default visual polish matters for adoption beyond engineers (D2 "hard sell to management"); Cartography's domain-specific icon/stencil sets (Azure, K8s) and LCARS-quality styling can be a lever.
+- Default visual polish matters for adoption beyond engineers (D2 "hard sell to management"); Linework's domain-specific icon/stencil sets (Azure, K8s) and LCARS-quality styling can be a lever.
 
 ### Gaps
 - Reddit quotes not retrieved (Reddit not directly fetched); treat as gap.
@@ -153,7 +153,7 @@ Users like one model, many views because views stay consistent and can be valida
 - Simon Brown argues "models as code" constrains AI output and gives better C4 results than PlantUML/Mermaid/D2 diagram syntax. — [Patreon: AI vs architecture diagrams part 3](https://www.patreon.com/posts/152027514)
 
 ### Inferences
-- Cartography's 9 separate diagram types are diagram-centric, not model-centric; a shared model across types (e.g., same Azure resource in network and data-product views) would answer the multi-view demand.
+- Linework's 9 separate diagram types are diagram-centric, not model-centric; a shared model across types (e.g., same Azure resource in network and data-product views) would answer the multi-view demand.
 
 ### Gaps
 - No quantitative user-sentiment data on multi-view.
@@ -172,7 +172,7 @@ Every commercial player bundles credit-metered AI generation (mermaid.ai 15–2,
 - Structurizr and LikeC4 both ship MCP servers. — [docs.structurizr.com/ai](https://docs.structurizr.com/ai), [likec4.dev](https://likec4.dev/)
 
 ### Inferences
-- A YAML schema (Cartography) with domain types is easy for LLMs and validatable; offering an MCP server/JSON schema would match LikeC4/Structurizr.
+- A YAML schema (Linework) with domain types is easy for LLMs and validatable; offering an MCP server/JSON schema would match LikeC4/Structurizr.
 
 ### Gaps
 - No independent benchmark of Eraser DiagramGPT or Mermaid AI accuracy found.
@@ -190,7 +190,7 @@ Native rendering is the decisive adoption driver: Mermaid wins on GitHub/GitLab 
 - Obsidian used for D2/Mermaid rendering; Mermaid ELK renderer plugin exists for Obsidian. — [HN 45707539](https://news.ycombinator.com/item?id=45707539), [Obsidian forum](https://forum.obsidian.md/t/mermaid-elk-renderer/113112)
 
 ### Inferences
-- Cartography cannot get native GitHub rendering; mitigations: commit SVG output via GitHub Action, export to Mermaid/draw.io as a fallback, Kroki plugin, static HTML viewer. Draw.io import/export is a repeatedly requested feature (D2 #743, Kroki #405).
+- Linework cannot get native GitHub rendering; mitigations: commit SVG output via GitHub Action, export to Mermaid/draw.io as a fallback, Kroki plugin, static HTML viewer. Draw.io import/export is a repeatedly requested feature (D2 #743, Kroki #405).
 
 ### Gaps
 - Notion's Mermaid support and Confluence's native options not verified from primary docs this session.

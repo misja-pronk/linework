@@ -3,7 +3,7 @@
 A data mesh as one map: the products per domain, their ports, which product reads which, and the contracts behind the ports. A contract can be an Open Data Contract Standard file ([ODCS](#what-is-read-from-a-data-contract-odcs)) next to the diagram: its schema, guarantees and checks are read from there. No catalogue, no server, nothing leaves your machine.
 
 ```sh
-carto render examples/data-products/mesh.yaml -o mesh.svg
+linework render examples/data-products/mesh.yaml -o mesh.svg
 ```
 
 ![The mesh map of the example](data-products/mesh.png)
@@ -26,7 +26,7 @@ In a product's or a domain's view the story runs in one band from left to right:
 
 An input port reads the same everywhere: what it reads from (the source or the product), then how it arrives (its `label`, else its `name`), the port it reads of a product that has several, or the kind of system. The input ports stand in the order of what feeds them, top to bottom, so their lines never cross on the way in; where that makes no difference they keep the order they are written in. A step whose `focus:` names a product lights its contract with it.
 
-Which ones the view picker (and `carto render --all-views`, `carto validate`) offers follows one rule that does not depend on the drawing. A contract is the tall part of a detailed drawing, and two of them stacked, or one next to another product, no longer fit a slide. So:
+Which ones the view picker (and `linework render --all-views`, `linework validate`) offers follows one rule that does not depend on the drawing. A contract is the tall part of a detailed drawing, and two of them stacked, or one next to another product, no longer fit a slide. So:
 
 - A domain with **one product**, or with **no contract** on any of its products' ports, gets one view: `detailed-<domain>`.
 - A domain with **more than one product and a contract among them** gets one view per product: `detailed-<product>`, in the order the products are written. Its `detailed-<domain>` is still drawn when written as `view:` or asked for with `--view`, but not offered.
@@ -89,8 +89,8 @@ views:
 On the command line, without touching the file:
 
 ```sh
-carto render mesh.yaml --focus revenue --hops all --upstream -o lineage.svg
-carto render shop.yaml --focus api --hops 2            # any diagram of boxes and lines
+linework render mesh.yaml --focus revenue --hops all --upstream -o lineage.svg
+linework render shop.yaml --focus api --hops 2         # any diagram of boxes and lines
 ```
 
 `--focus` wins over a `focus:` in the file. A step's `focus:` in [steps](steps.md) is its relative: that one dims what is around, this one leaves it out.

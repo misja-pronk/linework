@@ -75,7 +75,7 @@ The market splits three ways. Free or cheap general canvases (draw.io, Excalidra
 ### Inferences
 - Per-seat pricing clusters at $6–20/editor/mo for canvases. Infra-sync tools cost more ($44–100+/mo) or are bundled (Cloudcraft is now effectively a Datadog feature, which is a lock-in vector).
 - tldraw's licence change makes it a risky base for an OSS tool's editor. Excalidraw (MIT, per general knowledge) or a custom canvas is safer.
-- The "generator" tools (Rover, Inkdrop, Pluralith, TerraVision, AzViz, portal visualiser) give accurate but ugly, dependency-graph-style output. They are not presentation-ready, which is the gap Cartography targets.
+- The "generator" tools (Rover, Inkdrop, Pluralith, TerraVision, AzViz, portal visualiser) give accurate but ugly, dependency-graph-style output. They are not presentation-ready, which is the gap Linework targets.
 
 ### Gaps
 - draw.io core licence and contribution policy were not verified this session. From memory, jgraph/drawio is Apache-2.0 and "open source, not open contribution". Verify at https://github.com/jgraph/drawio.
@@ -141,7 +141,7 @@ Sync is either (a) live cloud APIs (Cloudcraft for AWS/Azure, Hava for AWS/Azure
 - Microsoft agent skill writes Mermaid from a live resource group — [azure-resource-visualizer](https://azure.github.io/git-ape/docs/skills/azure-resource-visualizer)
 
 ### Inferences
-- An importer from Bicep/ARM/Terraform plan JSON and K8s manifests into Cartography YAML, keeping user pins on re-import, would combine the sync of generators with the polish of hand-drawn diagrams. No surveyed tool does diff-preserving re-import into a human-editable text file.
+- An importer from Bicep/ARM/Terraform plan JSON and K8s manifests into Linework YAML, keeping user pins on re-import, would combine the sync of generators with the polish of hand-drawn diagrams. No surveyed tool does diff-preserving re-import into a human-editable text file.
 
 ### Gaps
 - Bicep-specific import in commercial tools was not found. Cloudockit details are missing. Kubernetes-manifest visualisers were outside this search's results.
@@ -157,7 +157,7 @@ IcePanel Flows (step-through sequences over the model) is the stand-out storytel
 - Napkin targets "graphics before decks" (business visuals for slides) — [implicator.ai](https://www.implicator.ai/napkin-ai-bets-workers-need-graphics-before-they-need-full-decks/)
 
 ### Inferences
-- A 16:9 slide export with a consistent theme, plus step-through (Flows-like) for git flow and developer journeys, would differentiate Cartography.
+- A 16:9 slide export with a consistent theme, plus step-through (Flows-like) for git flow and developer journeys, would differentiate Linework.
 
 ### Gaps
 - Animation features (Miro presentation, Excalidraw/tldraw slides, Eraser presentation) were not researched in depth. Notion/Confluence embed specifics per tool were not verified.

@@ -2,14 +2,14 @@
 import type { CardForm, Graph, LayoutMemory, LayoutSidecar, Path, Placed, Sized, Tone } from './model.ts';
 import type { ModelContext } from './catalogue.ts';
 import type { EachContext } from './each.ts';
-import type { Lang } from '@cartography/i18n';
+import type { Lang } from '@linework/i18n';
 
 export interface DiagramType<Source = any> {
   /** The value of `type:` in the YAML. */
   id: string;
   name: string;
   description: string;
-  // Guidance for picking a type: the start dialog, `carto types`, the editor's type pill and docs/types.md.
+  // Guidance for picking a type: the start dialog, `linework types`, the editor's type pill and docs/types.md.
   // All optional, so a new type works without it; keep every string short.
   /** Lucide icon for the type card. */
   icon?: string;
@@ -28,7 +28,7 @@ export interface DiagramType<Source = any> {
   keywords?: string[];
   /** JSON Schema of the YAML; drives validation, editor autocomplete and the builder. */
   schema: object;
-  /** Starter YAML for `carto new` and the builder's template picker. */
+  /** Starter YAML for `linework new` and the builder's template picker. */
   template: string;
   /** Shapes the builder offers, in palette order. */
   palette: PaletteItem[];
@@ -52,7 +52,7 @@ export interface DiagramType<Source = any> {
    * not elements and lines, so a focus asked for is drawn in the first view instead. `default`: the one
    * drawn when none is asked for (else the first); the file's subtitle is about that one. `scroll`:
    * the view is read scrolling, too long for one slide (a whole sequence), and is presented by the
-   * other views (its phases): `carto validate` checks those for slides, and only hints at this one.
+   * other views (its phases): `linework validate` checks those for slides, and only hints at this one.
    * `hidden`: drawn when asked for by name (`view:` or `--view`), not offered in the picker or checked
    * view by view. `part`: the view draws only a part of the source (one domain), so the steps written
    * for the whole are not told in it. `steady`: the view is drawn in the source's direction (the type's
@@ -126,7 +126,7 @@ export interface Reference {
  * placeholders, word('{name} in detail', { name }). What fills a placeholder (a name the author
  * wrote) stays as written. 'one|many' picks a form by {count}; a word that means something else
  * elsewhere carries a context mark, word('public@exposure'), left out of the English. The Dutch is in
- * the terms of @cartography/i18n.
+ * the terms of @linework/i18n.
  */
 export type Word = (english: string, params?: Record<string, string>) => string;
 

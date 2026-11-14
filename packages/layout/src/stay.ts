@@ -1,7 +1,7 @@
 // Staying put: when the previous drawing is known, what was already there keeps its place and only
 // what is new looks for room. A diagram that jumps around on every edit cannot be reviewed in a
 // pull request, and loses the reader who knew where things were.
-import type { Box, Graph, LayoutMemory, Point } from '@cartography/core';
+import type { Box, Graph, LayoutMemory, Point } from '@linework/core';
 import type { Placement } from './dot.ts';
 
 /** A node this far (px) from where it was, once the drawing as a whole is slid back, has moved. */

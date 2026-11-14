@@ -9,7 +9,7 @@ const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
 const wait = (ms = 300) => page.waitForTimeout(ms);
-const yaml = () => page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}').text ?? '');
+const yaml = () => page.evaluate(() => JSON.parse(localStorage.getItem('linework:doc') ?? '{}').text ?? '');
 const saved = async () => (await wait(500), yaml());
 const chips = () => page.locator('.steps-strip .step-chip[data-step]:not([data-step="0"])').count();
 const active = () => page.locator('.steps-strip .step-chip.active').getAttribute('data-step');
@@ -38,12 +38,12 @@ const seed = (text, name) =>
       if (sessionStorage.getItem('seeded') === name) return;
       sessionStorage.setItem('seeded', name);
       localStorage.clear();
-      for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+      for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
     },
     [text, name],
   );
 await seed(text, 'steps.yaml');
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.waitForSelector('.drawing [data-node="vault"]', { timeout: 10000 });
 await wait(400);
 

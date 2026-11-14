@@ -7,11 +7,11 @@
       Only the app's own files run, no inline script and no eval: the schema validators are compiled
       ahead of time (pnpm validators). 'wasm-unsafe-eval': Graphviz is WebAssembly. Workers from blob: (fflate's async zip). Inline styles: React's style props and
       CodeMirror's sheets. Images and fonts from data: and blob: (drawings, icon packs, logos, the fonts in
-      an SVG). Nothing else: the app talks only to where it came from (carto serve, for the live link).
+      an SVG). Nothing else: the app talks only to where it came from (linework serve, for the live link).
       The dev server leaves this out (vite.config.ts).
     -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' blob: data:; object-src 'none'; base-uri 'self'; form-action 'none'" />
-    <title>Cartography</title>
+    <title>Linework</title>
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='4' fill='%23F7F4EE'/%3E%3Cpath d='M6 12V6h6M20 6h6v6M26 20v6h-6M12 26H6v-6' fill='none' stroke='%2316212C' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='3.5' fill='%23B5491B'/%3E%3C/svg%3E" />
   </head>

@@ -6,7 +6,7 @@
 ELK Layered is the most complete open layered engine (ports, sides, hierarchy, interactive modes, label placement, compaction, wrapping), and ELK also wraps libavoid for routing. yFiles (commercial) adds bus/edge-grouping routing and port candidates. TALA, D2's orthogonal engine, became open source under MPL-2.0 in September 2026. It is multi-seed and score-based, which makes it unstable. Its pinning model (locked coordinates plus hybrid placement) is the feature people like most. MSAGL.js (MIT, TypeScript) is the only permissively licensed package that ships a full rectilinear router with nudging, plus Sugiyama, MDS and IPSep-CoLa layouts.
 
 ### Cited Findings
-**ELK Layered (options that map onto Cartography's open problems)**
+**ELK Layered (options that map onto Linework's open problems)**
 - Ports: "Port Constraints" (default UNDEFINED), "Port Side", "Allow Non-Flow Ports To Switch Sides", "Consider Port Order", "Port Sorting Strategy" — [ELK Layered reference](https://eclipse.dev/elk/reference/algorithms/org-eclipse-elk-layered.html)
 - Edge routing: default `EdgeRouting.ORTHOGONAL`, with polyline and spline modes ("Spline Routing Mode" SLOPPY by default) — [ELK Layered reference](https://eclipse.dev/elk/reference/algorithms/org-eclipse-elk-layered.html)
 - Hierarchy: "Hierarchy Handling" (default INHERIT) and "Merge Hierarchy-Crossing Edges" (default true) — [ELK Layered reference](https://eclipse.dev/elk/reference/algorithms/org-eclipse-elk-layered.html)
@@ -50,9 +50,9 @@ ELK Layered is the most complete open layered engine (ports, sides, hierarchy, i
 - tldraw has elbow arrows (`ElbowArrowRoute` API, v3.13+) — [tldraw ElbowArrowRoute](https://tldraw.dev/reference/tldraw/ElbowArrowRoute); [tldraw v3.13.0](https://tldraw.dev/releases/v3.13.0). I did not research the algorithm.
 
 ### Inferences
-- Cartography's A* router with bend and length weights is about where Excalidraw and tldraw are. The gap to libavoid, yFiles and MSAGL is the **post-routing stage**: segment ordering through shared channels, then nudging (spreading segments in free space). The router can stay as it is; that stage is the missing piece.
+- Linework's A* router with bend and length weights is about where Excalidraw and tldraw are. The gap to libavoid, yFiles and MSAGL is the **post-routing stage**: segment ordering through shared channels, then nudging (spreading segments in free space). The router can stay as it is; that stage is the missing piece.
 - ELK's "Merge Edges" and libavoid's "hyperedges from common source" are both cheap trunk approaches: route one edge, then attach siblings at junctions. yFiles' BusDescriptor is the more complete model, with explicit bus IDs.
-- TALA is now MPL-2.0. That is file-level copyleft, so its code could be studied or ported, with ported files staying MPL. Its main weakness, instability between seeds, is exactly the stability problem on Cartography's list. Its pinning (hybrid locked coordinates) is the feature worth copying.
+- TALA is now MPL-2.0. That is file-level copyleft, so its code could be studied or ported, with ported files staying MPL. Its main weakness, instability between seeds, is exactly the stability problem on Linework's list. Its pinning (hybrid locked coordinates) is the feature worth copying.
 
 ### Gaps
 - I did not fetch Dagre (believed MIT), WebCola (believed MIT; the ialab page returned 403), OGDF (believed GPL v2/v3, not permissive) or elkjs (believed EPL-2.0, as the brief says) licence files in this pass. These are from memory and need checking against each repo's LICENSE.
@@ -74,7 +74,7 @@ The proven pipeline is: place nodes, remove overlaps, choose ports, route on an 
 - MSAGL.js ships IPSep-CoLa, the separation-constraint stress layout behind user pins and alignment, under MIT — [msagljs configuration docs](https://microsoft.github.io/msagljs/docs/configuration)
 
 ### Inferences
-- A concrete upgrade path for Cartography:
+- A concrete upgrade path for Linework:
   1. After A*, build a "channel segment" structure: maximal collinear segment runs per channel.
   2. Order the edges sharing a channel consistently, Pupyrev metro-line style, so they do not cross inside a bundle.
   3. Solve a 1-D separation problem per axis (VPSC or a small LP/QP) that pushes segments apart to an ideal gap while keeping them inside free space. Port positions along node sides then fall out of the same solve, which also solves port distribution.
@@ -98,7 +98,7 @@ MSAGL.js (`@msagl/core`, MIT, pure TypeScript) is the strongest permissive candi
 - Excalidraw is MIT on GitHub, so its elbow-arrow Dijkstra router is a permissive reference — [excalidraw/excalidraw](https://github.com/excalidraw/excalidraw/) (MIT from repo; I did not quote the LICENSE file this session)
 
 ### Inferences
-- Using LGPL libavoid compiled to WASM inside an MIT TypeScript tool is legally possible (dynamic-linking-style separation, with users able to replace the module), but awkward. Porting MSAGL.js's rectilinear nudging code (MIT) into Cartography, or depending on `@msagl/core` directly, has no licence friction.
+- Using LGPL libavoid compiled to WASM inside an MIT TypeScript tool is legally possible (dynamic-linking-style separation, with users able to replace the module), but awkward. Porting MSAGL.js's rectilinear nudging code (MIT) into Linework, or depending on `@msagl/core` directly, has no licence friction.
 - EPL-2.0 (elkjs) is acceptable as a dependency in an MIT project, but modified ELK files must stay EPL.
 
 ### Gaps
@@ -116,8 +116,8 @@ Research and industry share a core set of metrics: crossings, bends, total edge 
 - Didimo, Montecchiani and Piselli (arXiv 2505.03678, 2025) test how layout choice affects multimodal LLMs (GPT-4o, Claude 3.7 Sonnet) reading graphs. Better human readability improves model accuracy; orthogonal layouts helped on local-connectivity tasks, straight-line layouts on global tasks — [arXiv 2505.03678](https://arxiv.org/abs/2505.03678v1)
 
 ### Inferences
-- Cartography's score (bends, crossings, length) matches the research core. Adding area or aspect ratio, δmin (clearance), edge-length variance and a group-compactness term would match the Hegemann–Wolff and TALA sets. A stability term (displacement from the previous layout) is what neither TALA nor dot has.
-- No standard architecture-diagram benchmark was found. Cartography could publish one (C4/AWS-style samples, scored on these metrics) as a differentiator.
+- Linework's score (bends, crossings, length) matches the research core. Adding area or aspect ratio, δmin (clearance), edge-length variance and a group-compactness term would match the Hegemann–Wolff and TALA sets. A stability term (displacement from the previous layout) is what neither TALA nor dot has.
+- No standard architecture-diagram benchmark was found. Linework could publish one (C4/AWS-style samples, scored on these metrics) as a differentiator.
 
 ### Gaps
 - No industry benchmark comparing Mermaid, PlantUML, D2/TALA, ELK and Structurizr on the same diagrams was found.
@@ -134,7 +134,7 @@ Praise: orthogonal, whiteboard-like layouts for architecture diagrams, often cle
 - Node placement is described as NP-hard and heuristic with randomness; seeds change the result a lot — [terrastruct/TALA README](https://github.com/terrastruct/TALA)
 
 ### Inferences
-- Cartography can beat TALA on its admitted weakness by making candidate selection deterministic and stability-aware: score the distance to the previous layout, keep the previous winner unless the new one is clearly better.
+- Linework can beat TALA on its admitted weakness by making candidate selection deterministic and stability-aware: score the distance to the previous layout, keep the previous winner unless the new one is clearly better.
 
 ### Gaps
 - I found no independent quantitative comparison of TALA against ELK or dot.

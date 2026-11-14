@@ -1,4 +1,4 @@
-// carto watch <file.yaml…>: render, then again on every save of the diagram, its sidecar or what it includes.
+// linework watch <file.yaml…>: render, then again on every save of the diagram, its sidecar or what it includes.
 import fs from 'node:fs';
 import path from 'node:path';
 import type { RenderOptions } from '../args.ts';

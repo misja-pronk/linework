@@ -1,4 +1,4 @@
-// carto serve [folder]: the web editor for one folder, and an MCP endpoint for the user's own AI, in
+// linework serve [folder]: the web editor for one folder, and an MCP endpoint for the user's own AI, in
 // one local process. The browser reads and writes the folder's files through it and hears when they
 // change on disk; the agent's get_context and propose go to the editor that was used last.
 //   GET  /                  the built web app (pnpm web:build), told the token in a <meta>
@@ -14,10 +14,10 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import type { LiveCall, LiveContext, Proposal, ProposalResult, ToEditor } from '@cartography/core';
-import { createServer as createMcp, type LiveLink } from '@cartography/mcp';
-import { announce } from '@cartography/mcp/discovery';
-import { authorized, handleLive, handleMcp, localHost, readBody, sendJson } from '@cartography/mcp/http';
+import type { LiveCall, LiveContext, Proposal, ProposalResult, ToEditor } from '@linework/core';
+import { createServer as createMcp, type LiveLink } from '@linework/mcp';
+import { announce } from '@linework/mcp/discovery';
+import { authorized, handleLive, handleMcp, localHost, readBody, sendJson } from '@linework/mcp/http';
 
 /** The text files an editor opens (files.ts in the web app has the same list). */
 const TEXT = /\.(ya?ml|json)$/i;
@@ -34,12 +34,12 @@ export interface ServeOptions {
   app?: string;
   /** Lines for the person who started it. */
   log?: (line: string) => void;
-  /** By default the one kept in ~/.cartography (serveToken). */
+  /** By default the one kept in ~/.linework (serveToken). */
   token?: string;
 }
 
-/** One token per user, kept: `claude mcp add` once, and it works every time carto serve starts. */
-export function serveToken(dir = path.join(os.homedir(), '.cartography')): string {
+/** One token per user, kept: `claude mcp add` once, and it works every time linework serve starts. */
+export function serveToken(dir = path.join(os.homedir(), '.linework')): string {
   const file = path.join(dir, 'serve-token');
   try {
     const t = fs.readFileSync(file, 'utf8').trim();
@@ -153,7 +153,7 @@ export function serve(o: ServeOptions): Promise<{ server: http.Server; url: stri
     },
     async propose(p: Proposal) {
       const rel = path.relative(root, p.file);
-      if (rel.startsWith('..') || path.isAbsolute(rel)) return { outcome: 'not-open', message: `${p.file} is outside the folder carto serve has open (${root}).` };
+      if (rel.startsWith('..') || path.isAbsolute(rel)) return { outcome: 'not-open', message: `${p.file} is outside the folder linework serve has open (${root}).` };
       // The editor opens a file of the folder that is not open; one that is not there it cannot.
       if (!fs.existsSync(p.file)) return { outcome: 'not-open', message: `${p.file} does not exist.` };
       const r = await editors.call({ method: 'propose', params: { ...p, file: rel.split(path.sep).join('/') } });
@@ -164,14 +164,14 @@ export function serve(o: ServeOptions): Promise<{ server: http.Server; url: stri
   };
   const host = {
     context: () => link.context(),
-    propose: async (p: Proposal) => (await link.propose(p)) ?? { outcome: 'not-open' as const, message: 'No browser has the editor of carto serve open.' },
+    propose: async (p: Proposal) => (await link.propose(p)) ?? { outcome: 'not-open' as const, message: 'No browser has the editor of linework serve open.' },
   };
 
   let page: string | undefined;
   const indexHtml = () =>
     (page ??= fs
       .readFileSync(path.join(app, 'index.html'), 'utf8')
-      .replace('<head>', `<head>\n    <meta name="carto-serve" content="${token}" data-folder="${path.basename(root).replace(/[^\w .-]/g, '')}" />`));
+      .replace('<head>', `<head>\n    <meta name="linework-serve" content="${token}" data-folder="${path.basename(root).replace(/[^\w .-]/g, '')}" />`));
 
   const server = http.createServer((req, res) => {
     void (async () => {
@@ -186,7 +186,7 @@ export function serve(o: ServeOptions): Promise<{ server: http.Server; url: stri
       }
 
       if (url.pathname.startsWith('/api/')) {
-        if ((req.headers['x-carto-token'] ?? url.searchParams.get('token')) !== token) return sendJson(res, 401, { error: 'Unauthorized' });
+        if ((req.headers['x-linework-token'] ?? url.searchParams.get('token')) !== token) return sendJson(res, 401, { error: 'Unauthorized' });
         if (url.pathname === '/api/files') return sendJson(res, 200, { name: path.basename(root), files: listFiles(root) });
         if (url.pathname === '/api/file') {
           const abs = inRoot(root, url.searchParams.get('path'));

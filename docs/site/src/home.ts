@@ -1,4 +1,4 @@
-// The landing page: what Cartography is in one sentence, a real file next to its drawing, the types,
+// The landing page: what Linework is in one sentence, a real file next to its drawing, the types,
 // where it fits, and the benchmark in plain numbers (including where it loses).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,7 +11,7 @@ import { options } from './markdown.ts';
 const ARROW = icon('<path d="M5 12h14M13 6l6 6-6 6"/>');
 
 const FEATURES: [string, string, string, string][] = [
-  ['git-pull-request', 'In pull requests', '<code>carto diff</code> says what changed in words and as a marked-up picture; a GitHub Action posts it. Edits keep the rest of the drawing in place.', 'ci.html'],
+  ['git-pull-request', 'In pull requests', '<code>linework diff</code> says what changed in words and as a marked-up picture; a GitHub Action posts it. Edits keep the rest of the drawing in place.', 'ci.html'],
   ['file-code', 'From what you have', 'Your own AI converts Mermaid, D2, draw.io or Terraform, and checks the result against the schema through the MCP server.', 'ai.html#from-other-tools'],
   ['download', 'To where it goes', 'SVG, PNG, PDF, a 16:9 slide or one slide per step in PowerPoint, and an Office-safe SVG.', 'steps.html'],
   ['link', 'As a link', 'The whole diagram rides in the link’s #fragment, which never reaches a server. The reader gets a viewer and can open it in the editor.', 'share.html'],
@@ -27,19 +27,19 @@ export async function home(o: { root: string; gallery: TypeEntry[]; benchmark?: 
     .filter((e) => e.id !== 'model')
     .map((e) => `<a class="type" href="gallery/${e.id}.html">${typeIcon(e.icon)}<span><strong>${escape(e.name)}</strong><small>${escape(e.tagline)}</small></span></a>`)
     .join('');
-  const { icon: lucide } = await import('@cartography/icons');
+  const { icon: lucide } = await import('@linework/icons');
   const features = FEATURES.map(([i, h, p, href]) => `<a class="feature" href="${href}">${icon(lucide(i) ?? '')}<h3>${h}</h3><p>${p}</p></a>`).join('');
   return `<section class="hero">
   <div class="hero-text">
     <p class="eyebrow">Open source · MIT · works offline</p>
     <h1>Architecture diagrams that read like a&nbsp;map.</h1>
     <div>
-    <p class="lede">Write a short YAML file or build the diagram in the editor. Cartography lays it out, routes every line and draws it in one calm style: ${o.gallery.length - 1} diagram types, light and dark, for docs, pull requests and slides.</p>
+    <p class="lede">Write a short YAML file or build the diagram in the editor. Linework lays it out, routes every line and draws it in one calm style: ${o.gallery.length - 1} diagram types, light and dark, for docs, pull requests and slides.</p>
     <div class="cta"><a class="button primary big" href="getting-started.html">Get started ${ARROW}</a><a class="button big" href="gallery/index.html">Browse ${total} examples</a></div>
     <pre class="install"><span class="t-com"># in a clone of the repository</span>
 <span class="t-cmd">pnpm</span> install
-<span class="t-cmd">pnpm</span> carto new systems shop.yaml
-<span class="t-cmd">pnpm</span> carto render shop.yaml <span class="t-flag">-f</span> png</pre>
+<span class="t-cmd">pnpm</span> linework new systems shop.yaml
+<span class="t-cmd">pnpm</span> linework render shop.yaml <span class="t-flag">-f</span> png</pre>
     </div>
   </div>
   <div class="hero-sheet">

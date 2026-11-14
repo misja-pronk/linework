@@ -27,7 +27,7 @@ export function activate(context: vscode.ExtensionContext) {
       void language.drawn(p.doc, d.ask, d.result, d.version);
     },
     command: (name, doc) => {
-      const id = name === 'openEditor' ? 'cartography.openInEditor' : `cartography.${name}`;
+      const id = name === 'openEditor' ? 'linework.openInEditor' : `linework.${name}`;
       void vscode.commands.executeCommand(id, doc.uri);
     },
   };
@@ -92,13 +92,13 @@ export function activate(context: vscode.ExtensionContext) {
       for (const p of panels.values()) p.schedule(true);
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (!e.affectsConfiguration('cartography')) return;
+      if (!e.affectsConfiguration('linework')) return;
       for (const p of panels.values()) p.schedule(true);
       for (const doc of vscode.workspace.textDocuments) language.update(doc, true);
     }),
-    vscode.window.onDidChangeActiveTextEditor((editor) => void vscode.commands.executeCommand('setContext', 'cartography.isDiagram', !!editor && isDiagramDoc(editor.document))),
+    vscode.window.onDidChangeActiveTextEditor((editor) => void vscode.commands.executeCommand('setContext', 'linework.isDiagram', !!editor && isDiagramDoc(editor.document))),
   );
-  void vscode.commands.executeCommand('setContext', 'cartography.isDiagram', !!vscode.window.activeTextEditor && isDiagramDoc(vscode.window.activeTextEditor.document));
+  void vscode.commands.executeCommand('setContext', 'linework.isDiagram', !!vscode.window.activeTextEditor && isDiagramDoc(vscode.window.activeTextEditor.document));
 
   // A sidecar written elsewhere (the CLI's --stable, the web editor, git) redraws its
   // diagram; so do files a diagram includes, which is any YAML next to it.

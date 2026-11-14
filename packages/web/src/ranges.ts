@@ -1,6 +1,6 @@
 // The text range of each drawn element's YAML entry, for selection in both directions.
 import { isMap, isSeq, parseDocument, type Node, type Pair } from 'yaml';
-import type { Graph, Path } from '@cartography/core';
+import type { Graph, Path } from '@linework/core';
 
 export interface Entry {
   kind: 'node' | 'group' | 'edge';

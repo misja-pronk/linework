@@ -2,12 +2,12 @@
 // the space under the slide title, speaker notes from the title and subtitle. Written as plain
 // OOXML zipped with fflate, so it runs the same in Node and the browser.
 import { zipSync, strToU8 } from 'fflate';
-import type { Faded, Graph, Placed, StepState } from '@cartography/core';
-import { icon } from '@cartography/icons';
-import { bundledFamily, inThemeFonts, isDark, look, themes, type Theme } from '@cartography/theme';
+import type { Faded, Graph, Placed, StepState } from '@linework/core';
+import { icon } from '@linework/icons';
+import { bundledFamily, inThemeFonts, isDark, look, themes, type Theme } from '@linework/theme';
 import * as ox from './ooxml.ts';
 import { group, shape, type Run } from './shapes.ts';
-import { describe } from '@cartography/describe';
+import { describe } from '@linework/describe';
 import { altOf } from './alt.ts';
 import { drawDiagram, type IconRef, type PictureKind, type SlideImages } from './slide.ts';
 import { CAPTION, fitSlide, INCH, MARGIN, NUMBER, ownRoom, ROWS, words, type SlideRoom } from './fit.ts';
@@ -16,8 +16,8 @@ import { chooseLayout, readTemplate, type PptxTemplate } from './template/read.t
 import { filled, footer, planSlide } from './template/place.ts';
 import { pageColor, templateTheme } from './template/theme.ts';
 import { writeTemplateDeck } from './template/write.ts';
-import type { Lang } from '@cartography/i18n';
-import { tr } from '@cartography/i18n/drawing';
+import type { Lang } from '@linework/i18n';
+import { tr } from '@linework/i18n/drawing';
 
 /** What render() returns, or anything else carrying a built graph and its layout. */
 export interface Drawing {
@@ -52,13 +52,13 @@ export interface PptxOptions {
   theme?: 'light' | 'dark' | Theme;
   aspect?: '16:9' | '4:3';
   /**
-   * Typeface for the text. By default the theme's own, unless it is one Cartography brings along
+   * Typeface for the text. By default the theme's own, unless it is one Linework brings along
    * (Instrument Sans, Inter, Geist Mono…): those are on few machines, so the slides name Arial
    * instead (see slideFace). Name one here to choose it yourself, e.g. 'Instrument Sans' where it is
    * installed on every machine that shows the deck.
    */
   font?: string;
-  /** Typeface for what the theme sets in monospace; by default the theme's, or Courier New for one Cartography brings along (Geist Mono). */
+  /** Typeface for what the theme sets in monospace; by default the theme's, or Courier New for one Linework brings along (Geist Mono). */
   monoFont?: string;
   /** Adds a title slide in front. */
   title?: string;
@@ -92,7 +92,7 @@ export interface SlideText {
   title?: string;
   /** The step shown, from 1. */
   step?: number;
-  /** The smallest text a reader needs (points): names on cards, lines and groups, the KEY and tags, not counts and badges under DETAIL_PX; carto validate says this number. */
+  /** The smallest text a reader needs (points): names on cards, lines and groups, the KEY and tags, not counts and badges under DETAIL_PX; linework validate says this number. */
   smallestPt: number;
   /** Points per drawing pixel: how large the drawing is on this slide. */
   scale: number;
@@ -102,7 +102,7 @@ export interface SlideText {
  * The face a slide names for a theme's face. Slides hold native text, and an app shows a face only
  * where it is installed: PowerPoint then substitutes a similar one, but Apple's importer (Quick Look,
  * Keynote, Mail, an iPhone) sets the text in Times. Embedding the face does not help there (Apple's
- * importer leaves embedded fonts out), so the faces Cartography brings along (Instrument Sans, Inter,
+ * importer leaves embedded fonts out), so the faces Linework brings along (Instrument Sans, Inter,
  * Geist Mono and the others), which few machines have, are named as faces every Mac and Windows
  * machine has: Arial, no wider than Instrument Sans or Inter, and Courier New, as wide as Geist Mono.
  * A brand theme's own face is the brand's: it stays.
@@ -159,7 +159,7 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
   const files: Record<string, Uint8Array> = {};
   const put = (path: string, xml: string) => (files[path] = strToU8(xml));
   // In a template, icons are named so they cannot meet the template's own media.
-  const iconName = (n: number, ext: string) => (tpl ? `cartography-icon${n}.${ext}` : `icon${n}.${ext}`);
+  const iconName = (n: number, ext: string) => (tpl ? `linework-icon${n}.${ext}` : `icon${n}.${ext}`);
 
   // Icons are shared by all slides: one SVG (and PNG) part per icon, colour and size.
   const media = new Map<string, { n: number; svg: string; size: number; height?: number }>();
@@ -298,8 +298,8 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
   put('ppt/presProps.xml', ox.presProps());
   put('ppt/viewProps.xml', ox.viewProps());
   put('ppt/tableStyles.xml', ox.tableStyles());
-  put('ppt/theme/theme1.xml', ox.theme('Cartography', palette));
-  put('ppt/theme/theme2.xml', ox.theme('Cartography Notes', { ...palette, canvas: '#FFFFFF', text: '#000000' }));
+  put('ppt/theme/theme1.xml', ox.theme('Linework', palette));
+  put('ppt/theme/theme2.xml', ox.theme('Linework Notes', { ...palette, canvas: '#FFFFFF', text: '#000000' }));
   put('ppt/slideMasters/slideMaster1.xml', ox.master(W, H, MARGIN.side, palette));
   put('ppt/slideMasters/_rels/slideMaster1.xml.rels', ox.masterRels());
   put('ppt/slideLayouts/slideLayout1.xml', ox.layout('titleOnly', W, H, MARGIN.side));

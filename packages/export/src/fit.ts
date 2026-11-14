@@ -1,10 +1,10 @@
 // Where a drawing goes on one of its slides, and how large: the room a slide has (ours, or a
 // template's), the rows its title, subtitle or a step's caption take, and the scale that fits the
-// drawing into what is left. The deck draws with it; carto validate, the editor's page frame and the
+// drawing into what is left. The deck draws with it; linework validate, the editor's page frame and the
 // PDF on a slide page measure with it, so they say what PowerPoint shows. Nothing here draws.
-import { INCH, KEY_HEIGHT, MARGIN, MAX_K, PX, ROWS, SLIDE_SIZE, type Graph, type LegendItem, type Placed, type StepState } from '@cartography/core';
-import { keyLayout, LEGEND, legendItems, legendWidth, noteMargins, wrap, type StepView } from '@cartography/render';
-import { inThemeFonts, look, measureText, type Theme } from '@cartography/theme';
+import { INCH, KEY_HEIGHT, MARGIN, MAX_K, PX, ROWS, SLIDE_SIZE, type Graph, type LegendItem, type Placed, type StepState } from '@linework/core';
+import { keyLayout, LEGEND, legendItems, legendWidth, noteMargins, wrap, type StepView } from '@linework/render';
+import { inThemeFonts, look, measureText, type Theme } from '@linework/theme';
 import { pages } from './steps.ts';
 import type { Drawing } from './pptx.ts';
 

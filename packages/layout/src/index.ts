@@ -1,5 +1,5 @@
 // Layout: dot places nodes and groups, pins from the sidecar move nodes, our router draws the lines.
-import { KEY_HEIGHT, MAX_K, PX, slideArea, unpackLayout, type Box, type EdgeOverride, type Graph, type Endpoint, type LayoutMemory, type LayoutSidecar, type Marker, type Placed, type PlacedEdge, type Point, type Sized } from '@cartography/core';
+import { KEY_HEIGHT, MAX_K, PX, slideArea, unpackLayout, type Box, type EdgeOverride, type Graph, type Endpoint, type LayoutMemory, type LayoutSidecar, type Marker, type Placed, type PlacedEdge, type Point, type Sized } from '@linework/core';
 import { placeWithDot, type DotVariant, type Placement, type Spacing } from './dot.ts';
 import { applyPins } from './pins.ts';
 import { compact } from './compact.ts';

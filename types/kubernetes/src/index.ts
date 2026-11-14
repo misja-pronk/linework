@@ -15,7 +15,7 @@
 //
 // Styles come from the kinds at both ends when an edge does not name one, and replicas, image and
 // ports become the caption, so a plain `a -> b` list reads right.
-import { buildGraph, graphReferences, graphSchema, parseEdge, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
+import { buildGraph, graphReferences, graphSchema, parseEdge, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@linework/core';
 
 export const config: GraphTypeConfig = {
   groupKinds: {
@@ -184,7 +184,7 @@ export function buildKubernetes(src: GraphSource, ctx: Parameters<DiagramType['b
 }
 
 function schema(): object {
-  const s = graphSchema('kubernetes', config, 'Cartography Kubernetes diagram') as { properties: Record<string, any> };
+  const s = graphSchema('kubernetes', config, 'Linework Kubernetes diagram') as { properties: Record<string, any> };
   // The object form of a node, wherever it sits among the short forms.
   const node = s.properties.nodes.additionalProperties.anyOf.find((x: { type?: string }) => x.type === 'object');
   node.properties = { ...node.properties, ...details };

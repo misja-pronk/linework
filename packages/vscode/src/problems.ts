@@ -1,7 +1,7 @@
 // The engine's diagnostics as an editor wants them: zero-based ranges, and the fixes the message
 // itself already names (the allowed values, quotes around a label). The words stay the CLI's.
 import { isMap, isScalar, isSeq, parseDocument } from 'yaml';
-import type { Diagnostic, Path } from '@cartography/core';
+import type { Diagnostic, Path } from '@linework/core';
 
 export interface Position {
   line: number;
@@ -48,7 +48,7 @@ export function toProblems(text: string, diagnostics: readonly Diagnostic[]): Pr
   const seen = new Set<string>();
   const out: Problem[] = [];
   for (const d of diagnostics) {
-    // The same problem found in several views is one problem (as `carto validate` prints it).
+    // The same problem found in several views is one problem (as `linework validate` prints it).
     const key = `${d.line}:${d.column}:${d.message}`;
     if (seen.has(key)) continue;
     seen.add(key);

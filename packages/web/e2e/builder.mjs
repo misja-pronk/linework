@@ -11,12 +11,12 @@ const fail = (m) => problems.push(m);
 const yaml = () => page.evaluate(() => document.querySelector('.cm-content').innerText);
 const wait = (ms = 250) => page.waitForTimeout(ms);
 
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => {
   localStorage.clear();
-  localStorage.setItem('cartography:started', 'true');
+  localStorage.setItem('linework:started', 'true');
   // The YAML starts folded to its rail; these steps read what the editor shows.
-  localStorage.setItem('cartography:yaml-folded', 'false');
+  localStorage.setItem('linework:yaml-folded', 'false');
 });
 await page.reload();
 await page.waitForSelector('.drawing svg');
@@ -178,7 +178,7 @@ const after = (await page.locator('.statusbar').innerText()).match(/(\d+) pinned
 const web2 = await rel();
 if (Number(after) !== Number(before) + 1) fail(`group drag did not pin the group: ${before} → ${after}`);
 if (web.every((d, i) => Math.abs(web2[i] - d) < 10)) fail('contents did not move with the group');
-const savedPins = await page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}').pins);
+const savedPins = await page.evaluate(() => JSON.parse(localStorage.getItem('linework:doc') ?? '{}').pins);
 if (!savedPins?.groups || !Object.keys(savedPins.groups).length) fail('group drag did not save a group pin: ' + JSON.stringify(savedPins));
 if ((await page.locator('.status-problems').innerText()) !== 'No problems') {
   await page.click('.status-problems');
@@ -292,7 +292,7 @@ await page.addInitScript(() => {
   const text = sessionStorage.getItem('seed');
   if (!text) return;
   sessionStorage.removeItem('seed');
-  localStorage.setItem('cartography:doc', JSON.stringify({ text, doc: { name: 'drops.yaml' } }));
+  localStorage.setItem('linework:doc', JSON.stringify({ text, doc: { name: 'drops.yaml' } }));
 });
 await page.evaluate(() => {
   const text = 'type: azure\ntitle: Drops\ngroups:\n  sub: { kind: subscription, label: Subscription }\n  rg: { kind: resource-group, label: Resource group, in: sub }\nnodes:\n  app: { kind: app-service, label: App Service, in: rg }\n  users: { kind: users, label: Users }\nedges:\n  - users -> app\n';

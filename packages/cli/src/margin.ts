@@ -1,6 +1,6 @@
 // Slide margin lab: how far the examples are from text under 6 pt on their slide, and whether an
 // edit a consultant makes live (one label 8 characters longer) tips them under it. Each example (each
-// view, each written step) is measured as carto validate measures it, through the PowerPoint export;
+// view, each written step) is measured as linework validate measures it, through the PowerPoint export;
 // then, up to six times per file, one label is lengthened in memory and the file is measured again.
 //   pnpm margin                the distribution of the smallest text per view, and the edits that tip under
 //   pnpm margin azure          only the examples with "azure" in their path
@@ -8,8 +8,8 @@
 //   pnpm margin --all          every label lengthened in turn, not six per file
 import fs from 'node:fs';
 import path from 'node:path';
-import { render, SLIDE_MIN_PT, type RenderResult } from '@cartography/engine';
-import { toPptx, type SlideText } from '@cartography/export';
+import { render, SLIDE_MIN_PT, type RenderResult } from '@linework/engine';
+import { toPptx, type SlideText } from '@linework/export';
 
 const root = path.resolve(import.meta.dirname, '../../..');
 /** What each lengthened label gets: 8 characters. */

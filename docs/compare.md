@@ -1,6 +1,6 @@
 # Compare versions
 
-What changed in a diagram since the review, since the last commit, since last quarter? The editor shows it **live**: the drawing as it is now against an earlier version, with what was added, changed and removed marked, a list of the changes in plain words, and a summary to paste into a change request. The command line does the same with `carto diff`.
+What changed in a diagram since the review, since the last commit, since last quarter? The editor shows it **live**: the drawing as it is now against an earlier version, with what was added, changed and removed marked, a list of the changes in plain words, and a summary to paste into a change request. The command line does the same with `linework diff`.
 
 ![The compare view: the YAML on the left, the overlay with the new Redis cache marked added and the Legacy VM as a ghost where it stood, the list of changes on the right](compare/overlay.png)
 
@@ -15,7 +15,7 @@ What changed in a diagram since the review, since the last commit, since last qu
 | **Another file** | Another diagram in the open folder, or *Pick a file…*: last quarter's copy, a colleague's version. |
 | **HEAD and earlier commits** | When the open folder is a git repository: the file at HEAD, and each earlier version of it with the commit that made it, its author and when. |
 
-Each version is drawn with its own pins (its `.layout.json`), so it looks as it did. A commit is read with the files it includes **as they were in that commit**, as `carto diff --git` does; a snapshot or another file reads its includes from beside the open diagram, as they are now.
+Each version is drawn with its own pins (its `.layout.json`), so it looks as it did. A commit is read with the files it includes **as they were in that commit**, as `linework diff --git` does; a snapshot or another file reads its includes from beside the open diagram, as they are now.
 
 While comparing, the YAML stays editable: every edit shows up in the comparison as you type.
 
@@ -39,7 +39,7 @@ The list on the right says each change in words, with the names the drawing show
 - *Renamed “Orders” to “Orders service”*
 - *Removed Legacy VM from rg-shop (and its connection)*
 
-Lines that went with a removed element are counted with it, not listed one by one. The counts at the top count the same way, so they match the list; so do the key under the picture, the Markdown summary, the slides and `carto diff -o changes.md` (its table, element by element, still lists every line). Click a change, or step with `]` and `[` (or `J` and `K`), as through steps, and the drawing moves to it and marks it; `↵` edits it.
+Lines that went with a removed element are counted with it, not listed one by one. The counts at the top count the same way, so they match the list; so do the key under the picture, the Markdown summary, the slides and `linework diff -o changes.md` (its table, element by element, still lists every line). Click a change, or step with `]` and `[` (or `J` and `K`), as through steps, and the drawing moves to it and marks it; `↵` edits it.
 
 | Key | |
 |---|---|
@@ -91,17 +91,17 @@ Limits, said plainly:
 - The open folder must be the **top of the repository** (the folder with `.git` in it). A subfolder cannot see the `.git` above it, and a **worktree or submodule**, whose `.git` is a file pointing elsewhere, cannot be followed: open the main checkout.
 - Repositories with **SHA-256** object names are not read.
 - A **shallow clone** ends where its history ends.
-- Only the history of the current branch (first parents) is offered; for any other ref, use `carto diff --git <ref>`.
+- Only the history of the current branch (first parents) is offered; for any other ref, use `linework diff --git <ref>`.
 
 ## On the command line
 
 ```sh
-carto diff before.yaml after.yaml                  # two files
-carto diff --git main shop.yaml                    # against a branch, tag or commit
-carto diff --since HEAD~5 shop.yaml                # the same: what changed since
-carto diff --snapshot "before review" shop.yaml    # against a snapshot the editor wrote
-carto diff --snapshot Q3 shop.yaml -o changes.md   # the changes in sentences, as Markdown
-carto diff --git main shop.yaml -o diff.png        # the overlay picture (--side-by-side for both)
+linework diff before.yaml after.yaml               # two files
+linework diff --git main shop.yaml                 # against a branch, tag or commit
+linework diff --since HEAD~5 shop.yaml             # the same: what changed since
+linework diff --snapshot "before review" shop.yaml  # against a snapshot the editor wrote
+linework diff --snapshot Q3 shop.yaml -o changes.md  # the changes in sentences, as Markdown
+linework diff --git main shop.yaml -o diff.png     # the overlay picture (--side-by-side for both)
 ```
 
 `--json` gives the structural diff and the sentences (`explained`). See [In CI](ci.md) for the pull request comment that does this on every change.

@@ -3,7 +3,7 @@ import { cursorContext } from '../src/yaml-path.ts';
 import { rank, score } from '../src/palette.tsx';
 import { entryAt, entryRanges } from '../src/ranges.ts';
 import { schemasAt } from '../src/complete.ts';
-import { render, findType } from '@cartography/engine';
+import { render, findType } from '@linework/engine';
 
 const at = (text: string) => cursorContext(text.replace('|', ''), text.indexOf('|'));
 

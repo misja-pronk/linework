@@ -1,6 +1,6 @@
 // Measures every shape before layout, so layout can reserve exactly the space render will draw.
-import { chips, type CardShape, type Chip, type Graph, type NodeSize, type RowMark, type Sized, type TableRow, type TableShape, type Tone } from '@cartography/core';
-import { chipText, fitText, groupLabel, look, measureText, monoCell, type Theme } from '@cartography/theme';
+import { chips, type CardShape, type Chip, type Graph, type NodeSize, type RowMark, type Sized, type TableRow, type TableShape, type Tone } from '@linework/core';
+import { chipText, fitText, groupLabel, look, measureText, monoCell, type Theme } from '@linework/theme';
 import { matrixGeometry } from './matrix.ts';
 import { endsRoom, TAG, tagsWidth } from './tags.ts';
 import { sequenceGeometry } from './sequence.ts';

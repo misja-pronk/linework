@@ -41,7 +41,7 @@ export function githubApi(opts: ApiOptions): GitHubApi {
         accept: 'application/vnd.github+json',
         authorization: `Bearer ${opts.token}`,
         'x-github-api-version': '2022-11-28',
-        'user-agent': 'cartography-action',
+        'user-agent': 'linework-action',
         ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
       },
       ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
@@ -80,7 +80,7 @@ export function githubApi(opts: ApiOptions): GitHubApi {
 }
 
 /** Hidden in the comment, to find it again on the next run. */
-export const MARKER = '<!-- cartography-diff -->';
+export const MARKER = '<!-- linework-diff -->';
 
 export type Posted = { action: 'created' | 'updated' | 'unchanged' | 'removed' | 'none'; comment?: Comment };
 

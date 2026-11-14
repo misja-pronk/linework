@@ -1,8 +1,8 @@
 // Free placement: what is put somewhere by hand stays there, what is not moves as little as it can,
 // and nothing ever lies on anything it is not in.
 import { describe, expect, it } from 'vitest';
-import { packLayout, type LayoutSidecar } from '@cartography/core';
-import { boxOverlaps, measure } from '@cartography/layout';
+import { packLayout, type LayoutSidecar } from '@linework/core';
+import { boxOverlaps, measure } from '@linework/layout';
 import { render } from '../src/index.ts';
 
 const base = 'type: azure\ntitle: Drops\ngroups:\n  sub: { kind: subscription, label: Subscription }\n  rg: { kind: resource-group, label: Resource group, in: sub }\nnodes:\n  app: { kind: app-service, label: App Service, in: rg }\n  users: { kind: users, label: Users }\nedges:\n  - users -> app\n';

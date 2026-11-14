@@ -3,14 +3,14 @@
 // for comes from the model (the workspace index), so a reader can click a box and see what it is,
 // where else it appears, and open the view a level down. Runs in Node and in the editor alike.
 import { parse as parseYaml } from 'yaml';
-import { drillTarget, elementAt, indexFile, indexWorkspace, isDiagramFile, joinPath, parseLink, trail, viewAbout, type Graph, type LayoutSidecar, type Link, type WorkspaceIndex } from '@cartography/core';
-import { render, type RenderOptions, type RenderResult } from '@cartography/engine';
-import type { Theme } from '@cartography/theme';
-import { describe, linkTarget, linkText } from '@cartography/embed/shared';
-import { describe as inWords, toText } from '@cartography/describe';
+import { drillTarget, elementAt, indexFile, indexWorkspace, isDiagramFile, joinPath, parseLink, trail, viewAbout, type Graph, type LayoutSidecar, type Link, type WorkspaceIndex } from '@linework/core';
+import { render, type RenderOptions, type RenderResult } from '@linework/engine';
+import type { Theme } from '@linework/theme';
+import { describe, linkTarget, linkText } from '@linework/embed/shared';
+import { describe as inWords, toText } from '@linework/describe';
 import type { PDrawing, PElement, PFile, PStep, Picture } from './payload.ts';
-import type { Lang } from '@cartography/i18n';
-import { tr } from '@cartography/i18n/drawing';
+import type { Lang } from '@linework/i18n';
+import { tr } from '@linework/i18n/drawing';
 
 export interface HtmlExportInput {
   /** The diagrams to export, by path (forward slashes, relative to one root). */

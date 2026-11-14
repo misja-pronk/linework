@@ -31,7 +31,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
-      # The CLI and MCP bundles (and the web app carto serve serves), run from a folder outside the repo.
+      # The CLI and MCP bundles (and the web app linework serve serves), run from a folder outside the repo.
       - run: pnpm build
       - run: pnpm smoke
       - run: pnpm licences
@@ -51,15 +51,15 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @cartography/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @linework/web exec playwright install --with-deps chromium
       # Builds the web app, then the site with the app inside it.
       - run: pnpm docs:build
       - name: Every template and example in the built web app
         run: |
-          pnpm --filter @cartography/web exec vite preview --port 5191 --strictPort &
+          pnpm --filter @linework/web exec vite preview --port 5191 --strictPort &
           PREVIEW=$!
           for i in $(seq 1 60); do curl -sf http://localhost:5191/ > /dev/null && break; sleep 1; done
-          CARTO_URL=http://localhost:5191/ ONLY_FAILURES=1 node packages/web/e2e/templates.mjs e2e-out
+          LINEWORK_URL=http://localhost:5191/ ONLY_FAILURES=1 node packages/web/e2e/templates.mjs e2e-out
           kill $PREVIEW
       - uses: actions/upload-artifact@v4
         if: always()

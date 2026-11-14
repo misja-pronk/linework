@@ -3,9 +3,9 @@
 import './preview.css';
 import { is } from './keys.ts';
 import { useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { Box, PaletteItem, Point } from '@cartography/core';
-import { readableArea, SLIDE_MIN_PT, slideTextPt, textPtAt, type RenderResult } from '@cartography/engine';
-import type { PptxTemplate, SlideText } from '@cartography/export';
+import type { Box, PaletteItem, Point } from '@linework/core';
+import { readableArea, SLIDE_MIN_PT, slideTextPt, textPtAt, type RenderResult } from '@linework/engine';
+import type { PptxTemplate, SlideText } from '@linework/export';
 import { Icon } from './icon.tsx';
 import { setReadout } from './readout.ts';
 import { t } from './i18n/index.ts';
@@ -34,14 +34,14 @@ const readTemplates = new WeakMap<Uint8Array, PptxTemplate>();
 
 /**
  * How large the drawing comes out on its slide in a PowerPoint template, asked of the PowerPoint export
- * itself as carto validate --template does: the smallest text (pt), the scale (pt per drawing px) and
+ * itself as linework validate --template does: the smallest text (pt), the scale (pt per drawing px) and
  * the template's slide (px). Undefined without a template.
  */
 async function inTemplate(r: RenderResult, d: DeckTemplate | undefined): Promise<{ pt: number; k: number; page: { name: string; width: number; height: number } } | undefined> {
   const named = r.theme?.pptx;
   const bytes = d?.bytes ?? (named && d?.read ? await d.read(named.template) : undefined);
   if (!bytes) return undefined;
-  const { toPptx, readTemplate } = await import('@cartography/export');
+  const { toPptx, readTemplate } = await import('@linework/export');
   let tpl = readTemplates.get(bytes);
   if (!tpl) readTemplates.set(bytes, (tpl = readTemplate(bytes)));
   const keepLook = d?.bytes ? !!d.keepLook : !!named?.keepLook;
@@ -244,7 +244,7 @@ export function Preview(p: Props) {
     void inTemplate(r, deck)
       .then(async (tpl) => {
         if (tpl) return { svg: r.svg!, ...tpl };
-        const { slideScale } = await import('@cartography/export/fit');
+        const { slideScale } = await import('@linework/export/fit');
         const k = await slideScale(r, r.theme!, r.page!.name.startsWith('4:3') ? '4:3' : '16:9');
         return k ? { svg: r.svg!, k } : undefined;
       })
@@ -1207,7 +1207,7 @@ export function Preview(p: Props) {
   const pinnedBoxes = [...(p.pinned ?? [])].filter((id) => !p.locked?.has(id)).map((id) => selectedBox(result, { kind: result?.placed?.nodes.has(id) ? 'node' : 'group', id })).filter((b): b is Box => !!b);
   // The page: how small the smallest text comes out on it, and the part where it would still be readable.
   // On a slide that is the slide the PowerPoint export makes (its margins and title row: slideScale),
-  // as carto validate measures it; on a sheet of paper the drawing fitted onto it. Until the slide's
+  // as linework validate measures it; on a sheet of paper the drawing fitted onto it. Until the slide's
   // scale is known (a moment, the first time), the drawing fitted onto the page.
   const measured = slideK && slideK.svg === result?.svg ? slideK : undefined;
   const onSlide = measured?.k;

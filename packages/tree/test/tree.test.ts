@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Box, Point } from '@cartography/core';
+import type { Box, Point } from '@linework/core';
 import { choose, pack, route, slideScale, tidy, type PackItem, type TidyNode } from '../src/index.ts';
 import { rng } from './fixtures.ts';
 

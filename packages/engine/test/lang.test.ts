@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { describe as tell, toText } from '@cartography/describe';
+import { describe as tell, toText } from '@linework/describe';
 import { render } from '../src/index.ts';
 
 const shop = `type: systems
@@ -23,7 +23,7 @@ const card = (r: Awaited<ReturnType<typeof render>>, id: string) => {
 };
 
 describe('lang: nl', () => {
-  it('draws the words Cartography adds in Dutch, and leaves what the author wrote', async () => {
+  it('draws the words Linework adds in Dutch, and leaves what the author wrote', async () => {
     const r = await render(nl(shop), { fonts: 'none' });
     expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
     expect(r.lang).toBe('nl');

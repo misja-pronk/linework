@@ -1,7 +1,7 @@
-// carto types [words…]: which type to pick, best match first; carto themes: the built-in themes.
-import { matchTypes } from '@cartography/core';
-import { findType, types } from '@cartography/engine';
-import { themeCatalog } from '@cartography/theme';
+// linework types [words…]: which type to pick, best match first; linework themes: the built-in themes.
+import { matchTypes } from '@linework/core';
+import { findType, types } from '@linework/engine';
+import { themeCatalog } from '@linework/theme';
 import { t } from '../i18n.ts';
 import type { Ctx } from '../io.ts';
 
@@ -18,7 +18,7 @@ export function typeGuide(ctx: Ctx, query = '') {
     for (const n of ty.notFor ?? []) ctx.log(dim(`${' '.repeat(15)}- ${t('not for:')} ${n.text}${n.use ? ` → ${n.use} (${name(n.use)})` : ''}`));
     ctx.log();
   }
-  ctx.log(dim(t('Start one: carto new <type> [file.yaml]. Guide: docs/types.md')));
+  ctx.log(dim(t('Start one: linework new <type> [file.yaml]. Guide: docs/types.md')));
 }
 
 export function typesCommand(ctx: Ctx, files: string[]): number {

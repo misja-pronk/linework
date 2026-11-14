@@ -17,7 +17,7 @@ export interface SvgText {
 export function accessibleSvg(svg: string, text: SvgText): string {
   const open = /<svg\b[^>]*>/.exec(svg);
   if (!open || /\srole=/.test(open[0])) return svg;
-  const id = (text.id ?? 'carto').replace(/[^\w-]/g, '-');
+  const id = (text.id ?? 'linework').replace(/[^\w-]/g, '-');
   const lang = text.lang && !/\s(xml:)?lang=/.test(open[0]) ? ` lang="${escapeHtml(text.lang)}" xml:lang="${escapeHtml(text.lang)}"` : '';
   const attrs = ` role="img" aria-labelledby="${id}-title"${text.desc ? ` aria-describedby="${id}-desc"` : ''}${lang}`;
   const head = open[0].replace(/\/?>$/, (end) => `${attrs}${end}`);

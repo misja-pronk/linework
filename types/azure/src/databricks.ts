@@ -1,7 +1,7 @@
 // Azure Databricks in the Azure type's words: the planes it runs in, Unity Catalog's objects, the Lakeflow
 // tools, serving and sharing, and the Azure pieces around a workspace (access connector, NCC). Line icons only:
 // Databricks' own marks are theirs. See docs/research/databricks-2026.md for what each one is.
-import type { KindTable } from '@cartography/core';
+import type { KindTable } from '@linework/core';
 
 /** Containers: a workspace, the three planes, and Unity Catalog's metastore → catalog → schema. */
 export const databricksGroups: KindTable = {

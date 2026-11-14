@@ -3,7 +3,7 @@
 // values, controls cut at 2 px, the accent only for what is selected or current. Colours come from
 // the themes the drawings were made in (paper and table from a light theme's group tints), so a brand
 // theme's page matches it.
-import { mix, type Theme } from '@cartography/theme';
+import { mix, type Theme } from '@linework/theme';
 
 export interface Tokens {
   canvas: string;
@@ -106,7 +106,7 @@ kbd{font:500 10.5px/1 var(--mono);padding:2px 5px;border:1px solid var(--line);b
 .sheet svg{display:block}
 .sheet [data-node],.sheet [data-group]{cursor:pointer}
 .sheet .drills{cursor:zoom-in}
-.sheet .carto-hl{fill:none;stroke:var(--accent);stroke-width:2.5;pointer-events:none}
+.sheet .linework-hl{fill:none;stroke:var(--accent);stroke-width:2.5;pointer-events:none}
 .zoom{position:absolute;right:14px;bottom:14px;display:flex;background:var(--paper);border:1px solid var(--border);border-radius:2px;overflow:hidden;z-index:2}
 .zoom button{width:34px;height:32px;border:0;background:none;cursor:pointer;color:var(--muted);display:grid;place-items:center}
 .zoom button:hover{background:var(--paper);color:var(--text)}

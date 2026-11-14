@@ -1,7 +1,7 @@
 // The builder on the two types written as chains: a process ("a -> b -yes-> c") and a state
 // machine. One drawn line is one arrow of a list item, and a step is named as it is said.
 import { describe, expect, it } from 'vitest';
-import { findType, render } from '@cartography/engine';
+import { findType, render } from '@linework/engine';
 import { addEntry, connectEntries, deleteEntry, duplicateEntry, editChainLine, fieldsFor, isChainLine, isEntryPath, renameEntry, setField } from '../src/builder.ts';
 
 const proc = findType('process')!;

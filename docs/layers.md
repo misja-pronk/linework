@@ -77,11 +77,11 @@ Comparing versions wins over a focus, and a focus wins over layers. A focus is a
 - On the command line:
 
 ```sh
-carto render web-shop.yaml --layer security -o security.png      # one layer
-carto render web-shop.yaml --layer security,data                  # several (or --layer twice)
-carto render web-shop.yaml --layer security --dim                 # faded, whatever the layer says
-carto render web-shop.yaml --all-layers -o out/                   # the whole and out/web-shop--<layer>.svg each
-carto render web-shop.yaml --all-layers -o deck.pptx              # one deck: the whole, then a slide per layer
+linework render web-shop.yaml --layer security -o security.png   # one layer
+linework render web-shop.yaml --layer security,data               # several (or --layer twice)
+linework render web-shop.yaml --layer security --dim              # faded, whatever the layer says
+linework render web-shop.yaml --all-layers -o out/                # the whole and out/web-shop--<layer>.svg each
+linework render web-shop.yaml --all-layers -o deck.pptx           # one deck: the whole, then a slide per layer
 ```
 
 In a deck the whole drawing keeps a slide per step; a layer is one slide (`--all-steps` steps through each layer as well). A faded layer is faded on every slide and page.

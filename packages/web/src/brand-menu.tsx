@@ -1,13 +1,13 @@
 // Theme picker, icons and the editor's language, in one menu opened from the top bar's ⋯. Choices apply to the canvas and every export.
 import { Fragment, useState } from 'react';
-import { themeCatalog } from '@cartography/theme';
+import { themeCatalog } from '@linework/theme';
 import { Icon } from './icon.tsx';
 import { Menu } from './menu.tsx';
 import { type Workspace } from './files.ts';
 import { chooseBuiltin, chooseFile, themeFiles, useBrand } from './brand.ts';
 import { setIconMode, useIconPacks, type IconPacks } from './icon-packs.ts';
 import { IconPacksDialog } from './icon-packs-dialog.tsx';
-import { LANG_NAMES, LANGS } from '@cartography/i18n';
+import { LANG_NAMES, LANGS } from '@linework/i18n';
 import { say, setUiLang, t, uiLangChoice, useUiLang } from './i18n/index.ts';
 import { setSessionLight, useSessionLight } from './app/session.ts';
 

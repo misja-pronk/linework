@@ -59,7 +59,7 @@ export function IconPacksDialog({ onClose, onDone }: { onClose(): void; onDone?(
     target.current = v;
     if (!canPickFolder) return dirInput.current?.click();
     void run(async () => {
-      const dir = await (window as unknown as { showDirectoryPicker(o: object): Promise<FileSystemDirectoryHandle> }).showDirectoryPicker({ mode: 'read', id: 'cartography-icons' });
+      const dir = await (window as unknown as { showDirectoryPicker(o: object): Promise<FileSystemDirectoryHandle> }).showDirectoryPicker({ mode: 'read', id: 'linework-icons' });
       return { files: await folderFiles(dir), source: dir.name };
     }, v);
   };

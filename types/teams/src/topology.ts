@@ -4,8 +4,8 @@
 // they serve, platforms as wide bars underneath. An interaction between two teams that touch is
 // drawn as a zone in the gap between them (cross-hatched, dotted, bracketed); one between teams
 // that do not touch is a line around the others in the same colour and dash.
-import type { BlockForm, Box, GraphNode, Placed, PlacedEdge, Sized } from '@cartography/core';
-import { route } from '@cartography/tree';
+import type { BlockForm, Box, GraphNode, Placed, PlacedEdge, Sized } from '@linework/core';
+import { route } from '@linework/tree';
 import { finish } from './org.ts';
 
 const GAP = 30;

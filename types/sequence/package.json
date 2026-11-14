@@ -1,16 +1,16 @@
 {
-  "name": "@cartography/sequence",
+  "name": "@linework/sequence",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
   "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@cartography/core": "workspace:*" },
+  "dependencies": { "@linework/core": "workspace:*" },
   "devDependencies": {
-    "@cartography/engine": "workspace:*",
-    "@cartography/icons": "workspace:*",
-    "@cartography/lanes": "workspace:*",
-    "@cartography/render": "workspace:*",
-    "@cartography/theme": "workspace:*",
+    "@linework/engine": "workspace:*",
+    "@linework/icons": "workspace:*",
+    "@linework/lanes": "workspace:*",
+    "@linework/render": "workspace:*",
+    "@linework/theme": "workspace:*",
     "yaml": "^2.9.1"
   }
 }

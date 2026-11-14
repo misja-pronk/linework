@@ -1,5 +1,5 @@
 // Everything the command palette (⌘K) offers, built from what is open and selected now.
-import type { LayoutSidecar } from '@cartography/core';
+import type { LayoutSidecar } from '@linework/core';
 import { t, say } from '../i18n/index.ts';
 import type { Command } from '../palette.tsx';
 import { keyHint } from '../keys.ts';

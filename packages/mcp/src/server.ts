@@ -3,8 +3,8 @@
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { questionsFor } from '@cartography/core';
-import { findType, themes, types } from '@cartography/engine';
+import { questionsFor } from '@linework/core';
+import { findType, themes, types } from '@linework/engine';
 import { editDiagram } from './edit.ts';
 import { discoveredLink, proposeChange, type LiveLink } from './live.ts';
 import { describeDiagram, diffDiagrams } from './insight.ts';
@@ -13,10 +13,10 @@ import { getSchema, listTypes, newDiagram, renderDiagram, validateDiagram, type 
 const themeNames = Object.keys(themes) as [string, ...string[]];
 const version = '0.0.0';
 
-const instructions = `Cartography turns a short YAML file into a clean architecture diagram (Azure, systems, ERD, access, GitHub, data products). Positions are automatic: never write coordinates.
+const instructions = `Linework turns a short YAML file into a clean architecture diagram (Azure, systems, ERD, access, GitHub, data products). Positions are automatic: never write coordinates.
 Workflow: list_types → get_schema(type) → write YAML → validate → fix every error (each has line, column and a hint) and act on the layout suggestions → render.
 Validate before every render; "quality.verdict" should be "clean" or "good".
-When the user has the diagram open in an editor (VS Code, or carto serve in the browser), get_context says what they have open and selected; "this", "the selected" and "here" mean that. Change a diagram with propose while an editor is connected: it opens the file there if it is not open yet, and the user sees the change marked and accepts or rejects it. Without an editor, or when propose says "no-editor" or "not-open", use edit_diagram (edits by YAML path) rather than rewriting the file: comments and pins stay. describe and diff read a diagram without changing it.`;
+When the user has the diagram open in an editor (VS Code, or linework serve in the browser), get_context says what they have open and selected; "this", "the selected" and "here" mean that. Change a diagram with propose while an editor is connected: it opens the file there if it is not open yet, and the user sees the change marked and accepts or rejects it. Without an editor, or when propose says "no-editor" or "not-open", use edit_diagram (edits by YAML path) rather than rewriting the file: comments and pins stay. describe and diff read a diagram without changing it.`;
 
 const json = (value: unknown): CallToolResult => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }] });
 const failed = (message: string): CallToolResult => ({ isError: true, content: [{ type: 'text', text: message }] });
@@ -78,14 +78,14 @@ export interface ServerOptions {
 }
 
 export function createServer(cwd = process.cwd(), opts: ServerOptions = {}): McpServer {
-  const server = new McpServer({ name: 'cartography', version }, { instructions });
+  const server = new McpServer({ name: 'linework', version }, { instructions });
   const live = opts.live ?? discoveredLink(cwd);
 
   server.registerTool(
     'list_types',
     {
       title: 'List diagram types',
-      description: 'Lists the Cartography diagram types with what each is for. Call this first to pick the type that fits what the user wants to draw.',
+      description: 'Lists the Linework diagram types with what each is for. Call this first to pick the type that fits what the user wants to draw.',
       annotations: { readOnlyHint: true },
     },
     safely(() => json(listTypes())),
@@ -191,12 +191,12 @@ export function createServer(cwd = process.cwd(), opts: ServerOptions = {}): Mcp
     {
       title: 'What the user has open',
       description:
-        'What the user has open in the Cartography editor (VS Code or carto serve): the diagram file, the ids of what is selected, the view, layers and step shown, the problems, and whether there are unsaved changes. Call it when the user says "this", "the selected", "here". Says so when no editor is connected.',
+        'What the user has open in the Linework editor (VS Code or linework serve): the diagram file, the ids of what is selected, the view, layers and step shown, the problems, and whether there are unsaved changes. Call it when the user says "this", "the selected", "here". Says so when no editor is connected.',
       annotations: { readOnlyHint: true },
     },
     safely(async () => {
       const c = await live.context();
-      if (!c) return { content: [{ type: 'text', text: 'No editor is connected (VS Code with the Cartography extension, or carto serve in the browser). Work on the files directly.' }] };
+      if (!c) return { content: [{ type: 'text', text: 'No editor is connected (VS Code with the Linework extension, or linework serve in the browser). Work on the files directly.' }] };
       return { content: [{ type: 'text', text: c.file ? `Open: ${c.file}${c.selection.length ? `, selected: ${c.selection.map((s) => s.id).join(', ')}` : ', nothing selected'}.` : 'A diagram that is not saved as a file yet is open.' }, ...json(c).content] };
     }),
   );
@@ -220,7 +220,7 @@ export function createServer(cwd = process.cwd(), opts: ServerOptions = {}): Mcp
     'describe',
     {
       title: 'Describe a diagram',
-      description: 'The diagram in words (Markdown): what is in it, how it is grouped and what talks to what, as carto describe writes it. Use it to read a diagram you did not write, or to check that the drawing says what the user meant.',
+      description: 'The diagram in words (Markdown): what is in it, how it is grouped and what talks to what, as linework describe writes it. Use it to read a diagram you did not write, or to check that the drawing says what the user meant.',
       inputSchema: { ...source, ...drawnArgs },
       annotations: { readOnlyHint: true },
     },
@@ -234,7 +234,7 @@ export function createServer(cwd = process.cwd(), opts: ServerOptions = {}): Mcp
     'diff',
     {
       title: 'Compare two versions',
-      description: 'What changed between two versions of a diagram, element by element and in sentences (as carto diff): a file against another file ("before"), or against itself at a git commit, branch or tag ("ref", e.g. HEAD or main).',
+      description: 'What changed between two versions of a diagram, element by element and in sentences (as linework diff): a file against another file ("before"), or against itself at a git commit, branch or tag ("ref", e.g. HEAD or main).',
       inputSchema: {
         file: z.string().describe('The newer version'),
         before: z.string().optional().describe('The older version, another file'),
@@ -249,14 +249,14 @@ export function createServer(cwd = process.cwd(), opts: ServerOptions = {}): Mcp
     }),
   );
 
-  server.registerResource('types', 'cartography://types', { title: 'Diagram types', description: 'Every diagram type with what it is for', mimeType: 'application/json' }, (uri) => ({
+  server.registerResource('types', 'linework://types', { title: 'Diagram types', description: 'Every diagram type with what it is for', mimeType: 'application/json' }, (uri) => ({
     contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(listTypes(), null, 2) }],
   }));
 
   server.registerResource(
     'schema',
-    new ResourceTemplate('cartography://schema/{type}', {
-      list: () => ({ resources: types.map((t) => ({ uri: `cartography://schema/${t.id}`, name: `${t.name} schema`, mimeType: 'application/schema+json' })) }),
+    new ResourceTemplate('linework://schema/{type}', {
+      list: () => ({ resources: types.map((t) => ({ uri: `linework://schema/${t.id}`, name: `${t.name} schema`, mimeType: 'application/schema+json' })) }),
       complete: { type: (v) => types.map((t) => t.id).filter((id) => id.startsWith(v)) },
     }),
     { title: 'Type schema', description: 'JSON Schema of one diagram type', mimeType: 'application/schema+json' },
@@ -271,7 +271,7 @@ export function createServer(cwd = process.cwd(), opts: ServerOptions = {}): Mcp
     'create-diagram',
     {
       title: 'Create a diagram',
-      description: 'Guides you from "what do you want to draw?" to a validated, rendered Cartography diagram.',
+      description: 'Guides you from "what do you want to draw?" to a validated, rendered Linework diagram.',
       argsSchema: { what: z.string().optional().describe('What the diagram should show, if already known') },
     },
     ({ what }) => ({ messages: [{ role: 'user', content: { type: 'text', text: createPrompt(what) } }] }),
@@ -288,7 +288,7 @@ export function createPrompt(what?: string): string {
       return `- ${t.id} (${t.name}): ${t.description}\n${qs.join('\n')}`;
     })
     .join('\n');
-  return `Help me make a Cartography diagram.${what ? `\n\nWhat it should show: ${what}` : ''}
+  return `Help me make a Linework diagram.${what ? `\n\nWhat it should show: ${what}` : ''}
 
 1. ${what ? 'From what I said, pick' : 'Ask me what I want to draw, then pick'} the diagram type that fits best (call list_types). Say which type and why in one sentence.
 2. Ask me only the questions for that type that I have not answered yet, in one message. Questions per type:

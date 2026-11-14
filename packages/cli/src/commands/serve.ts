@@ -1,4 +1,4 @@
-// carto serve [folder] [--port 4317]: the web editor for a folder, with an MCP endpoint for the user's own AI.
+// linework serve [folder] [--port 4317]: the web editor for a folder, with an MCP endpoint for the user's own AI.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,7 +7,7 @@ import { t } from '../i18n.ts';
 import { isFolder, UsageError, type Ctx } from '../io.ts';
 
 /**
- * The built web app: web/ next to the bundled carto.mjs (pnpm build copies it there), else
+ * The built web app: web/ next to the bundled linework.mjs (pnpm build copies it there), else
  * packages/web/dist in a clone (pnpm web:build). Undefined when neither is built.
  */
 export function webApp(): string | undefined {
@@ -32,12 +32,12 @@ export async function serveCommand(ctx: Ctx, files: string[], o: ServeOptions, u
     if ((e as NodeJS.ErrnoException).code === 'EADDRINUSE') return (ctx.error(t('Port {port} is in use: pick another with --port', { port })), 1);
     throw e;
   }
-  ctx.log(`${bold(t('Cartography for {folder}', { folder: root }))}
+  ctx.log(`${bold(t('Linework for {folder}', { folder: root }))}
   ${t('Editor')}  ${s.url}/
   MCP     ${s.url}/mcp
 `);
   ctx.log(dim(t('Connect your AI (once; the token stays the same):')));
-  ctx.log(`  claude mcp add --transport http cartography ${s.url}/mcp --header "Authorization: Bearer ${s.token}"
+  ctx.log(`  claude mcp add --transport http linework ${s.url}/mcp --header "Authorization: Bearer ${s.token}"
 `);
   ctx.log(dim(t('Ctrl+C to stop')));
   const stop = () => (s.close(), process.exit(0));

@@ -3,11 +3,11 @@
 // is told the way a person would tell it: a sequence as its messages in order, a database as its
 // tables and how they relate, a matrix row by row, a journey phase by phase, a roadmap lane by lane,
 // an org chart as who reports to whom. Kept short: someone should grasp the drawing in half a minute.
-import { term } from '@cartography/i18n/drawing';
-import { type GraphEdge, type Graph, type GraphGroup, type GraphNode, type LegendItem, type Marker, type StepState } from '@cartography/core';
-import type { BlockShape, GitflowShape, JourneyShape, JourneyStep, MatrixShape, RoadmapShape, SequenceShape, TableShape } from '@cartography/core';
+import { term } from '@linework/i18n/drawing';
+import { type GraphEdge, type Graph, type GraphGroup, type GraphNode, type LegendItem, type Marker, type StepState } from '@linework/core';
+import type { BlockShape, GitflowShape, JourneyShape, JourneyStep, MatrixShape, RoadmapShape, SequenceShape, TableShape } from '@linework/core';
 import type { Description, Item, Section } from './text.ts';
-import { listWords as joinWords, lookup, translator, type Lang, type Params } from '@cartography/i18n';
+import { listWords as joinWords, lookup, translator, type Lang, type Params } from '@linework/i18n';
 import { nl, words } from './nl.ts';
 
 /** What render() returns, or anything else that carries a built graph: describe(result) works as is. */

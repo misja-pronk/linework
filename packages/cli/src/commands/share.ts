@@ -1,7 +1,7 @@
-// carto share <file.yaml>: a link that opens the diagram read-only in the web app, the diagram in its #fragment.
+// linework share <file.yaml>: a link that opens the diagram read-only in the web app, the diagram in its #fragment.
 import fs from 'node:fs';
 import path from 'node:path';
-import { shareLink, SHARE_LIMIT } from '@cartography/core';
+import { shareLink, SHARE_LIMIT } from '@linework/core';
 import type { ShareOptions } from '../args.ts';
 import { t } from '../i18n.ts';
 import type { Ctx } from '../io.ts';

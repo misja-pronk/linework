@@ -43,7 +43,7 @@ The field is crowded and mature. dbdiagram.io (DBML, code-first) and ChartDB (op
 - Bytebase lists Azimutt among its top open-source schema diagram tools — [Bytebase blog](https://www.bytebase.com/blog/top-database-schema-diagram-tools/)
 
 ### Inferences
-- Cartography can win on ERD only on **layout quality plus looks**: orthogonal edges that never pass under tables, consistent spacing, alignment by schema or group, and good results at hundreds of tables. That is the top complaint about the code-first leader, and dbdiagram has not fixed it.
+- Linework can win on ERD only on **layout quality plus looks**: orthogonal edges that never pass under tables, consistent spacing, alignment by schema or group, and good results at hundreds of tables. That is the top complaint about the code-first leader, and dbdiagram has not fixed it.
 - Input formats that matter: SQL DDL in several dialects, DBML (the de facto ERD-as-code language), Prisma schema, and ODCS (which got `relationships` in v3.1, see Niche 2). A "subset view" (focus on table X plus N hops), like Azimutt's, is the scalable answer for big schemas.
 - Prisma users currently go through Mermaid, which has a weak layout for big ERDs. A Prisma importer with a better layout fills a real gap.
 
@@ -53,7 +53,7 @@ The field is crowded and mature. dbdiagram.io (DBML, code-first) and ChartDB (op
 ## Niche 2: Data products / data mesh / data contracts
 
 ### Takeaway
-The standards are now stable: **ODCS v3.1.0** (Dec 2025) and **ODPS v1.0.0** (Sep 2025), both from Bitol/Linux Foundation, with ODCS 3.2 and ODPS 1.1 in progress. Tooling, however, draws data products as **lineage graphs or catalog widgets** inside heavy commercial platforms. Data Mesh Manager/Entropy Data's paid tiers start at €20k/yr. The only diagram-as-code output in this space is datacontract-cli's Mermaid `erDiagram` export, which covers schema only, not ports or the product map. **I found no open-source diagram-as-code tool that renders a data mesh map** (domains, source-aligned/aggregate/consumer-aligned products, input/output ports, contracts as edges) from ODPS/ODCS. This is the clearest gap Cartography can fill.
+The standards are now stable: **ODCS v3.1.0** (Dec 2025) and **ODPS v1.0.0** (Sep 2025), both from Bitol/Linux Foundation, with ODCS 3.2 and ODPS 1.1 in progress. Tooling, however, draws data products as **lineage graphs or catalog widgets** inside heavy commercial platforms. Data Mesh Manager/Entropy Data's paid tiers start at €20k/yr. The only diagram-as-code output in this space is datacontract-cli's Mermaid `erDiagram` export, which covers schema only, not ports or the product map. **I found no open-source diagram-as-code tool that renders a data mesh map** (domains, source-aligned/aggregate/consumer-aligned products, input/output ports, contracts as edges) from ODPS/ODCS. This is the clearest gap Linework can fill.
 
 ### Cited Findings
 - ODCS v3.1.0 is fully backward compatible with v3.0. It adds relationships and richer metadata, applies stricter validation, and deprecates the top-level `dataProduct` field because product information belongs in ODPS. Announced 2025-12-11 — [Bitol announcement](https://bitol.io/bitol-announces-odcs-v3-1-0-stronger-smarter-and-stricter/), [jgp.ai 2025-12-11](https://jgp.ai/2025/12/11/odcs-v3-1-0-is-here-relationships-richer-metadata-and-stricter-validation/)
@@ -81,7 +81,7 @@ The standards are now stable: **ODCS v3.1.0** (Dec 2025) and **ODPS v1.0.0** (Se
   Sources: [Dagster guide](https://dagster.io/guides/dbt-lineage-in-action-3-use-cases-challenges-and-best-practices), [dbt docs: column-level lineage](https://docs.getdbt.com/docs/explore/column-level-lineage), [Snowflake dbt limitations](https://docs.snowflake.com/user-guide/data-engineering/dbt-projects-on-snowflake-limitations)
 
 ### Inferences
-- Every tool here draws products as nodes in a lineage graph. None draws the **Data Mesh vocabulary** as a first-class notation: domain swimlanes, product type (source-aligned/aggregate/consumer-aligned), ports as connectors on the product box, and contracts as labelled edges with SLA/quality badges. Cartography could own this as a diagram type, with ODPS for products and ports plus ODCS for contract and schema detail. It is also a natural fit for YAML-first users, since both standards are YAML.
+- Every tool here draws products as nodes in a lineage graph. None draws the **Data Mesh vocabulary** as a first-class notation: domain swimlanes, product type (source-aligned/aggregate/consumer-aligned), ports as connectors on the product box, and contracts as labelled edges with SLA/quality badges. Linework could own this as a diagram type, with ODPS for products and ports plus ODCS for contract and schema detail. It is also a natural fit for YAML-first users, since both standards are YAML.
 - A second diagram from the same input: the **contract detail view**. This is the ODCS schema shown as an ERD using the v3.1 `relationships`, plus quality and SLA panels. It would be richer than datacontract-cli's plain Mermaid erDiagram.
 - dbt `manifest.json` import would serve dbt Core users who lack Explorer's paid features. Grouping by folder or `group`/`domain` meta tames large DAGs.
 
@@ -110,7 +110,7 @@ The tools fall into two groups. **Security graph tools** (BloodHound CE plus Azu
 - Other projects: EntraOps (privileged-access classification), OID-See, and IdentityAtlas (role-mining UI) — [EntraOps](https://awesome.ecosyste.ms/projects/github.com%2Fcloud-architekt%2Fentraops), [OID-See](https://github.com/secdev02/OID-See), [IdentityAtlas](https://fortigi.github.io/IdentityAtlas/ui/overview/)
 
 ### Inferences
-- An opening for Cartography: an **access diagram type** with:
+- An opening for Linework: an **access diagram type** with:
   - a scope tree (tenant → management group → subscription → resource group, or org → team → repo)
   - principals and groups on the other side
   - role assignments as edges coloured by role, with dashed edges for PIM-eligible
@@ -141,7 +141,7 @@ The tools fall into two groups. **Security graph tools** (BloodHound CE plus Azu
 - Schematex has its own gitgraph diagram type, a sign that new multi-type tools add this — [schematex.js.org/docs/gitgraph](https://schematex.js.org/docs/gitgraph)
 
 ### Inferences
-- Mermaid already covers this niche well enough that Cartography should match its syntax semantics: branch, commit, merge, cherry-pick and tag. It can stand out with:
+- Mermaid already covers this niche well enough that Linework should match its syntax semantics: branch, commit, merge, cherry-pick and tag. It can stand out with:
   - a **strategy mode**: lanes per long-lived branch, environment and deploy markers, and release/hotfix flows shown as patterns, not concrete commits
   - squash, rebase and revert glyphs
   - nicer typography and lane colours
@@ -163,9 +163,9 @@ Journey mapping is dominated by **commercial CX/service-design SaaS** (TheyDo, S
 - Thoughtworks writes about the developer experience of data mesh platforms, a related DX-journey framing — [Thoughtworks blog](https://www.thoughtworks.com/en-gb/insights/blog/data-strategy/dev-experience-data-mesh-platform)
 
 ### Inferences
-- Opening for Cartography: a **journey diagram type** in YAML:
+- Opening for Linework: a **journey diagram type** in YAML:
   - stages → steps → touchpoints, with an emotion/score curve, pain points and owners
-  - the twist: steps can **reference nodes in other Cartography diagrams** (the CLI, portal or service a developer touches). That links storytelling to architecture, which CX tools cannot do.
+  - the twist: steps can **reference nodes in other Linework diagrams** (the CLI, portal or service a developer touches). That links storytelling to architecture, which CX tools cannot do.
   - render in the same look as the other types, slide-ready
 - Mermaid `journey` (sections, tasks, 1–5 scores, actors) is the baseline syntax to exceed. I know its feature set from training, not from a source fetched here.
 
@@ -192,7 +192,7 @@ For Kubernetes, **KubeDiagrams** (Apache-2.0, Python, Graphviz via the `diagrams
 - netbox-topology-views (netbox-community) is a NetBox plugin for topology maps. Its compatibility table runs up to plugin 4.1.x for NetBox 4.1, and the default branch was last pushed 2026-10-16 — [GitHub](https://github.com/netbox-community/netbox-topology-views), [PyPI](https://pypi.org/project/netbox-topology-views), [ecosyste.ms](https://awesome.ecosyste.ms/projects/github.com%2Fnetbox-community%2Fnetbox-topology-views)
 
 ### Inferences
-- KubeDiagrams proves there is demand for "manifests/Helm → diagram". Its weaknesses are a fixed icon-heavy style, Graphviz cluster layout with no orthogonal routing control, and diagrams that get busy because every resource is drawn. Cartography could win with:
+- KubeDiagrams proves there is demand for "manifests/Helm → diagram". Its weaknesses are a fixed icon-heavy style, Graphviz cluster layout with no orthogonal routing control, and diagrams that get busy because every resource is drawn. Linework could win with:
   - **abstraction levels**: app view (Deployments/Services/Ingress only) versus full resource view
   - grouping by namespace or app label
   - a consistent modern look
@@ -203,7 +203,7 @@ For Kubernetes, **KubeDiagrams** (Apache-2.0, Python, Graphviz via the `diagrams
 ### Gaps
 - I did not fetch the nwdiag/PlantUML docs, the k8sviz repo status, Kubeview status, or r/kubernetes and r/networking complaint threads. The Reddit hits were mirror snapshots with no usable content. I have no source-backed user complaints about KubeDiagrams specifically.
 
-## Cross-cutting: where Cartography can win, missing as-code options, and imports
+## Cross-cutting: where Linework can win, missing as-code options, and imports
 
 ### Takeaway
 Ranked by how open the field is:

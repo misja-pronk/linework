@@ -26,7 +26,7 @@ import {
   type Reference,
   type RowMark,
   type Tone,
-} from '@cartography/core';
+} from '@linework/core';
 
 export interface Column {
   type?: string;
@@ -269,7 +269,7 @@ export const erd: DiagramType<ErdSource> = {
   keywords: ['database', 'table', 'column', 'schema', 'sql', 'postgres', 'mysql', 'entity', 'relation', 'foreign key', 'primary key', 'erd', 'er diagram', 'data model', 'migration'],
   schema: {
     $schema: 'http://json-schema.org/draft-07/schema#',
-    title: 'Cartography database diagram',
+    title: 'Linework database diagram',
     type: 'object',
     required: ['type'],
     properties: {

@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { TableShape } from '@cartography/core';
-import { tableGrid } from '@cartography/render';
-import { themes } from '@cartography/theme';
+import type { TableShape } from '@linework/core';
+import { tableGrid } from '@linework/render';
+import { themes } from '@linework/theme';
 import { render } from '../src/index.ts';
 
 const source = (extra = '') => `type: data-products

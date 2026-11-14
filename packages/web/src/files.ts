@@ -1,7 +1,7 @@
 // Local files through the File System Access API (Chrome, Edge): open a folder, edit its diagrams in
 // place, save next to them. Text files in the folder are cached so the engine's synchronous loader can
 // read contracts relative to the diagram, as the CLI does. Other browsers fall back to upload/download.
-import { parseSidecar, type LayoutSidecar } from '@cartography/core';
+import { parseSidecar, type LayoutSidecar } from '@linework/core';
 import { t } from './i18n/index.ts';
 import { sourcedLoader, type Loader } from './render-client.ts';
 
@@ -34,7 +34,7 @@ const isCodeYaml = (path: string, text: string) => /(^|\/)Chart\.yaml$/.test(pat
 
 export async function pickFolder(): Promise<Workspace | undefined> {
   try {
-    const dir = await (window as unknown as { showDirectoryPicker(o: object): Promise<FileSystemDirectoryHandle> }).showDirectoryPicker({ mode: 'readwrite', id: 'cartography' });
+    const dir = await (window as unknown as { showDirectoryPicker(o: object): Promise<FileSystemDirectoryHandle> }).showDirectoryPicker({ mode: 'readwrite', id: 'linework' });
     await remember(dir);
     return scan(dir);
   } catch (e) {
@@ -160,7 +160,7 @@ export async function saveAs(name: string, text: string, startIn?: FileSystemDir
     const handle = await (window as unknown as { showSaveFilePicker(o: object): Promise<FileSystemFileHandle> }).showSaveFilePicker({
       suggestedName: name,
       ...(startIn ? { startIn } : {}),
-      types: [{ description: t('Cartography diagram'), accept: { 'text/yaml': ['.yaml', '.yml'] } }],
+      types: [{ description: t('Linework diagram'), accept: { 'text/yaml': ['.yaml', '.yml'] } }],
     });
     await write(handle, text);
     return { handle, name: handle.name };
@@ -176,7 +176,7 @@ export async function saveFile(handle: FileSystemFileHandle, text: string) {
 
 // The last folder survives a reload in IndexedDB; the browser asks again for permission on reopen.
 
-const DB = 'cartography';
+const DB = 'linework';
 
 function idb(): Promise<IDBDatabase> {
   return new Promise((ok, fail) => {

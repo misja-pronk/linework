@@ -5,7 +5,7 @@
 // flips direction), pieces sharing a corridor keep their order, so no new crossings appear, and
 // bundles are spread evenly. Line ends slide along their node side the same way, which spreads
 // crowded ports. Shared trunks (siblings drawn as one line) move as one.
-import type { Box, Point } from '@cartography/core';
+import type { Box, Point } from '@linework/core';
 
 export interface NudgeEdge {
   id: string;

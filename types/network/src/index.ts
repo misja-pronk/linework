@@ -27,7 +27,7 @@ import {
   type MatrixCell,
   type MatrixHeader,
   type PaletteItem,
-} from '@cartography/core';
+} from '@linework/core';
 
 export const config: GraphTypeConfig = {
   groupKinds: {
@@ -422,7 +422,7 @@ function build(src: NetworkSource, ctx: BuildContext): Graph {
 }
 
 function schema(): object {
-  const s = graphSchema('network', config, 'Cartography network diagram') as { properties: Record<string, any> };
+  const s = graphSchema('network', config, 'Linework network diagram') as { properties: Record<string, any> };
   // The object form of an entry, wherever it sits among the short forms.
   const objectOf = (x: { anyOf: { type?: string }[] }) => x.anyOf.find((y) => y.type === 'object') as { properties: Record<string, object> };
   const node = objectOf(s.properties.nodes.additionalProperties);

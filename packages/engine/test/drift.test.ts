@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LayoutSidecar } from '@cartography/core';
+import type { LayoutSidecar } from '@linework/core';
 import { drift, render } from '../src/index.ts';
 
 const text = `type: azure

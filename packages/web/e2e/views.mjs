@@ -21,9 +21,9 @@ await page.addInitScript(() => {
   sessionStorage.removeItem('seed');
   localStorage.clear();
   const { text, name } = JSON.parse(next);
-  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
 });
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 const open = async (text, name) => {
   await page.evaluate((next) => sessionStorage.setItem('seed', next), JSON.stringify({ text, name }));
   await page.reload();
@@ -220,7 +220,7 @@ await open(`lang: nl\n${mesh}`, 'mesh-nl.yaml');
   // The editor in Dutch (seeding clears the choice, so it is made after): the same views in Dutch.
   const inDutch = async (text, name) => {
     await open(text, name);
-    await page.evaluate(() => localStorage.setItem('cartography:lang', JSON.stringify('nl')));
+    await page.evaluate(() => localStorage.setItem('linework:lang', JSON.stringify('nl')));
     await page.reload();
     await page.waitForSelector('.drawing svg', { timeout: 10000 });
     await wait(600);
@@ -233,7 +233,7 @@ await open(`lang: nl\n${mesh}`, 'mesh-nl.yaml');
   await page.selectOption('.view-picker select', 'overview');
   await wait(600);
   if (!(await page.locator('.drawing svg').first().innerHTML()).includes('Overview')) fail('the English drawing should keep its English subtitle in a Dutch editor');
-  await page.evaluate(() => localStorage.removeItem('cartography:lang'));
+  await page.evaluate(() => localStorage.removeItem('linework:lang'));
 }
 
 // 6. A canvas (present: views): the editor opens on its first view, the whole drawing is still in the

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { icon } from '@cartography/icons';
-import { render } from '@cartography/engine';
+import { icon } from '@linework/icons';
+import { render } from '@linework/engine';
 import { config, systems } from '../src/index.ts';
 
 const shop = `type: systems

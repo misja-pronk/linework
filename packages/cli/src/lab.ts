@@ -3,8 +3,8 @@
 //   pnpm lab [outDir] [variant…]
 import fs from 'node:fs';
 import path from 'node:path';
-import { render } from '@cartography/engine';
-import { measure, score, type LayoutMetrics, type Tuning } from '@cartography/layout';
+import { render } from '@linework/engine';
+import { measure, score, type LayoutMetrics, type Tuning } from '@linework/layout';
 import { toPng } from './png.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');
@@ -30,7 +30,7 @@ const files = [
   ...fs
     .readdirSync(path.join(root, 'examples'))
     .flatMap((d) => fs.readdirSync(path.join(root, 'examples', d)).filter((f) => f.endsWith('.yaml')).map((f) => path.join('examples', d, f))),
-  ...fs.readdirSync(path.join(root, 'docs/comparison/cartography')).filter((f) => f.endsWith('.yaml')).map((f) => path.join('docs/comparison/cartography', f)),
+  ...fs.readdirSync(path.join(root, 'docs/comparison/linework')).filter((f) => f.endsWith('.yaml')).map((f) => path.join('docs/comparison/linework', f)),
 ].sort();
 
 fs.mkdirSync(outDir, { recursive: true });

@@ -2,8 +2,8 @@
 // kind, grouping. Each is a text edit the type reads back without errors.
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { findType, render } from '@cartography/engine';
-import type { Graph } from '@cartography/core';
+import { findType, render } from '@linework/engine';
+import type { Graph } from '@linework/core';
 import { addConnected, addFirst, addSibling, groupInto, groupKinds, idFor, matchKinds, nameEntry, plainItem, readTyped, setKind, shapeKinds } from '../src/sketch.ts';
 
 const azure = findType('azure')!;

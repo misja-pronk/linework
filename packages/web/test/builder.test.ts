@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findType, render } from '@cartography/engine';
+import { findType, render } from '@linework/engine';
 import { setUiLang } from '../src/i18n/index.ts';
 import { addEntry, connectEntries, copyEntries, deleteEntries, deleteEntry, duplicateEntry, pasteEntries, edgeFields, fieldsFor, parentKey, renameEntry, setEdgeField, setField } from '../src/builder.ts';
 

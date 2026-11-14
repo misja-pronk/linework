@@ -3,7 +3,7 @@
 // label then makes every gap that wide, and a drawing of five columns ends up mostly empty. Here
 // each gap between two columns shrinks to what the labels of the lines crossing it need.
 // Left-to-right drawings only: top-down, labels sit beside their lines and gaps are not widened.
-import type { Box, Sized } from '@cartography/core';
+import type { Box, Sized } from '@linework/core';
 import type { Placement, Spacing } from './dot.ts';
 
 /** Room around a label in its gap: a stub at each end before the line may turn. */

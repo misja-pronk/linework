@@ -5,11 +5,11 @@
 // has its own outline (a wide bar, an upright bar, an octagon) and an interaction its own fill
 // (cross-hatched, dotted, bracketed). Everything is laid out as plain marks, so the slide writer
 // places the same marks as native, editable shapes.
-import type { BlockForm, BlockHeat, BlockShape, Box, NodeSize, Tone } from '@cartography/core';
-import { contrast, groupLabel, groupLine, measureText, mix, paperTint, type Theme } from '@cartography/theme';
+import type { BlockForm, BlockHeat, BlockShape, Box, NodeSize, Tone } from '@linework/core';
+import { contrast, groupLabel, groupLine, measureText, mix, paperTint, type Theme } from '@linework/theme';
 import type { JourneyMark, JourneySeg } from './journey.ts';
 import { wrapText } from './size.ts';
-import { term } from '@cartography/i18n/drawing';
+import { term } from '@linework/i18n/drawing';
 
 export const BLOCK = {
   area: { max: 260, padX: 12, top: 11, bottom: 9, line: 14 },

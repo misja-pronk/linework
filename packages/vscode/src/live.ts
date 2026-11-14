@@ -1,4 +1,4 @@
-// The live link's VS Code host (core's live.ts): the user's own AI agent, through Cartography's MCP
+// The live link's VS Code host (core's live.ts): the user's own AI agent, through Linework's MCP
 // server, asks what is open and selected, and proposes edits that show over the preview with the
 // diff marks, to accept (one undo step) or reject. A proposal for a workspace file that is not open
 // opens it, with its preview, first. A small HTTP server on 127.0.0.1 with a random token, announced
@@ -8,10 +8,10 @@ import http from 'node:http';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 import * as vscode from 'vscode';
-import { answerLive, applyOperations, parseSource, renamePinsEverywhere, yamlDiff, type LiveContext, type LiveHost, type Proposal, type ProposalResult } from '@cartography/core';
-import { compare, summary } from '@cartography/diff';
-import { findType } from '@cartography/engine';
-import { announce } from '@cartography/mcp/discovery';
+import { answerLive, applyOperations, parseSource, renamePinsEverywhere, yamlDiff, type LiveContext, type LiveHost, type Proposal, type ProposalResult } from '@linework/core';
+import { compare, summary } from '@linework/diff';
+import { findType } from '@linework/engine';
+import { announce } from '@linework/mcp/discovery';
 import { filesNear, readSidecar, writeSidecar } from './draw.ts';
 import { scheme, type Preview } from './preview.ts';
 

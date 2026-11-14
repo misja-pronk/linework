@@ -1,9 +1,9 @@
-// The editor's side of the live link (core's live.ts) when it was opened by carto serve: it answers
+// The editor's side of the live link (core's live.ts) when it was opened by linework serve: it answers
 // get_context from what is on screen, and turns propose into a proposal the user accepts or rejects
 // (for another file of the folder, that file is opened first).
 // A proposal is applied to the text as it is now, so a hand edit elsewhere in the file still fits.
 import { useEffect, useRef, useState } from 'react';
-import { answerLive, applyOperations, type DiagramType, type LiveContext, type LiveHost, type LiveSelection, type Operation, type Proposal, type ProposalResult } from '@cartography/core';
+import { answerLive, applyOperations, type DiagramType, type LiveContext, type LiveHost, type LiveSelection, type Operation, type Proposal, type ProposalResult } from '@linework/core';
 import { listen, served, type Channel } from './serve.ts';
 
 export interface LiveState {
@@ -32,7 +32,7 @@ export interface OpenProposal {
 }
 
 export interface Live {
-  /** Opened by carto serve. */
+  /** Opened by linework serve. */
   served: boolean;
   connected: boolean;
   proposal?: OpenProposal;

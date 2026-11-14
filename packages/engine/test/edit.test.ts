@@ -1,7 +1,7 @@
-// The path-based edits live in @cartography/core; tested here, against real types.
+// The path-based edits live in @linework/core; tested here, against real types.
 import { describe, expect, it } from 'vitest';
-import { findType, render, types } from '@cartography/engine';
-import { applyOperations, checkOperations, questionsFor, renamePins } from '@cartography/core';
+import { findType, render, types } from '@linework/engine';
+import { applyOperations, checkOperations, questionsFor, renamePins } from '@linework/core';
 
 const azure = findType('azure')!;
 const shop = `type: azure

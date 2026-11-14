@@ -1,7 +1,7 @@
 // Drift: a sidecar (<name>.layout.json) holds pins and bends by id. When the YAML moves on (a node
 // renamed, a view removed, a line taken out) those entries point at nothing and silently stop
 // working. This finds them, so CI can say so, and drops them on request.
-import { viewPins, withViewPins, type LayoutSidecar, type ViewPins } from '@cartography/core';
+import { viewPins, withViewPins, type LayoutSidecar, type ViewPins } from '@linework/core';
 import { render, type RenderOptions } from './index.ts';
 
 export interface DriftItem {

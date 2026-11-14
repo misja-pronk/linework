@@ -17,7 +17,7 @@ const noResvg = {
   setup(b) {
     b.onResolve({ filter: /^@resvg\/resvg-js$/ }, () => ({ path: 'resvg', namespace: 'no-resvg' }));
     b.onLoad({ filter: /.*/, namespace: 'no-resvg' }, () => ({
-      contents: "export class Resvg { constructor() { throw new Error('The MCP server inside the VS Code extension draws no PNG (resvg is native code it does not ship). Render as svg, or use the carto CLI for PNG.'); } }",
+      contents: "export class Resvg { constructor() { throw new Error('The MCP server inside the VS Code extension draws no PNG (resvg is native code it does not ship). Render as svg, or use the linework CLI for PNG.'); } }",
       loader: 'js',
     }));
   },
@@ -38,8 +38,8 @@ export async function buildExtension() {
     external: ['vscode'],
     // CommonJS has no import.meta.url, and code in the bundle builds URLs on it when it loads
     // (pdfkit's ICC profile, the theme's font files): without this the bundle throws on require.
-    define: { 'import.meta.url': '__cartoUrl' },
-    banner: { js: "const __cartoUrl = require('node:url').pathToFileURL(__filename).href;" },
+    define: { 'import.meta.url': '__lineworkUrl' },
+    banner: { js: "const __lineworkUrl = require('node:url').pathToFileURL(__filename).href;" },
   };
   await build({ ...node, entryPoints: { extension: 'src/extension.ts' }, outdir: dist });
   // The MCP server VS Code starts for its agents (src/mcp.ts): packages/mcp's own main, as an ES
@@ -49,7 +49,7 @@ export async function buildExtension() {
     ...node,
     format: 'esm',
     define: {},
-    banner: { js: "import { createRequire as __cartoRequire } from 'node:module'; const require = __cartoRequire(import.meta.url);" },
+    banner: { js: "import { createRequire as __lineworkRequire } from 'node:module'; const require = __lineworkRequire(import.meta.url);" },
     entryPoints: { mcp: '../mcp/src/main.ts' },
     outExtension: { '.js': '.mjs' },
     outdir: dist,
@@ -63,7 +63,7 @@ export async function buildExtension() {
   const s = createRequire(import.meta.url)(out);
   fs.mkdirSync(path.join(dist, 'schemas'), { recursive: true });
   for (const id of s.schemaIds()) fs.writeFileSync(path.join(dist, 'schemas', `${id}.schema.json`), JSON.stringify(s.editorSchema(id), null, 2) + '\n');
-  fs.writeFileSync(path.join(dist, 'schemas', 'cartography.schema.json'), JSON.stringify(s.combinedSchema(), null, 2) + '\n');
+  fs.writeFileSync(path.join(dist, 'schemas', 'linework.schema.json'), JSON.stringify(s.combinedSchema(), null, 2) + '\n');
   fs.rmSync(out);
   return fs
     .readdirSync(dist)

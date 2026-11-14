@@ -10,7 +10,7 @@ const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
 const wait = (ms = 300) => page.waitForTimeout(ms);
-const stored = (k) => page.evaluate((k) => JSON.parse(localStorage.getItem(`cartography:${k}`) ?? 'null'), k);
+const stored = (k) => page.evaluate((k) => JSON.parse(localStorage.getItem(`linework:${k}`) ?? 'null'), k);
 const yaml = async () => (await wait(600), (await stored('doc'))?.text ?? '');
 const text = readFileSync(new URL('../../../examples/journey/developer-onboarding.yaml', import.meta.url), 'utf8');
 
@@ -20,12 +20,12 @@ await page.addInitScript(
     sessionStorage.setItem('seeded', '1');
     localStorage.clear();
     // The inspector with "More" open: these steps check every field.
-    localStorage.setItem('cartography:inspectorMore', 'true');
-    for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name: 'journey.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+    localStorage.setItem('linework:inspectorMore', 'true');
+    for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name: 'journey.yaml' } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
   },
   [text],
 );
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.waitForSelector('.drawing [data-node="access"]', { timeout: 10000 });
 await wait(500);
 await page.screenshot({ path: `${out}/j1-builder.png` });

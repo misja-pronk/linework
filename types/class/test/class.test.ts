@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { TableShape } from '@cartography/core';
+import type { TableShape } from '@linework/core';
 import { render } from '../../../packages/engine/src/index.ts';
 import { classDiagram, memberLine, parseMember, parseRelationLine, type ClassSource } from '../src/index.ts';
 

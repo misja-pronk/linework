@@ -1,18 +1,18 @@
-// Icon packs in the user's config dir: `carto icons import` copies the SVGs of an official download
+// Icon packs in the user's config dir: `linework icons import` copies the SVGs of an official download
 // there and maps them to our kinds. Nothing of it ever lands in the repo or the npm package.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { buildPack, coverage, detectVendor, iconIndex, nameTokens, vendors, type IconPackFile, type KindInfo, type Vendor } from '@cartography/icons';
-import { iconKinds, vendorKinds } from '@cartography/engine';
-import { escapeXml as esc } from '@cartography/core';
+import { buildPack, coverage, detectVendor, iconIndex, nameTokens, vendors, type IconPackFile, type KindInfo, type Vendor } from '@linework/icons';
+import { iconKinds, vendorKinds } from '@linework/engine';
+import { escapeXml as esc } from '@linework/core';
 import { readZip } from './zip.ts';
 
 export function configDir(): string {
-  if (process.env.CARTO_CONFIG_DIR) return process.env.CARTO_CONFIG_DIR;
-  if (process.env.XDG_CONFIG_HOME) return path.join(process.env.XDG_CONFIG_HOME, 'cartography');
-  if (process.platform === 'win32' && process.env.APPDATA) return path.join(process.env.APPDATA, 'cartography');
-  return path.join(os.homedir(), '.config', 'cartography');
+  if (process.env.LINEWORK_CONFIG_DIR) return process.env.LINEWORK_CONFIG_DIR;
+  if (process.env.XDG_CONFIG_HOME) return path.join(process.env.XDG_CONFIG_HOME, 'linework');
+  if (process.platform === 'win32' && process.env.APPDATA) return path.join(process.env.APPDATA, 'linework');
+  return path.join(os.homedir(), '.config', 'linework');
 }
 
 const packDir = (name: string) => path.join(configDir(), 'icons', name);
@@ -106,7 +106,7 @@ function readIndex(name: string): Record<string, string> {
   }
 }
 
-/** Icons of a pack whose name has all these words, best first: what `carto icons map` picks from. */
+/** Icons of a pack whose name has all these words, best first: what `linework icons map` picks from. */
 export function findIcons(name: string, query: string): { name: string; file: string }[] {
   const want = nameTokens(query);
   const index = readIndex(name);
@@ -120,11 +120,11 @@ export function findIcons(name: string, query: string): { name: string; file: st
  */
 export function mapIcon(name: string, kind: string, query: string): { file: string; pack: IconPackFile } {
   const pack = readPack(name);
-  if (!pack) throw new Error(`No ${name} icons imported yet: carto icons import <folder|zip>`);
+  if (!pack) throw new Error(`No ${name} icons imported yet: linework icons import <folder|zip>`);
   const exact = fs.existsSync(path.join(pack.root, query)) ? query : undefined;
   const hits = exact ? [] : findIcons(name, query);
   const file = exact ?? hits[0]?.file;
-  if (!file) throw new Error(`No icon in ${name} called "${query}"; carto icons find ${name} <words> lists them`);
+  if (!file) throw new Error(`No icon in ${name} called "${query}"; linework icons find ${name} <words> lists them`);
   const next: IconPackFile = { ...pack, icons: { ...pack.icons, [kind]: file }, manual: { ...pack.manual, [kind]: file } };
   fs.writeFileSync(path.join(packDir(name), 'pack.json'), JSON.stringify(next, null, 2) + '\n');
   return { file, pack: next };
@@ -191,12 +191,12 @@ export function iconGuide(only?: string): string {
     out.push(`  1. Open ${v.page}`);
     out.push(`  2. ${v.link}`);
     out.push(`  3. You get ${v.file}`);
-    out.push(`  4. carto icons import <that zip or folder>`);
+    out.push(`  4. linework icons import <that zip or folder>`);
     out.push(`  Terms: ${v.terms}`);
     out.push('');
   }
   out.push('Vendors move their pages and rename their files now and then; the importer goes by the names of the icons, not the folders.');
-  out.push('Then: icons: official in a diagram, or carto render x.yaml --icons official. More: docs/icons.md');
+  out.push('Then: icons: official in a diagram, or linework render x.yaml --icons official. More: docs/icons.md');
   return out.join('\n');
 }
 

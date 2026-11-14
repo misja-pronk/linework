@@ -6,7 +6,7 @@
 // parallel lanes, ports), A* over (point, heading) with costs for length, bends, crossing and
 // overlapping lines already routed. Ports are spread along each side, ordered by where the other
 // end is, so lines do not cross right at the box.
-import type { Box, PlacedEdge, Point } from '@cartography/core';
+import type { Box, PlacedEdge, Point } from '@linework/core';
 import { nudge } from './nudge.ts';
 
 export type Side = 'N' | 'E' | 'S' | 'W';

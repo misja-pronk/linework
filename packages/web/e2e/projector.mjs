@@ -16,7 +16,7 @@ const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
 const wait = (ms = 300) => page.waitForTimeout(ms);
-const url = process.env.CARTO_URL ?? 'http://localhost:5178/';
+const url = process.env.LINEWORK_URL ?? 'http://localhost:5178/';
 // A diagram of the test's own (sessionStorage `seed`), opened as the editor keeps one between visits.
 await page.addInitScript(() => {
   const next = sessionStorage.getItem('seed');
@@ -24,7 +24,7 @@ await page.addInitScript(() => {
   sessionStorage.removeItem('seed');
   localStorage.clear();
   const { text, name } = JSON.parse(next);
-  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
 });
 /** A first visit, and the start card at that place opened (none: the start screen stays). */
 const cold = async (card) => {
@@ -337,7 +337,7 @@ await cold();
   for (let i = 1; i <= 6; i++) await page.mouse.move(w.x + w.width / 2 + i * 5, w.y + w.height / 2 + i * 3);
   await page.mouse.up();
   await wait(800);
-  const yaml = await page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}').text ?? '');
+  const yaml = await page.evaluate(() => JSON.parse(localStorage.getItem('linework:doc') ?? '{}').text ?? '');
   if (yaml && !/web: \{[^}]*in: rg/.test(yaml)) fail('a card dragged a short way in its group left it');
   if ((await stage()) !== kept && !(await whole())) fail('a short drag inside the drawing left it out of view');
 }

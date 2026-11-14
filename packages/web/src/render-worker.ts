@@ -1,7 +1,7 @@
 // Draws off the page's thread: a big drawing (the whole of a working canvas) can take a minute to lay
 // out, and the editor goes on answering meanwhile. render-client.ts sends the work and takes it back.
-import { render, type RenderOptions } from '@cartography/engine';
-import { LANGS, type Lang } from '@cartography/i18n';
+import { render, type RenderOptions } from '@linework/engine';
+import { LANGS, type Lang } from '@linework/i18n';
 import { loaderOver, type Ask, type Answer } from './render-client.ts';
 
 /** The files a loader reads, as last sent: sent again only when they change. */

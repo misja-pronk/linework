@@ -6,14 +6,14 @@
   const store = {
     get: () => {
       try {
-        return localStorage.getItem('carto-site-theme');
+        return localStorage.getItem('linework-site-theme');
       } catch {
         return null;
       }
     },
     set: (v) => {
       try {
-        localStorage.setItem('carto-site-theme', v);
+        localStorage.setItem('linework-site-theme', v);
       } catch {}
     },
   };
@@ -90,7 +90,7 @@
   const words = (s) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   let index;
   const load = () =>
-    (index ??= (window.CARTO_SEARCH || []).map((d) => ({ ...d, hw: words(`${d.p} ${d.h}`), xl: d.x.toLowerCase() })));
+    (index ??= (window.LINEWORK_SEARCH || []).map((d) => ({ ...d, hw: words(`${d.p} ${d.h}`), xl: d.x.toLowerCase() })));
   const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const mark = (s, terms) => {
     let out = esc(s);

@@ -1,4 +1,4 @@
-/* Cartography editor: the token layer, resets, base typography and what holds everywhere. The look is
+/* Linework editor: the token layer, resets, base typography and what holds everywhere. The look is
    "Map room": the editor is the table a map sheet lies on. Paper for the bars and panels, hairline rules,
    small-capital plate labels, ink for everything that acts, and rust only for "this is selected" (the
    colour the Survey look draws its own accent in, so the frame and the drawing read as one object).

@@ -10,7 +10,7 @@ async function run(name, viewport, colorScheme) {
   const fail = (m) => problems.push(`${name}: ${m}`);
   page.on('pageerror', (e) => fail(e.message));
   const wait = (ms = 300) => page.waitForTimeout(ms);
-  await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+  await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.waitForSelector('.start .scenario');

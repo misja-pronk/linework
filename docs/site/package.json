@@ -1,5 +1,5 @@
 {
-  "name": "@cartography/site",
+  "name": "@linework/site",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,11 +12,11 @@
     "serve": "tsx src/serve.ts"
   },
   "dependencies": {
-    "@cartography/core": "workspace:*",
-    "@cartography/embed": "workspace:*",
-    "@cartography/engine": "workspace:*",
-    "@cartography/icons": "workspace:*",
-    "@cartography/theme": "workspace:*",
+    "@linework/core": "workspace:*",
+    "@linework/embed": "workspace:*",
+    "@linework/engine": "workspace:*",
+    "@linework/icons": "workspace:*",
+    "@linework/theme": "workspace:*",
     "markdown-it": "^15.0.3"
   },
   "devDependencies": {

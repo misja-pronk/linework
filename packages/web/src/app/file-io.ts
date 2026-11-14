@@ -1,8 +1,8 @@
 // Opening and saving: a template or example, a file, a dropped file, a folder (picked here, or the one
-// carto serve serves), a share link opened in the editor; saving where the document lives. Opening
+// linework serve serves), a share link opened in the editor; saving where the document lives. Opening
 // over unsaved changes saves first where the document lives, or asks.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { decodeShare, type LayoutSidecar } from '@cartography/core';
+import { decodeShare, type LayoutSidecar } from '@linework/core';
 import { t, withUiLang } from '../i18n/index.ts';
 import { blankText, type Starter } from '../library.ts';
 import type { Opened, View } from '../start.tsx';
@@ -133,7 +133,7 @@ export function useFileIO({ document: d, workspace, notify, ask, setSelected, cl
       if (ws && doc.path) {
         // Never overwrite edits made elsewhere without asking.
         const disk = await diskText(ws, doc.path);
-        if (disk != null && savedText != null && disk !== savedText && disk !== now && !(await ask({ title: t('Overwrite {path}?', { path: doc.path! }), text: t('{path} was changed outside Cartography since it was opened.', { path: doc.path! }), ok: t('Overwrite'), cancel: t('Keep the file') }))) return false;
+        if (disk != null && savedText != null && disk !== savedText && disk !== now && !(await ask({ title: t('Overwrite {path}?', { path: doc.path! }), text: t('{path} was changed outside Linework since it was opened.', { path: doc.path! }), ok: t('Overwrite'), cancel: t('Keep the file') }))) return false;
         await saveInFolder(ws, doc.path, now, toSave);
       } else if (fileHandle.current) await saveFile(fileHandle.current, now);
       else if (canSaveFiles) {
@@ -184,11 +184,11 @@ export function useFileIO({ document: d, workspace, notify, ask, setSelected, cl
     }
   };
 
-  // Opened by carto serve: its folder is the workspace, read and written through the server.
+  // Opened by linework serve: its folder is the workspace, read and written through the server.
   useEffect(() => {
     const s = served();
     if (s) void servedFolder(s).then(scan).then((next) => openFolder(undefined, next), (e: unknown) => notify(t('Opening the folder failed: {error}', { error: e instanceof Error ? e.message : String(e) }), { tone: 'error' }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, at launch: the folder carto serve opened
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, at launch: the folder linework serve opened
   }, []);
 
   /** Opens a file of the folder; false when it is not there or the user keeps the open one. */
@@ -249,7 +249,7 @@ export function useFileIO({ document: d, workspace, notify, ask, setSelected, cl
         try {
           const hs = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({
             multiple: true,
-            types: [{ description: t('Cartography diagram'), accept: { 'text/yaml': ['.yaml', '.yml'] } }],
+            types: [{ description: t('Linework diagram'), accept: { 'text/yaml': ['.yaml', '.yml'] } }],
           });
           const files = await Promise.all(hs.map(async (h) => ((f) => f.text().then((text) => ({ path: f.name, text })))(await h.getFile())));
           await openTexts(files, hs[0]);

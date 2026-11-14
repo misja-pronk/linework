@@ -11,7 +11,7 @@
 //
 // All of it is worked out along the flow (u) and across it (v); a process that runs down is the
 // same drawing with the two swapped at the end.
-import type { Box, GraphEdge, Placed, PlacedEdge, Point, Sized } from '@cartography/core';
+import type { Box, GraphEdge, Placed, PlacedEdge, Point, Sized } from '@linework/core';
 
 const GAP = { col: 36, row: 18, line: 12, margin: 16, lanePad: 14, lane: 8, label: 26 } as const;
 

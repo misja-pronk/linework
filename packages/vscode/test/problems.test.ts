@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render } from '@cartography/engine';
+import { render } from '@linework/engine';
 import { distance, fixesFor, lineIndex, toProblems } from '../src/problems.ts';
 
 const apply = (text: string, f: { from: number; to: number; text: string }) => text.slice(0, f.from) + f.text + text.slice(f.to);
@@ -19,7 +19,7 @@ describe('diagnostics as problems', () => {
     const p = toProblems(text, r.diagnostics);
     const kind = p.find((x) => x.message.startsWith('"kind" cannot be "apii": did you mean api?'))!;
     expect(kind.severity).toBe('error');
-    // carto validate says line 3, column 8 (1-based): the same place.
+    // linework validate says line 3, column 8 (1-based): the same place.
     expect(kind.start).toEqual({ line: 2, character: 7 });
     expect(text.split('\n')[2]!.slice(kind.start.character, kind.end.character)).toBe('kind');
   });

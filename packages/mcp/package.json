@@ -1,24 +1,24 @@
 {
-  "name": "@cartography/mcp",
+  "name": "@linework/mcp",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
-  "description": "MCP server for Cartography: list types, read schemas, validate with layout quality, render SVG/PNG",
+  "description": "MCP server for Linework: list types, read schemas, validate with layout quality, render SVG/PNG",
   "exports": {
     ".": "./src/index.ts",
     "./http": "./src/http.ts",
     "./discovery": "./src/discovery.ts"
   },
   "bin": {
-    "cartography-mcp": "./src/main.ts"
+    "linework-mcp": "./src/main.ts"
   },
   "dependencies": {
-    "@cartography/core": "workspace:*",
-    "@cartography/describe": "workspace:*",
-    "@cartography/diff": "workspace:*",
-    "@cartography/engine": "workspace:*",
-    "@cartography/layout": "workspace:*",
-    "@cartography/theme": "workspace:*",
+    "@linework/core": "workspace:*",
+    "@linework/describe": "workspace:*",
+    "@linework/diff": "workspace:*",
+    "@linework/engine": "workspace:*",
+    "@linework/layout": "workspace:*",
+    "@linework/theme": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@resvg/resvg-js": "^2.6.2",
     "zod": "^4.6.7"

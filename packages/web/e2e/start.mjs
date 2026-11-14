@@ -32,7 +32,7 @@ const yaml = () => page.evaluate(() => document.querySelector('.cm-content').inn
 // Nothing in the start dialog talks to the network: no request may leave the page.
 await page.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, (route) => (fail(`network: ${route.request().url()}`), route.abort()));
 
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 // 1. A first visit opens the start screen: the drawings people come to make, in plain words.
@@ -117,7 +117,7 @@ if (!(await yaml()).includes('title: Payments')) fail('title not renamed in plac
 // back at the next launch.
 {
   const p2 = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await p2.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+  await p2.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
   await p2.evaluate(() => localStorage.clear());
   await p2.reload();
   await p2.waitForSelector('.scenario');

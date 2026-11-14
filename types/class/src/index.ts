@@ -40,7 +40,7 @@ import {
   type Reference,
   type TableRow,
   type Tone,
-} from '@cartography/core';
+} from '@linework/core';
 
 export type ClassKind = 'class' | 'interface' | 'abstract' | 'enum' | 'record';
 export const classKinds: ClassKind[] = ['class', 'interface', 'abstract', 'enum', 'record'];
@@ -553,7 +553,7 @@ const relationProps = {
 
 const schema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography class diagram',
+  title: 'Linework class diagram',
   type: 'object',
   required: ['type'],
   properties: {

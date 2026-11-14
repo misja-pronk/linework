@@ -1,7 +1,7 @@
 // What is selected: in the drawing, in the YAML (the entry under the cursor) and in the inspector, the
 // same thing. One element is "the" selection (inspector, Tab, connect); more is a group action.
 import { useCallback, useState } from 'react';
-import type { Path } from '@cartography/core';
+import type { Path } from '@linework/core';
 import type { Selection } from '../preview.tsx';
 import { entryAt } from '../ranges.ts';
 import type { EditorHandle } from '../editor.tsx';

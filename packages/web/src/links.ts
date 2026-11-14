@@ -1,6 +1,6 @@
 // Where an element's link leads in the editor: a URL (new tab), another diagram next to this one (and
 // maybe one of its views), or another view of this diagram. Drill-down from a context to its containers.
-import { joinPath, type Link } from '@cartography/core';
+import { joinPath, type Link } from '@linework/core';
 import { t } from './i18n/index.ts';
 
 export type LinkTarget = { kind: 'url'; url: string } | { kind: 'view'; view: string } | { kind: 'doc'; path: string; view?: string } | { kind: 'none'; why: string };

@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { MatrixShape } from '@cartography/core';
+import type { MatrixShape } from '@linework/core';
 import { parse, stringify } from 'yaml';
-import { accessChanges, effectiveAccess, type AccessSource } from '@cartography/access';
-import { describe as describeDiagram, toText } from '@cartography/describe';
-import { wrapNote, wrapText } from '@cartography/render';
+import { accessChanges, effectiveAccess, type AccessSource } from '@linework/access';
+import { describe as describeDiagram, toText } from '@linework/describe';
+import { wrapNote, wrapText } from '@linework/render';
 import { findType, render } from '../src/index.ts';
 
 const source = (view: string) => `type: access

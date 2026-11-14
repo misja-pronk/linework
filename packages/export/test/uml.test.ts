@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import { unzipSync, strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { render } from '@cartography/engine';
+import { render } from '@linework/engine';
 import { toPptx } from '../src/index.ts';
 
 const example = (f: string) => fs.readFileSync(new URL(`../../../examples/${f}`, import.meta.url), 'utf8');

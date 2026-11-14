@@ -34,7 +34,7 @@ The pain point that comes up most often, in both surveys and threads, is keeping
 
 ### Inferences
 - Wikis gaining as the source of truth (29% to 42%) while dedicated tools fell (37% to 24%) suggests architects want diagrams to live where docs already live, not in a separate SaaS. That favours a tool whose output embeds in Confluence, Notion, GitHub and MkDocs, and argues against a destination app.
-- The two main complaints pull against each other: hand-drawn tools are too fiddly and auto-layout is unstable. Cartography's model (auto-layout plus pins kept in a sidecar file) answers both directly. "Adding one edge doesn't reshuffle the diagram" should be a headline claim, and it needs to be demonstrable.
+- The two main complaints pull against each other: hand-drawn tools are too fiddly and auto-layout is unstable. Linework's model (auto-layout plus pins kept in a sidecar file) answers both directly. "Adding one edge doesn't reshuffle the diagram" should be a headline claim, and it needs to be demonstrable.
 - Survey samples are small. IcePanel's n=75 is vendor-run and C4-biased, so the percentages are directional only.
 
 ### Gaps
@@ -75,7 +75,7 @@ Native rendering on GitHub is the biggest distribution lever in this space. Merm
 - Kroki (a unified rendering API for many diagram languages) has 4,402 stars and is MIT. It serves as integration glue for docs pipelines. — GitHub API, yuzutech/kroki, 2026-11-09
 
 ### Inferences
-- Cartography can't get native GitHub rendering, which is limited to Mermaid. Workable alternatives:
+- Linework can't get native GitHub rendering, which is limited to Mermaid. Workable alternatives:
   1. A GitHub Action that renders SVGs and commits or attaches them.
   2. A PR bot that posts before/after images (visual diff).
   3. Export to Mermaid as a fallback.
@@ -110,7 +110,7 @@ LLM-generated diagrams are mainstream practice in 2026. People draft Mermaid wit
 - tldraw "make-real" (sketch to working UI via LLM, Nov 2023) has 5,414 stars, an early viral AI demo for canvas tools. — GitHub API 2026-11-09
 
 ### Inferences
-- An official MCP server is now table stakes. draw.io and Excalidraw each reached about 5.7k stars in roughly nine months, which is about 60% of draw.io's main repo (9.3k). Cartography should ship an MCP server from day one, ideally as an MCP App that renders inline and writes YAML. The YAML-plus-validator design is a fit: an agent can write YAML, get schema or validation errors back, and iterate.
+- An official MCP server is now table stakes. draw.io and Excalidraw each reached about 5.7k stars in roughly nine months, which is about 60% of draw.io's main repo (9.3k). Linework should ship an MCP server from day one, ideally as an MCP App that renders inline and writes YAML. The YAML-plus-validator design is a fit: an agent can write YAML, get schema or validation errors back, and iterate.
 - For LLM reliability, a strict, documented JSON Schema for the YAML, with clear errors, matters more than how terse the syntax is. Publishing an llms.txt or a short "spec for agents" would help.
 - Domain semantics (C4 rules, ODCS contracts, Kubernetes kinds) are where LLM-written generic Mermaid falls short. Typed diagram kinds can enforce them.
 
@@ -165,8 +165,8 @@ Monetisation is hard. Mermaid Chart went open core with VC funding. tldraw moved
 - Thoughtworks Radar coverage (diagrams-as-code 2020, D2 2025) gave these tools credibility with architects. — [Radar](https://www.thoughtworks.com/radar/techniques/diagrams-as-code); [Radar D2](https://www.thoughtworks.com/en-gb/radar/tools/d2)
 
 ### Inferences
-- The biggest OSS winners are MIT or permissive, and they are libraries or embeds as well as apps (Excalidraw component, Mermaid.js). An MIT licence plus an embeddable renderer package (`npm i @cartography/render`) follows that pattern.
-- Selling a proprietary layout engine or IDE on top of an OSS language (TALA, D2 Studio) did not sustain Terrastruct. Mermaid Chart (hosted collaboration and AI on top of a free format) is still the funded model. tldraw chose licence enforcement. Cartography, as a personal project, can stay pure MIT. If it ever monetises, the evidence points to hosted collaboration or AI services, not closed layout engines.
+- The biggest OSS winners are MIT or permissive, and they are libraries or embeds as well as apps (Excalidraw component, Mermaid.js). An MIT licence plus an embeddable renderer package (`npm i @linework/render`) follows that pattern.
+- Selling a proprietary layout engine or IDE on top of an OSS language (TALA, D2 Studio) did not sustain Terrastruct. Mermaid Chart (hosted collaboration and AI on top of a free format) is still the funded model. tldraw chose licence enforcement. Linework, as a personal project, can stay pure MIT. If it ever monetises, the evidence points to hosted collaboration or AI services, not closed layout engines.
 - Opportunity: D2's commercial steward has gone. Users who want polished architecture layouts in text may be looking for an actively developed alternative. LikeC4 (6k stars, MIT) is a direct competitor on "model plus views, modern look".
 
 ### Gaps
@@ -197,7 +197,7 @@ There was weaker evidence for live data, search across diagrams and links betwee
 - Stable layout when adding edges is asked for, and there is an unmet ask for easy maths diagrams (niche). — [HN 43343473](https://news.ycombinator.com/item?id=43343473)
 
 ### Inferences
-- Cartography's nine typed diagram kinds are separate today. A shared element catalogue (for example, one Azure resource that appears in the network, roles and data-product diagrams), with cross-diagram links, drill-down and a step-through "flow" overlay, would hit the most-requested model-and-views features.
+- Linework's nine typed diagram kinds are separate today. A shared element catalogue (for example, one Azure resource that appears in the network, roles and data-product diagrams), with cross-diagram links, drill-down and a step-through "flow" overlay, would hit the most-requested model-and-views features.
 - Step-through or animation also serves the consultant presentation use case (walking a client through a flow).
 
 ### Gaps

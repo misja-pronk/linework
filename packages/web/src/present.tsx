@@ -4,8 +4,8 @@
 import './present.css';
 import { shortcutFor } from './keys.ts';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { focusReach, type LayoutSidecar, type Link } from '@cartography/core';
-import { render, type RenderResult } from '@cartography/engine';
+import { focusReach, type LayoutSidecar, type Link } from '@linework/core';
+import { render, type RenderResult } from '@linework/engine';
 import { useBrand } from './brand.ts';
 import { useIconOptions } from './icon-packs.ts';
 import { registerThemeFonts } from './fonts.ts';

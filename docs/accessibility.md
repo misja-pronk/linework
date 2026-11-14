@@ -1,6 +1,6 @@
 # Accessibility
 
-Cartography aims at WCAG 2.2 AA: for the drawings it makes, for the editor, and for the pages it exports. This page
+Linework aims at WCAG 2.2 AA: for the drawings it makes, for the editor, and for the pages it exports. This page
 says what that means in practice. Something that falls short is a bug; please report it.
 
 ## Text alternatives in every export

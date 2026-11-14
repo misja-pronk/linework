@@ -1,5 +1,5 @@
 {
-  "name": "@cartography/cloud",
+  "name": "@linework/cloud",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
@@ -7,11 +7,11 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@cartography/azure": "workspace:*",
-    "@cartography/core": "workspace:*"
+    "@linework/azure": "workspace:*",
+    "@linework/core": "workspace:*"
   },
   "devDependencies": {
-    "@cartography/engine": "workspace:*",
-    "@cartography/icons": "workspace:*"
+    "@linework/engine": "workspace:*",
+    "@linework/icons": "workspace:*"
   }
 }

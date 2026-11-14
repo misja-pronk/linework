@@ -1,4 +1,4 @@
-// carto export-html <file.yaml|folder> (also: carto export --to html): one HTML file to send.
+// linework export-html <file.yaml|folder> (also: linework export --to html): one HTML file to send.
 import fs from 'node:fs';
 import path from 'node:path';
 import type { ExportHtmlOptions } from '../args.ts';

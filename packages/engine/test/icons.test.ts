@@ -37,7 +37,7 @@ describe('official icons', () => {
 
   it('says how to get the set when it is not imported', async () => {
     const cli = await render(shop('icons: official'), { fonts: 'none', pack: () => undefined });
-    expect(cli.diagnostics.map((d) => d.message)).toEqual([expect.stringContaining('carto icons import')]);
+    expect(cli.diagnostics.map((d) => d.message)).toEqual([expect.stringContaining('linework icons import')]);
     const web = await render(shop('icons: official'), { fonts: 'none', iconPacks: {} });
     expect(web.diagnostics.map((d) => d.message)).toEqual([expect.stringContaining('Official icons')]);
   });

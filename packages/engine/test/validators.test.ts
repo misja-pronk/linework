@@ -2,7 +2,7 @@
 // otherwise core compiles at run time, with Function(), which the web app's CSP refuses.
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { schemaKey } from '@cartography/core';
+import { schemaKey } from '@linework/core';
 import * as validators from '../../core/src/generated/validators.ts';
 import { generated, validatorsModule } from '../../../scripts/validators.ts';
 import { validatedSchemas } from '../src/index.ts';

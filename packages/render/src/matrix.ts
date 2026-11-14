@@ -1,8 +1,8 @@
 // Matrix shape: row headers on the left, column headers on top, a pill or check mark per cell.
 // Direct values are filled, inherited ones outlined, so the difference does not rely on colour.
-import type { Box, MatrixCell, MatrixShape, Tone } from '@cartography/core';
-import { baselineOffset, chipText, fitText, groupLine, look, measureText, paperTint, type Theme } from '@cartography/theme';
-import { icon } from '@cartography/icons';
+import type { Box, MatrixCell, MatrixShape, Tone } from '@linework/core';
+import { baselineOffset, chipText, fitText, groupLine, look, measureText, paperTint, type Theme } from '@linework/theme';
+import { icon } from '@linework/icons';
 import { chipBack, iconTile, shadowAttr, tagRadius, topBand, esc } from './paint.ts';
 import { BREAK, wrapText } from './size.ts';
 

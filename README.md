@@ -1,4 +1,4 @@
-# Cartography
+# Linework
 
 Architecture diagrams that look good: write a short YAML file or build the diagram interactively from a template, and get a clean, consistent drawing.
 
@@ -8,9 +8,9 @@ Status: early development. Docs: [get started](docs/getting-started.md), [the gl
 
 ```sh
 mise install && pnpm install                      # Node 24 + pnpm (or bring your own)
-pnpm carto new azure shop.yaml                    # start from a template (pnpm carto types: which type for what)
-pnpm carto render shop.yaml -o shop.png           # → shop.png (also .svg, .pptx, .pdf)
-pnpm carto export shop.yaml --to html             # one interactive HTML file to send
+pnpm linework new azure shop.yaml                 # start from a template (pnpm linework types: which type for what)
+pnpm linework render shop.yaml -o shop.png        # → shop.png (also .svg, .pptx, .pdf)
+pnpm linework export shop.yaml --to html          # one interactive HTML file to send
 pnpm web                                          # the editor → http://localhost:5178
 ```
 
@@ -19,16 +19,16 @@ Or build the command line once and run it with plain Node.js 24, anywhere, witho
 
 ```sh
 pnpm build                                        # the web app, packages/cli/dist and packages/mcp/dist
-node packages/cli/dist/carto.mjs render shop.yaml -o shop.png
-cp -r packages/cli/dist ~/opt/carto && ln -s ~/opt/carto/carto.mjs ~/bin/carto   # carto on your PATH
+node packages/cli/dist/linework.mjs render shop.yaml -o shop.png
+cp -r packages/cli/dist ~/opt/linework && ln -s ~/opt/linework/linework.mjs ~/bin/linework  # linework on your PATH
 pnpm smoke                                        # check the bundles from a folder outside the repo
 ```
 
-`carto.mjs` is one file with everything inside; the folder holds what it reads beside it: `fonts/`,
-`examples/`, `web/` (the editor `carto serve` serves) and resvg's native binary for PNG. That binary
+`linework.mjs` is one file with everything inside; the folder holds what it reads beside it: `fonts/`,
+`examples/`, `web/` (the editor `linework serve` serves) and resvg's native binary for PNG. That binary
 is for the machine that built it (macOS arm64, Linux x64, …): build on the platform you run on.
 
-`pnpm carto --help` lists every command in five groups (Create, Draw, Export, Check, Look); `carto <command> --help` puts the common options first.
+`pnpm linework --help` lists every command in five groups (Create, Draw, Export, Check, Look); `linework <command> --help` puts the common options first.
 
 ![Survey](docs/themes/png/survey-azure.png)
 
@@ -38,25 +38,25 @@ The editor: YAML and the drawing side by side (or the **Builder**, no YAML), alw
 
 | Feature | Key or command | More |
 | --- | --- | --- |
-| Start from a type, a template or your own AI | **New**, `carto new` | [ai](docs/ai.md) |
+| Start from a type, a template or your own AI | **New**, `linework new` | [ai](docs/ai.md) |
 | Add, connect, rename, move (positions in `<name>.layout.json`) | `A`, `C`, `F2`, drag | [getting started](docs/getting-started.md) |
 | Tidy the layout, pins stay | `T` | [style](docs/style.md) |
 | Steps: tell a drawing in parts, present it | `S`, `P` | [steps](docs/steps.md) |
-| Focus: one thing and what is around it | `F`, `carto render --focus x` | [data products](docs/data-products.md) |
-| Layers: a security, data or phase-2 view of one file | `L`, `carto render --layer x` | [layers](docs/layers.md) |
-| Compare with an earlier version or a snapshot | `⇧⌘D`, `carto diff` | [compare](docs/compare.md) |
-| Your own AI (Claude Code, Copilot, Cursor…) changes diagrams through MCP: proposals to accept, files changed on disk marked | `⌘J`, `carto serve` | [ai](docs/ai.md), [mcp](docs/mcp.md) |
+| Focus: one thing and what is around it | `F`, `linework render --focus x` | [data products](docs/data-products.md) |
+| Layers: a security, data or phase-2 view of one file | `L`, `linework render --layer x` | [layers](docs/layers.md) |
+| Compare with an earlier version or a snapshot | `⇧⌘D`, `linework diff` | [compare](docs/compare.md) |
+| Your own AI (Claude Code, Copilot, Cursor…) changes diagrams through MCP: proposals to accept, files changed on disk marked | `⌘J`, `linework serve` | [ai](docs/ai.md), [mcp](docs/mcp.md) |
 | One model, many diagrams: includes, views, links between files | `include:`, `views:`, `links:` | [model](docs/model.md) |
-| Describe a diagram in plain words | Export → Describe in words, `carto describe` | [describe](docs/describe.md) |
-| One interactive HTML file to send | Export → Interactive HTML, `carto export --to html` | [html export](docs/html-export.md) |
-| PowerPoint and PDF, a slide per step; a client's template | Export, `carto deck` | [powerpoint templates](docs/powerpoint-templates.md) |
-| A share link (the diagram travels in the `#fragment`) | Export → Copy share link, `carto share` | [share](docs/share.md) |
-| Themes, a client's colours and logo, vendor icons | **Theme**, `carto themes`, `carto icons` | [themes](docs/themes.md), [icons](docs/icons.md) |
-| Checks and picture diffs in CI and pull requests | `carto validate`, `carto diff`, the GitHub Action | [ci](docs/ci.md) |
+| Describe a diagram in plain words | Export → Describe in words, `linework describe` | [describe](docs/describe.md) |
+| One interactive HTML file to send | Export → Interactive HTML, `linework export --to html` | [html export](docs/html-export.md) |
+| PowerPoint and PDF, a slide per step; a client's template | Export, `linework deck` | [powerpoint templates](docs/powerpoint-templates.md) |
+| A share link (the diagram travels in the `#fragment`) | Export → Copy share link, `linework share` | [share](docs/share.md) |
+| Themes, a client's colours and logo, vendor icons | **Theme**, `linework themes`, `linework icons` | [themes](docs/themes.md), [icons](docs/icons.md) |
+| Checks and picture diffs in CI and pull requests | `linework validate`, `linework diff`, the GitHub Action | [ci](docs/ci.md) |
 
 **Diagram types**: architecture, C4, Azure, AWS and Google Cloud, Kubernetes, network, database (ERD), roles / groups / access packages, GitHub, data products (ports and data contracts), sequence, git branching, roadmap, journey map, process, states, capability map (with heatmaps), teams (org chart and Team Topologies), DDD context map, matrix (RACI, CRUD), UML class diagram and mind map.
 
-**A look of its own**: the default style, Survey, draws a diagram as a map sheet: paper tints that deepen as groups nest, bare icons, labels on the lines, a key. Lines that share a path are spaced evenly or merge into a trunk; supporting links (Key Vault, logging) can be badges on the card. Transit, Drafting and a hand-drawn Sketch are built in. See [style](docs/style.md), [the comparison with Mermaid and D2](docs/comparison/README.md) and [the benchmark](docs/benchmark.md), including where Cartography loses.
+**A look of its own**: the default style, Survey, draws a diagram as a map sheet: paper tints that deepen as groups nest, bare icons, labels on the lines, a key. Lines that share a path are spaced evenly or merge into a trunk; supporting links (Key Vault, logging) can be badges on the card. Transit, Drafting and a hand-drawn Sketch are built in. See [style](docs/style.md), [the comparison with Mermaid and D2](docs/comparison/README.md) and [the benchmark](docs/benchmark.md), including where Linework loses.
 
 **From what you already have**: your own AI converts Mermaid, D2, PlantUML, Structurizr, draw.io, Excalidraw and Terraform files, and checks what it wrote with the MCP tools. See [from other tools](docs/ai.md#from-other-tools).
 

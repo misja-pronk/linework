@@ -1,11 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { icon } from '@cartography/icons';
-import { render } from '@cartography/engine';
-import { measureText, themes } from '@cartography/theme';
-import { roadmapGeometry, type RoadmapGeometry } from '@cartography/render';
-import type { Box, RoadmapShape } from '@cartography/core';
+import { icon } from '@linework/icons';
+import { render } from '@linework/engine';
+import { measureText, themes } from '@linework/theme';
+import { roadmapGeometry, type RoadmapGeometry } from '@linework/render';
+import type { Box, RoadmapShape } from '@linework/core';
 import { addDuration, parseDate, roadmap, roadmapReferences } from '../src/index.ts';
 import { day } from '../src/dates.ts';
 

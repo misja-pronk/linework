@@ -1,5 +1,5 @@
 // Files edited elsewhere (your AI agent, git, another editor) show up: the folder is read again when
-// the window gets focus, and the open file is watched while the tab is visible (carto serve says when
+// the window gets focus, and the open file is watched while the tab is visible (linework serve says when
 // it changes; a folder picked here is asked, or polled for its lastModified). Without unsaved changes
 // the new text comes in as one undoable edit, marked in the Your AI panel; with them, a warning
 // (saving then asks first).
@@ -23,7 +23,7 @@ interface Props {
   notify: Notify;
   /** Brings the Your AI panel up, where the change is marked. */
   show(): void;
-  /** carto serve says when a file changes: no watching here then. */
+  /** linework serve says when a file changes: no watching here then. */
   served: boolean;
 }
 
@@ -94,7 +94,7 @@ export function useDiskSync({ ws, setWs, document: d, notify, show, served }: Pr
     };
     checkDisk.current = () => void check(true);
     void ws.files.get(path)?.handle.getFile().then((f) => (stamp = f.lastModified), () => undefined);
-    // carto serve says when a file changes; a folder picked here is asked to say so, or polled.
+    // linework serve says when a file changes; a folder picked here is asked to say so, or polled.
     if (served) return () => void (checkDisk.current = () => undefined);
     const Observer = (window as unknown as { FileSystemObserver?: new (cb: () => void) => { observe(h: unknown): Promise<void>; disconnect(): void } }).FileSystemObserver;
     if (Observer) {
@@ -106,7 +106,7 @@ export function useDiskSync({ ws, setWs, document: d, notify, show, served }: Pr
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tookFromDisk reads the document through onDisk; served stays what it is
   }, [ws, doc.path]);
-  /** carto serve said a file changed: the open one is read again. */
+  /** linework serve said a file changed: the open one is read again. */
   const changed = (path: string) => path === onDisk.current.doc.path && checkDisk.current();
   return { diskChange, setDiskChange, changed };
 }

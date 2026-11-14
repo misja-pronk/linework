@@ -1,6 +1,6 @@
 // The built-in looks. Survey is the default: a diagram drawn like a map sheet. Transit and Drafting
-// are the two optional styles; classic is the look Cartography had before (see docs/style.md).
-import { tones as toneSlots, type Tone } from '@cartography/core';
+// are the two optional styles; classic is the look Linework had before (see docs/style.md).
+import { tones as toneSlots, type Tone } from '@linework/core';
 import { classic, classicDark, shared, type Theme, type ToneColors } from './tokens.ts';
 
 type Pairs = Record<Tone, [fg: string, bg: string]>;

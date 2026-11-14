@@ -1,7 +1,7 @@
-# Cartography in het Nederlands
+# Linework in het Nederlands
 
-Cartography spreekt Engels en Nederlands. Je eigen labels blijven altijd zoals je ze schrijft; vertaald
-wordt alleen wat Cartography zelf toevoegt of laat zien.
+Linework spreekt Engels en Nederlands. Je eigen labels blijven altijd zoals je ze schrijft; vertaald
+wordt alleen wat Linework zelf toevoegt of laat zien.
 
 ## Overschakelen
 
@@ -9,7 +9,7 @@ wordt alleen wat Cartography zelf toevoegt of laat zien.
 | --- | --- |
 | De editor | Standaard de taal van je browser. Kies een andere in het themamenu in de werkbalk onder **Language / Taal**; de keuze blijft bewaard in deze browser. |
 | De tekening | Zet `lang: nl` bovenaan het diagram. Dan staan de legenda, de namen van soorten, stappentellers, review en beschrijving in het Nederlands, ook in elke export. Een nieuw diagram uit de Nederlandstalige editor krijgt `lang: nl` vanzelf. |
-| De CLI | `carto --lang nl …` of `CARTO_LANG=nl`. Zonder die twee volgt de CLI `LC_ALL`, `LC_MESSAGES` of `LANG`. Optienamen blijven Engels (`--view`, `--out`). Een `--lang` geldt ook voor tekeningen zonder eigen `lang:`. |
+| De CLI | `linework --lang nl …` of `LINEWORK_LANG=nl`. Zonder die twee volgt de CLI `LC_ALL`, `LC_MESSAGES` of `LANG`. Optienamen blijven Engels (`--view`, `--out`). Een `--lang` geldt ook voor tekeningen zonder eigen `lang:`. |
 
 ```yaml
 type: systems
@@ -32,9 +32,9 @@ nodes:
   vereist MFA) en bij een vergelijking met een eerdere stand (+ erbij, − kwijt, ~ gewijzigd, Nieuw,
   Weg), de systemen op een capabilitymap (1 systeem, geen systeem), aantallen (5 mensen), de namen
   die een type zelf aan zijn weergaven geeft (Overzicht, Hele sequence, Klantreis, *Orders in
-  detail*), de tekstbeschrijving (`carto describe`, alt-tekst) en de knoppen van de interactieve
+  detail*), de tekstbeschrijving (`linework describe`, alt-tekst) en de knoppen van de interactieve
   HTML-viewer. Een naam die gelijk is aan zijn sleutel in de YAML (een klasse `Member`) is van jou en
-  blijft staan, ook als Cartography hem van de sleutel maakt: een team `payments` heet Payments, niet
+  blijft staan, ook als Linework hem van de sleutel maakt: een team `payments` heet Payments, niet
   Betalingen. Alleen een sleutel die zijn soort herhaalt (`users: { kind: users }`) noemt de soort, en
   die wordt Gebruikers.
 - **Bewust Engels in de tekening**: de vaste woorden van een notatie, zoals ALT, LOOP en REF in een

@@ -2,7 +2,7 @@
 // selects what it names) or the type's shapes to browse and drag, on two tabs. Adding is the A popup.
 import './outline.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Graph, GraphNode, PaletteItem, Tone } from '@cartography/core';
+import type { Graph, GraphNode, PaletteItem, Tone } from '@linework/core';
 import type { Selection } from '../preview.tsx';
 import { AddMenu } from '../add-menu.tsx';
 import { Icon } from '../icon.tsx';

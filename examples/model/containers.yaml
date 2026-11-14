@@ -1,5 +1,5 @@
 # Containers: the views open the shop into a boundary with its parts. Pick one with
-# `carto render containers.yaml --view ordering` or the view menu in the editor.
+# `linework render containers.yaml --view ordering` or the view menu in the editor.
 type: systems
 include: [model.yaml]
 

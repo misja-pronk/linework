@@ -24,14 +24,14 @@ jobs:
     # Pull requests from forks get a read-only token whatever is written here. The action then
     # skips the push and the comment, and leaves the pictures in the run's artifact and summary.
     permissions:
-      contents: write        # pictures go to the cartography-diffs branch
+      contents: write        # pictures go to the linework-diffs branch
       pull-requests: write   # the comment
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0     # to compare with where the branch left main
 
-      - uses: misja-pronk/cartography/packages/action@main
+      - uses: misja-pronk/linework/packages/action@main
         with:
           # files: |
           #   docs/**/*.yaml
@@ -40,12 +40,12 @@ jobs:
           # images: artifact   # no pictures in the comment, no write access to the repository needed
           fail-on-error: true
 
-      # The action puts `carto` on the PATH. Not on closed: nothing to check any more.
+      # The action puts `linework` on the PATH. Not on closed: nothing to check any more.
       - name: Saved positions still match the diagrams
         if: github.event.action != 'closed'
         run: |
           shopt -s globstar nullglob
-          carto validate --drift docs/**/*.yaml
+          linework validate --drift docs/**/*.yaml
 
   render:
     if: github.event_name == 'push'
@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: misja-pronk/cartography/packages/action@main
+      - uses: misja-pronk/linework/packages/action@main
         with:
           formats: svg
           commit: true

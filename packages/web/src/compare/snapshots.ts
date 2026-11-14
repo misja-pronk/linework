@@ -1,9 +1,9 @@
 // Snapshots: named copies of a diagram to compare with later ("before the review"). Always kept in this
 // browser (IndexedDB, per document); in an open folder also written next to the diagram as
 // <name>.snapshots/<label>.yaml (and <label>.layout.json when it has pins), plain files that git can
-// keep and `carto diff --snapshot <label>` reads. A snapshot in the folder wins over the browser's copy.
-import type { LayoutSidecar } from '@cartography/core';
-import { isSnapshotPath, snapshotDir, snapshotPath, snapshotSlug as slug } from '@cartography/diff';
+// keep and `linework diff --snapshot <label>` reads. A snapshot in the folder wins over the browser's copy.
+import type { LayoutSidecar } from '@linework/core';
+import { isSnapshotPath, snapshotDir, snapshotPath, snapshotSlug as slug } from '@linework/diff';
 
 export { isSnapshotPath, slug, snapshotDir, snapshotPath };
 
@@ -94,7 +94,7 @@ export function browserBackend(): SnapshotBackend {
   let db: Promise<IDBDatabase> | undefined;
   const open = () =>
     (db ??= new Promise((ok, fail) => {
-      const r = indexedDB.open('cartography-snapshots', 1);
+      const r = indexedDB.open('linework-snapshots', 1);
       r.onupgradeneeded = () => r.result.createObjectStore('snapshots');
       r.onsuccess = () => ok(r.result);
       r.onerror = () => fail(r.error);

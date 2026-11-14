@@ -8,7 +8,7 @@ import { chromium } from '@playwright/test';
 const out = process.argv[2] ?? '.';
 fs.mkdirSync(out, { recursive: true });
 const shop = fs.readFileSync(path.resolve(import.meta.dirname, '../../../examples/azure/web-shop.yaml'), 'utf8');
-const base = process.env.CARTO_URL ?? 'http://localhost:5178/';
+const base = process.env.LINEWORK_URL ?? 'http://localhost:5178/';
 const browser = await chromium.launch();
 const problems = [];
 const fail = (m) => problems.push(m);
@@ -71,7 +71,7 @@ async function fresh(viewport, text = shop) {
     if (sessionStorage.getItem('seeded')) return;
     sessionStorage.setItem('seeded', '1');
     localStorage.clear();
-    for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name: 'web-shop.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+    for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name: 'web-shop.yaml' } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
   }, text);
   await page.goto(base);
   await page.waitForSelector('.drawing [data-node="api"]', { timeout: 15000 });

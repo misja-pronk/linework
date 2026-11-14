@@ -3,7 +3,7 @@
 // left in the order those lines come in, top to bottom. Two sources drawn the other way round from
 // their ports would cross just before the table; in this order they never need to. Where the order
 // makes no difference (sources level, or already in order) the rows stay as written.
-import type { Graph, Placed, Sized, TableRow } from '@cartography/core';
+import type { Graph, Placed, Sized, TableRow } from '@linework/core';
 
 /** The rows of each table that should stand in another order, by node id; undefined when none. */
 export function portOrder(sized: Sized, placed: Pick<Placed, 'nodes'>): Map<string, TableRow[]> | undefined {

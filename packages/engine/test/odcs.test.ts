@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseSource, type TableShape } from '@cartography/core';
-import { readOdcs } from '@cartography/data-products';
+import { parseSource, type TableShape } from '@linework/core';
+import { readOdcs } from '@linework/data-products';
 import { render } from '../src/index.ts';
 
 const v3 = `apiVersion: v3.0.2

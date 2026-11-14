@@ -1,9 +1,9 @@
-// carto render <file.yaml…>: each diagram to SVG, PNG, PowerPoint or PDF; per view, step or layer when asked.
+// linework render <file.yaml…>: each diagram to SVG, PNG, PowerPoint or PDF; per view, step or layer when asked.
 import fs from 'node:fs';
 import path from 'node:path';
-import { render, type RenderResult } from '@cartography/engine';
-import { toSafeSvg } from '@cartography/export/svg-safe';
-import type { Theme } from '@cartography/theme';
+import { render, type RenderResult } from '@linework/engine';
+import { toSafeSvg } from '@linework/export/svg-safe';
+import type { Theme } from '@linework/theme';
 import type { RenderOptions } from '../args.ts';
 import { describedPng } from '../describe.ts';
 import { document, documentFlags, noteLayout, optionsFor, themeFlag } from '../draw.ts';
@@ -28,8 +28,8 @@ export interface Job {
 /** -o deck.pptx says the format as clearly as --format pptx; the extension wins for one file. */
 function formatFor({ o, command, count }: Job): Format {
   const ext = o.out && count === 1 && o.out !== '-' ? path.extname(o.out).slice(1).toLowerCase() : '';
-  if (!formats.includes(o.format as Format)) throw new UsageError(`--format ${o.format} is not one carto ${command} writes; use one of: ${formats.join(', ')}`);
-  if (ext && !formats.includes(ext as Format)) throw new UsageError(`-o ${o.out}: carto ${command} writes ${formats.join(', ')}, not .${ext}`);
+  if (!formats.includes(o.format as Format)) throw new UsageError(`--format ${o.format} is not one linework ${command} writes; use one of: ${formats.join(', ')}`);
+  if (ext && !formats.includes(ext as Format)) throw new UsageError(`-o ${o.out}: linework ${command} writes ${formats.join(', ')}, not .${ext}`);
   return formats.find((f) => f === ext) ?? formats.find((f) => f === o.format) ?? 'svg';
 }
 
@@ -138,10 +138,10 @@ export function renderFlags(o: RenderOptions) {
   documentFlags(o);
 }
 
-/** carto render: every file given; `-` is standard input. */
+/** linework render: every file given; `-` is standard input. */
 export async function renderCommand(ctx: Ctx, files: string[], o: RenderOptions, usage: () => number): Promise<number> {
   if (!files.length) return usage();
-  if (!formats.includes(o.format as Format)) throw new UsageError(`--format ${o.format} is not one carto render writes; use one of: ${formats.join(', ')}`);
+  if (!formats.includes(o.format as Format)) throw new UsageError(`--format ${o.format} is not one linework render writes; use one of: ${formats.join(', ')}`);
   if (!(Number(o.scale) > 0)) throw new UsageError(`--scale ${o.scale}: give a number above 0, e.g. --scale 2`);
   renderFlags(o);
   const forced = themeFlag(ctx, o.theme);

@@ -6,10 +6,10 @@
 // Forks leave their commit vertically and turn onto the new row; merges run along their own row and
 // turn into the merge commit. So lines never leave a dot on the side its text is on: a commit's label
 // and notes go below the line, its tags above, unless a line takes that side.
-import type { Box, GitBranch, GitCommit, GitflowShape, GitPipeline, GitStage, Tone } from '@cartography/core';
-import { spread, stack, tracks, type Apart, type Row, type Span } from '@cartography/lanes';
-import { baselineOffset, fitText, groupFill, groupLine, look, measureText, type Theme } from '@cartography/theme';
-import { icon } from '@cartography/icons';
+import type { Box, GitBranch, GitCommit, GitflowShape, GitPipeline, GitStage, Tone } from '@linework/core';
+import { spread, stack, tracks, type Apart, type Row, type Span } from '@linework/lanes';
+import { baselineOffset, fitText, groupFill, groupLine, look, measureText, type Theme } from '@linework/theme';
+import { icon } from '@linework/icons';
 import { wrapLines } from './sequence.ts';
 import { arrowHead, cardStroke, chipBack, iconTile, shadowAttr, tagRadius, esc } from './paint.ts';
 

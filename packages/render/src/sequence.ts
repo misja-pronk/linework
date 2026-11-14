@@ -2,10 +2,10 @@
 // tinted bands with a small tab. Text is measured first, then the lanes engine spaces the lifelines
 // (each gap as wide as its widest label) and stacks the rows, so labels never collide: every message
 // owns its row, and a row is as tall as its wrapped label.
-import { linkHref, parseLink, type Box, type SequenceEvent, type SequenceParticipant, type SequenceShape, type Tone } from '@cartography/core';
-import { deepest, nesting, spread, stack, tracks, type Apart, type Band, type Row, type Span } from '@cartography/lanes';
-import { baselineOffset, fitText, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, mix, paperTint, type Theme } from '@cartography/theme';
-import { icon } from '@cartography/icons';
+import { linkHref, parseLink, type Box, type SequenceEvent, type SequenceParticipant, type SequenceShape, type Tone } from '@linework/core';
+import { deepest, nesting, spread, stack, tracks, type Apart, type Band, type Row, type Span } from '@linework/lanes';
+import { baselineOffset, fitText, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, mix, paperTint, type Theme } from '@linework/theme';
+import { icon } from '@linework/icons';
 import { BREAK } from './size.ts';
 import { cardStroke, iconTile, numberMark, shadowAttr, esc } from './paint.ts';
 

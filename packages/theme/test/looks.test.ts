@@ -1,7 +1,7 @@
 // Accessibility of the built-in looks: text contrast on every ground a label can land on, tints that
 // still step without colour, and tone ramps that stay apart for colour-blind readers.
 import { describe, expect, it } from 'vitest';
-import { tones } from '@cartography/core';
+import { tones } from '@linework/core';
 import { builtinLooks, contrast, deepestGround, look, luminance, parseColor, themeCatalog, themes, type Theme } from '../src/index.ts';
 
 const AA = 4.5;

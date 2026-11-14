@@ -14,7 +14,7 @@ const root = path.resolve(import.meta.dirname, '..');
 export const PUBLISH = [];
 
 const problems = [];
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-pack-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linework-pack-'));
 const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 
 for (const dir of PUBLISH) {
@@ -47,7 +47,7 @@ for (const dir of PUBLISH) {
   for (const kind of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
     for (const [name, range] of Object.entries(m[kind] ?? {})) {
       if (String(range).startsWith('workspace:')) fail(`${kind}.${name} is still "${range}"`);
-      if (name.startsWith('@cartography/') && !PUBLISH.some((d) => JSON.parse(fs.readFileSync(path.join(root, d, 'package.json'), 'utf8')).name === name)) fail(`${kind}.${name} is not published: users could not install this package`);
+      if (name.startsWith('@linework/') && !PUBLISH.some((d) => JSON.parse(fs.readFileSync(path.join(root, d, 'package.json'), 'utf8')).name === name)) fail(`${kind}.${name} is not published: users could not install this package`);
     }
   }
   // Every entry point must be in the tarball and be JavaScript: Node does not run TypeScript from node_modules.
@@ -63,7 +63,7 @@ for (const dir of PUBLISH) {
   // A bundle that imports one of our packages by name would fail on install.
   for (const f of files.filter((x) => x.endsWith('.js'))) {
     const text = fs.readFileSync(path.join(pkgDir, f), 'utf8');
-    const ours = /(?:from|import\()\s*["'](@cartography\/[\w-]+)/.exec(text);
+    const ours = /(?:from|import\()\s*["'](@linework\/[\w-]+)/.exec(text);
     if (ours) fail(`${f} imports ${ours[1]}, which is not bundled`);
   }
   const size = files.reduce((n, f) => n + (fs.existsSync(path.join(pkgDir, f)) ? fs.statSync(path.join(pkgDir, f)).size : 0), 0);
@@ -77,7 +77,7 @@ for (const base of ['packages', 'types']) {
     const file = path.join(root, base, name, 'package.json');
     if (!fs.existsSync(file) || PUBLISH.includes(`${base}/${name}`)) continue;
     const p = JSON.parse(fs.readFileSync(file, 'utf8'));
-    if (!p.private) rest.push(p.name.replace('@cartography/', ''));
+    if (!p.private) rest.push(p.name.replace('@linework/', ''));
   }
 }
 if (rest.length) console.log(`not released (TypeScript sources for use inside this repository; a bundle step comes first): ${rest.join(', ')}`);

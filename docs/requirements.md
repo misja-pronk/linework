@@ -1,4 +1,4 @@
-# Cartography — requirements
+# Linework — requirements
 
 IDs: **M** = must (first release), **S** = should (soon after), **C** = could (later).
 
@@ -73,7 +73,7 @@ Every type: **M** has a template, an example in the gallery, a JSON Schema, a bu
 - **Data contracts** on output ports: version, classification, schema fields (pk, PII, nullable), guarantees (freshness, availability, …) and quality checks.
 - **Two detail levels from one source:** `view: overview` (products as cards plus lineage between them, one line per product pair) and `view: detailed` (products as tables with their ports, lines attached to the exact port, contracts beside the port they govern). With products in several domains the detailed drawing is offered per domain (`detailed-<domain>`), and per product (`detailed-<product>`) in a domain that holds several products with a contract among them, so each fits a slide; `detailed` and a split domain's view still draw when asked for by name.
 - Detail per product too: `detail: [id]` or `detail: true` shows one product in detail and the rest as overview; `show-contracts: false` hides contracts.
-- Contracts can come from an **Open Data Contract Standard** file (`file: contracts/x.odcs.yaml`, v3 and v2): name, version, schema objects and fields (key, PII from tags or classification, optional unless required), SLA properties with units, quality rules and the strictest classification. Keys written in the diagram override the file; `contract-fields: n` caps the fields shown ("+ n more fields"). The CLI resolves files relative to the diagram and `carto watch` follows them.
+- Contracts can come from an **Open Data Contract Standard** file (`file: contracts/x.odcs.yaml`, v3 and v2): name, version, schema objects and fields (key, PII from tags or classification, optional unless required), SLA properties with units, quality rules and the strictest classification. Keys written in the diagram override the file; `contract-fields: n` caps the fields shown ("+ n more fields"). The CLI resolves files relative to the diagram and `linework watch` follows them.
 
 ## 4. Text format
 - T1 (M) YAML, one diagram per file, with `type:` at the top and a published JSON Schema per type (autocomplete and validation in VS Code and the web editor).
@@ -120,9 +120,9 @@ Every type: **M** has a template, an example in the gallery, a JSON Schema, a bu
 
 ## 9. Apps
 - A1 (M) **Web app** (static, runs offline, no account): editor + builder + preview + export. Files open/save locally (File System Access API, with download/upload as fallback).
-- A2 (M) **CLI**: `carto render`, `carto watch`, `carto validate`, `carto new <template>`.
+- A2 (M) **CLI**: `linework render`, `linework watch`, `linework validate`, `linework new <template>`.
 - A3 (S) VS Code extension with live preview (reuses the web components).
-- A4 (C) Embed component (`<carto-diagram src=…>`) for docs sites.
+- A4 (C) Embed component (`<linework-diagram src=…>`) for docs sites.
 
 ## 10. Extensibility
 - X1 (M) A diagram type is a plugin: schema + layout + shape renderers + template + palette. Core stays type-agnostic.
@@ -148,5 +148,5 @@ Every type: **M** has a template, an example in the gallery, a JSON Schema, a bu
 
 ## Verification
 - `pnpm test`: unit, snapshot and builder round-trip tests.
-- `carto render examples/**/*.yaml` → gallery; I check the PNGs visually per type, and you judge the look before the next type starts.
+- `linework render examples/**/*.yaml` → gallery; I check the PNGs visually per type, and you judge the look before the next type starts.
 - Web: build every template using only the builder → YAML validates and renders the same in the CLI; drag-to-pin survives a reload; data products render in both detail levels.

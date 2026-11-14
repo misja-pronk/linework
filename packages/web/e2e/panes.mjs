@@ -29,11 +29,11 @@ async function run(width, height, theme) {
     }
   };
   const box = (q) => page.locator(q).first().boundingBox();
-  await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+  await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
   await page.evaluate(async (files) => {
     localStorage.clear();
-    localStorage.setItem('cartography:started', 'true');
-    localStorage.setItem('cartography:view', '"code"');
+    localStorage.setItem('linework:started', 'true');
+    localStorage.setItem('linework:view', '"code"');
     const opfs = await navigator.storage.getDirectory();
     for await (const [name] of opfs.entries()) await opfs.removeEntry(name, { recursive: true });
     const dir = await opfs.getDirectoryHandle('harbour', { create: true });
@@ -187,7 +187,7 @@ async function run(width, height, theme) {
   });
 
   await step('toasts and hint stay off the zoom bar', async () => {
-    await page.evaluate(() => (localStorage.removeItem('cartography:hinted'), localStorage.removeItem('cartography:visits')));
+    await page.evaluate(() => (localStorage.removeItem('linework:hinted'), localStorage.removeItem('linework:visits')));
     await page.reload();
     await page.waitForSelector('.hint', { state: 'attached' });
     // The drawing is made in a worker: it is in (here only the sheet: the folder is not open after a reload)

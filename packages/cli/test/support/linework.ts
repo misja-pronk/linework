@@ -9,8 +9,8 @@ export interface Result {
   err: string;
 }
 
-/** carto <args…> in `cwd`: exit code, standard output and standard error. `input` is standard input. */
-export async function carto(cwd: string, args: string[], o: { input?: string; env?: NodeJS.ProcessEnv } = {}): Promise<Result> {
+/** linework <args…> in `cwd`: exit code, standard output and standard error. `input` is standard input. */
+export async function linework(cwd: string, args: string[], o: { input?: string; env?: NodeJS.ProcessEnv } = {}): Promise<Result> {
   const out: Buffer[] = [];
   let err = '';
   const before = process.cwd();
@@ -31,7 +31,7 @@ export async function carto(cwd: string, args: string[], o: { input?: string; en
 const root = path.resolve(import.meta.dirname, '../../../..');
 
 /** The real command line, in a process of its own: for the few tests that are about the process. */
-export function spawnCarto(cwd: string, args: string[], o: { input?: string; env?: NodeJS.ProcessEnv } = {}): Result {
+export function spawnLinework(cwd: string, args: string[], o: { input?: string; env?: NodeJS.ProcessEnv } = {}): Result {
   const r = spawnSync(path.join(root, 'node_modules/.bin/tsx'), [path.join(root, 'packages/cli/src/main.ts'), ...args], { cwd, encoding: 'utf8', input: o.input, env: o.env });
   return { code: r.status, out: r.stdout, err: r.stderr };
 }

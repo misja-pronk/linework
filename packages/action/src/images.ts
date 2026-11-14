@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { git } from '@cartography/diff/node';
+import { git } from '@linework/diff/node';
 
 export interface ImageFile {
   name: string;
@@ -35,11 +35,11 @@ export interface Published {
   paths: Map<string, string>;
 }
 
-const WHO = { GIT_AUTHOR_NAME: 'cartography', GIT_AUTHOR_EMAIL: 'cartography@users.noreply.github.com', GIT_COMMITTER_NAME: 'cartography', GIT_COMMITTER_EMAIL: 'cartography@users.noreply.github.com' };
+const WHO = { GIT_AUTHOR_NAME: 'linework', GIT_AUTHOR_EMAIL: 'linework@users.noreply.github.com', GIT_COMMITTER_NAME: 'linework', GIT_COMMITTER_EMAIL: 'linework@users.noreply.github.com' };
 
 const README = `# Diagram pictures
 
-Pictures for pull request comments, written by the Cartography action. Each open pull request has a
+Pictures for pull request comments, written by the Linework action. Each open pull request has a
 folder; it is replaced on every push and removed when the pull request closes. This branch holds one
 commit and no history. Nothing else uses it: deleting it only breaks the pictures in old comments.
 `;
@@ -48,9 +48,9 @@ commit and no history. Nothing else uses it: deleting it only breaks the picture
 export function publish(root: string, opts: PublishOptions): Published {
   const remote = opts.remote ?? 'origin';
   const ref = `refs/heads/${opts.branch}`;
-  const local = `refs/cartography/${opts.branch}`;
+  const local = `refs/linework/${opts.branch}`;
   const paths = new Map(opts.files.map((f) => [f.name, `${opts.folder}/${f.name}`]));
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-index-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linework-index-'));
   const env = { ...WHO, GIT_INDEX_FILE: path.join(tmp, 'index') };
   try {
     let last: unknown;

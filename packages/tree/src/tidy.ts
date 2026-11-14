@@ -8,7 +8,7 @@
 // widest node into rows, with the trunk running down between them. Which of these a tree gets is
 // tried, not guessed: every combination is laid out and the one largest on a 16:9 slide wins,
 // unless the arrangement drawn before is close enough, so one more person moves little.
-import type { Box, Point } from '@cartography/core';
+import type { Box, Point } from '@linework/core';
 import { choose, slideScale, type Frame } from './fit.ts';
 
 export interface TidyNode {

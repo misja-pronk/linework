@@ -1,5 +1,5 @@
 # Kestrel Bank (fictional): online banking described once as a C4 model, drawn as ten views,
-# each one small enough to read on a slide. `carto render kestrel-bank.yaml --all-views` writes
+# each one small enough to read on a slide. `linework render kestrel-bank.yaml --all-views` writes
 # one SVG per view; the cards link down from the landscape to the context, the containers and the
 # components of the banking API.
 type: c4

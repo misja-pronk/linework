@@ -1,6 +1,6 @@
 // The bundled typefaces as page fonts: the preview draws without embedding, so the page itself
 // must know every face a theme sets its text in. Same woff2 data the exports embed.
-import { bundledFont, loadFonts, type Theme } from '@cartography/theme';
+import { bundledFont, loadFonts, type Theme } from '@linework/theme';
 
 const registered = new Set<string>();
 

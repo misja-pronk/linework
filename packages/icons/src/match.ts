@@ -8,7 +8,7 @@ export interface IconPackFile {
   /** Folder the paths in `icons` are relative to; relative to the pack file itself when not absolute. */
   root: string;
   icons: Record<string, string>;
-  /** Where it was imported from, for `carto icons list`. */
+  /** Where it was imported from, for `linework icons list`. */
   source?: string;
   /** Kinds mapped by hand (also in `icons`): kept when a newer download is imported. */
   manual?: Record<string, string>;

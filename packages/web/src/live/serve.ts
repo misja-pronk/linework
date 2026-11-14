@@ -1,22 +1,22 @@
-// The editor opened by `carto serve`: the folder comes from the server, and so do the live calls of
+// The editor opened by `linework serve`: the folder comes from the server, and so do the live calls of
 // the user's AI agent (get_context, propose) and word of files changed on disk. The folder is given
 // to files.ts as directory and file handles that read and write over HTTP, so opening, saving and
 // rescanning work as they do with a folder picked in the browser.
-import type { FromEditor, ToEditor } from '@cartography/core';
+import type { FromEditor, ToEditor } from '@linework/core';
 
 export interface Served {
   token: string;
   folder: string;
 }
 
-/** Set when the page came from carto serve (it puts the token in a <meta>). */
+/** Set when the page came from linework serve (it puts the token in a <meta>). */
 export function served(): Served | undefined {
   if (typeof document === 'undefined') return undefined;
-  const m = document.querySelector<HTMLMetaElement>('meta[name="carto-serve"]');
+  const m = document.querySelector<HTMLMetaElement>('meta[name="linework-serve"]');
   return m?.content ? { token: m.content, folder: m.dataset.folder || 'folder' } : undefined;
 }
 
-const api = (s: Served, p: string, init: RequestInit = {}) => fetch(p, { ...init, headers: { ...init.headers, 'x-carto-token': s.token } });
+const api = (s: Served, p: string, init: RequestInit = {}) => fetch(p, { ...init, headers: { ...init.headers, 'x-linework-token': s.token } });
 const fileUrl = (path: string) => `api/file?path=${encodeURIComponent(path)}`;
 
 type Entry = { path: string; size: number; mtime: number };
@@ -87,11 +87,11 @@ class ServedDir {
 
 async function list(s: Served): Promise<Entry[]> {
   const r = await api(s, 'api/files');
-  if (!r.ok) throw new Error(`carto serve: ${r.status}`);
+  if (!r.ok) throw new Error(`linework serve: ${r.status}`);
   return ((await r.json()) as { files: Entry[] }).files;
 }
 
-/** The folder carto serve has open, as a directory handle for files.ts. */
+/** The folder linework serve has open, as a directory handle for files.ts. */
 export async function servedFolder(s: Served): Promise<FileSystemDirectoryHandle> {
   return new ServedDir(s, s.folder, '', await list(s)) as unknown as FileSystemDirectoryHandle;
 }

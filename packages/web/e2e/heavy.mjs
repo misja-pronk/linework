@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from '@playwright/test';
 const out = process.argv[2] ?? '.';
-const url = process.env.CARTO_URL ?? 'http://localhost:5178/';
+const url = process.env.LINEWORK_URL ?? 'http://localhost:5178/';
 const repo = path.resolve(import.meta.dirname, '../../..');
 const text = fs.readFileSync(path.join(repo, 'examples/databricks/governance.yaml'), 'utf8');
 const problems = [];
@@ -24,7 +24,7 @@ await page.addInitScript((seed) => {
   sessionStorage.removeItem('next');
   localStorage.clear();
   const doc = next ? JSON.parse(next) : { text: seed, doc: { name: 'governance.yaml', starter: 'example:databricks/governance.yaml' } };
-  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
 }, text);
 await page.goto(url);
 await page.waitForSelector('.drawing svg', { timeout: 30000 });

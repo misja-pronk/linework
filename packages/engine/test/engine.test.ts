@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseEdge } from '@cartography/core';
-import { parseColumn } from '@cartography/erd';
+import { parseEdge } from '@linework/core';
+import { parseColumn } from '@linework/erd';
 import { render, types } from '../src/index.ts';
 
 describe('edges', () => {

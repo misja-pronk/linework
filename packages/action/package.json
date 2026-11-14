@@ -1,18 +1,18 @@
 {
-  "name": "@cartography/action",
+  "name": "@linework/action",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "license": "MIT",
-  "description": "GitHub Action for Cartography: a picture of what changed on every pull request, rendered diagrams on push",
+  "description": "GitHub Action for Linework: a picture of what changed on every pull request, rendered diagrams on push",
   "exports": {
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@cartography/cli": "workspace:*",
-    "@cartography/core": "workspace:*",
-    "@cartography/diff": "workspace:*",
-    "@cartography/engine": "workspace:*",
+    "@linework/cli": "workspace:*",
+    "@linework/core": "workspace:*",
+    "@linework/diff": "workspace:*",
+    "@linework/engine": "workspace:*",
     "tsx": "^4.23.15"
   }
 }

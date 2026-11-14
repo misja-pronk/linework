@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render } from '@cartography/engine';
+import { render } from '@linework/engine';
 import { arrange, bendAt, bendsOf, dragSegment, nearestSegment, nearestToward, removeBend, snapBox, viewFor } from '../src/craft.ts';
 
 const box = (x: number, y: number, width = 100, height = 50) => ({ x, y, width, height });

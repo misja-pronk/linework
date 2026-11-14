@@ -28,8 +28,8 @@ import {
   type GraphTypeConfig,
   type PaletteItem,
   type Tone,
-} from '@cartography/core';
-import { config as azureConfig } from '@cartography/azure';
+} from '@linework/core';
+import { config as azureConfig } from '@linework/azure';
 import { awsGroups, awsNodes, gcpGroups, gcpNodes, generalNodes, providerNames, providers, sharedGroups, sharedLabels, type CloudKind, type Provider } from './kinds.ts';
 
 export { awsNodes, countKinds, gcpNodes, providers, type Provider } from './kinds.ts';
@@ -411,7 +411,7 @@ function build(src: CloudSource, ctx: BuildContext): Graph {
 }
 
 function schema(): object {
-  const s = graphSchema('cloud', base, 'Cartography cloud diagram (AWS, Google Cloud)') as { properties: Record<string, any> };
+  const s = graphSchema('cloud', base, 'Linework cloud diagram (AWS, Google Cloud)') as { properties: Record<string, any> };
   const objectOf = (x: { anyOf: { type?: string }[] }) => x.anyOf.find((y) => y.type === 'object') as { properties: Record<string, object> };
   const node = objectOf(s.properties.nodes.additionalProperties);
   node.properties = { ...node.properties, ...nodeDetails };

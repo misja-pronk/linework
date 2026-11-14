@@ -2,12 +2,12 @@
 // below it, items as bars in tracks. Time maps to x linearly; the lanes engine does the rest: tracks
 // keep overlapping items (and labels that do not fit inside their bar) apart on a lane, stack places
 // the lanes. Phases are bands behind everything, the today line runs over everything.
-import type { Box, RoadmapItem, RoadmapShape, RoadmapStatus, Tone } from '@cartography/core';
-import { stack, tracks, type Span } from '@cartography/lanes';
-import { baselineOffset, fitText, look, measureText, paperTint, type Theme } from '@cartography/theme';
-import { icon } from '@cartography/icons';
+import type { Box, RoadmapItem, RoadmapShape, RoadmapStatus, Tone } from '@linework/core';
+import { stack, tracks, type Span } from '@linework/lanes';
+import { baselineOffset, fitText, look, measureText, paperTint, type Theme } from '@linework/theme';
+import { icon } from '@linework/icons';
 import { arrowHead, tagRadius, esc } from './paint.ts';
-import { term, tr } from '@cartography/i18n/drawing';
+import { term, tr } from '@linework/i18n/drawing';
 import { SMALL_PX } from './readable.ts';
 
 const K = {

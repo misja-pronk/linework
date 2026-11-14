@@ -1,7 +1,7 @@
-// Interactive HTML: exported from the web app's Export menu and from `carto export-html`, then opened
+// Interactive HTML: exported from the web app's Export menu and from `linework export-html`, then opened
 // from disk (file://) with every request outside the file blocked. Stepping, drill-down, search,
 // details, dark, presenting and print to PDF; nothing may ask the network for anything.
-// node packages/web/e2e/html-export.mjs <out-folder>   (CARTO_URL: the web app, default http://localhost:5178/)
+// node packages/web/e2e/html-export.mjs <out-folder>   (LINEWORK_URL: the web app, default http://localhost:5178/)
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const out = path.resolve(process.argv[2] ?? fs.mkdtempSync(path.join(os.tmpdir(), 'carto-html-')));
+const out = path.resolve(process.argv[2] ?? fs.mkdtempSync(path.join(os.tmpdir(), 'linework-html-')));
 fs.mkdirSync(out, { recursive: true });
 const problems = [];
 const fail = (m) => problems.push(m);
@@ -18,16 +18,16 @@ const check = (ok, m) => ok || fail(m);
 
 // ---------------------------------------------------------------- the CLI
 const tsx = path.join(root, 'node_modules/tsx/dist/cli.mjs');
-const carto = (...args) => execFileSync(process.execPath, [tsx, 'packages/cli/src/main.ts', ...args], { cwd: root, encoding: 'utf8' });
+const linework = (...args) => execFileSync(process.execPath, [tsx, 'packages/cli/src/main.ts', ...args], { cwd: root, encoding: 'utf8' });
 const files = {
   shop: path.join(out, 'web-shop.html'),
   walk: path.join(out, 'invoice-walkthrough.html'),
   site: path.join(out, 'workspace.html'),
   hostile: path.join(out, 'hostile.html'),
 };
-carto('export-html', 'examples/systems/web-shop.yaml', '-o', files.shop);
-carto('export-html', 'examples/systems/invoice-walkthrough.yaml', '-o', files.walk);
-carto('export-html', 'examples/workspace', '-o', files.site);
+linework('export-html', 'examples/systems/web-shop.yaml', '-o', files.shop);
+linework('export-html', 'examples/systems/invoice-walkthrough.yaml', '-o', files.walk);
+linework('export-html', 'examples/workspace', '-o', files.site);
 // What a diagram says is text, wherever it ends up.
 const evil = path.join(out, 'hostile.yaml');
 fs.writeFileSync(
@@ -41,7 +41,7 @@ edges:
   - a -> b: "<svg onload=window.pwned=7>"
 `,
 );
-carto('export-html', evil, '-o', files.hostile);
+linework('export-html', evil, '-o', files.hostile);
 const size = (f) => `${(fs.statSync(f).size / 1024).toFixed(0)} kB`;
 for (const [k, f] of Object.entries(files)) console.log(`cli ${k}: ${size(f)}`);
 
@@ -51,10 +51,10 @@ const browser = await chromium.launch();
 {
   const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, acceptDownloads: true });
   page.on('pageerror', (e) => fail(`app: ${e.message}`));
-  await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+  await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
   await page.evaluate(() => {
     localStorage.clear();
-    localStorage.setItem('cartography:started', 'true');
+    localStorage.setItem('linework:started', 'true');
   });
   await page.reload();
   await page.waitForSelector('.preview svg');
@@ -104,7 +104,7 @@ const shot = (page, n) => page.screenshot({ path: path.join(out, `${n}.png`) });
   await page.click('.sheet svg [data-node="orders"]');
   await page.waitForSelector('.panel.open');
   check((await page.textContent('.panel h3')) === 'Orders', 'shop: the panel is not about Orders');
-  check(await page.locator('.sheet .carto-hl').count(), 'shop: no ring around the selection');
+  check(await page.locator('.sheet .linework-hl').count(), 'shop: no ring around the selection');
   await shot(page, 'shop-details');
   const before = await page.textContent('.zoom .pct');
   // A key typed in the panel is the panel's: d does not switch the look there, Escape still closes it.

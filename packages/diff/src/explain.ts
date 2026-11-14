@@ -2,7 +2,7 @@
 // board, a release note. "Added Redis cache in rg-shop", "Orders API now connects to Redis cache
 // (“TLS”)", "Removed Legacy VM (and its 2 connections)". No AI: every sentence comes from the
 // structural diff, with the names the drawing shows rather than ids.
-import type { Graph, GraphEdge, GraphNode } from '@cartography/core';
+import type { Graph, GraphEdge, GraphNode } from '@linework/core';
 import { escapeMarkdown, markdownDiff } from './text.ts';
 import type { Change, GraphDiff, ItemDiff, Status } from './structure.ts';
 

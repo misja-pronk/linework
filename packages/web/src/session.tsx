@@ -3,9 +3,9 @@
 // menu at the selection, and at the end "What changed".
 import './session.css';
 import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { GraphGroup, PaletteItem } from '@cartography/core';
-import type { LayoutSidecar } from '@cartography/core';
-import { compare, explain, explainText, type Comparison, type Explained } from '@cartography/diff';
+import type { GraphGroup, PaletteItem } from '@linework/core';
+import type { LayoutSidecar } from '@linework/core';
+import { compare, explain, explainText, type Comparison, type Explained } from '@linework/diff';
 import { Icon } from './icon.tsx';
 import { BrandMark } from './brand-mark.tsx';
 import { useModal } from './menu.tsx';

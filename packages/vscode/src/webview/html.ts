@@ -1,6 +1,6 @@
 // The webview's page: a strict content policy (only our script, nothing from the network), the
 // toolbar and the stage. The script is dist/webview.js; the drawing arrives as a message.
-import { escapeXml as esc } from '@cartography/core';
+import { escapeXml as esc } from '@linework/core';
 import type { ViewConfig } from './protocol.ts';
 
 export interface PageParts {
@@ -40,17 +40,17 @@ body { background: var(--vscode-editor-background); color: var(--vscode-foregrou
 #stage:focus-visible { outline: 1px solid var(--vscode-focusBorder); outline-offset: -1px; }
 #bar:not([hidden]) ~ #stage { top: 35px; }
 #stage.panning { cursor: grabbing; }
-#paper { position: absolute; left: 0; top: 0; transform-origin: 0 0; background: var(--carto-canvas, transparent); box-shadow: 0 0 0 1px var(--rule), 5px 5px 0 -1px var(--under), 5px 5px 0 0 var(--rule); }
+#paper { position: absolute; left: 0; top: 0; transform-origin: 0 0; background: var(--linework-canvas, transparent); box-shadow: 0 0 0 1px var(--rule), 5px 5px 0 -1px var(--under), 5px 5px 0 0 var(--rule); }
 #paper svg { display: block; }
 #stale { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); max-width: 80%; padding: 6px 10px; border-radius: 4px; background: var(--vscode-inputValidation-warningBackground, #352a05); color: var(--vscode-foreground); border: 1px solid var(--vscode-inputValidation-warningBorder, #b89500); z-index: 2; }
 #stale[hidden], #empty[hidden] { display: none; }
 #empty { position: absolute; inset: 0; display: grid; place-items: center; opacity: .7; }
 [data-node], [data-group], [data-edge] { cursor: pointer; }
 .pinnable [data-node] { cursor: move; }
-.carto-hl { filter: drop-shadow(0 0 2px var(--vscode-focusBorder, #0078d4)) drop-shadow(0 0 5px var(--vscode-focusBorder, #0078d4)); }
-.carto-dragging { opacity: .85; }
+.linework-hl { filter: drop-shadow(0 0 2px var(--vscode-focusBorder, #0078d4)) drop-shadow(0 0 5px var(--vscode-focusBorder, #0078d4)); }
+.linework-dragging { opacity: .85; }
 body.present #bar { display: none; }
-body.present #stage { top: 0; cursor: default; background: var(--carto-canvas, var(--vscode-editor-background)); }
+body.present #stage { top: 0; cursor: default; background: var(--linework-canvas, var(--vscode-editor-background)); }
 body.present #paper { box-shadow: none; }
 #caption { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 24px 14px; text-align: center; background: color-mix(in srgb, var(--vscode-editor-background) 85%, transparent); z-index: 2; }
 #caption[hidden] { display: none; }
@@ -84,7 +84,7 @@ export function page(p: PageParts): string {
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="${esc(csp)}">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cartography</title>
+<title>Linework</title>
 <style>${STYLE}</style>
 </head>
 <body class="${present ? 'present' : 'preview'}" data-mode="${present ? 'present' : 'preview'}">
@@ -99,7 +99,7 @@ export function page(p: PageParts): string {
   <button id="out" title="Zoom out (−)" aria-label="Zoom out">−</button>
   <button id="in" title="Zoom in (+)" aria-label="Zoom in">+</button>
   <button id="present" title="Present full screen">Present</button>
-  <button id="openEditor" title="Open in the Cartography web editor (as a share link)">Open in editor</button>
+  <button id="openEditor" title="Open in the Linework web editor (as a share link)">Open in editor</button>
 </div>
 <div id="stage" tabindex="0" aria-label="Diagram"><div id="paper"></div></div>
 <div id="empty">Drawing…</div>
@@ -110,7 +110,7 @@ export function page(p: PageParts): string {
   <div class="body"><div id="pDrawing"></div><pre id="pYaml" hidden></pre></div>
   <footer><button id="pAccept" class="primary">Accept ⏎</button><button id="pReject">Reject Esc</button><span id="pFine" class="fine">Accept is one undo step. Pins stay.</span></footer>
 </section>
-<script nonce="${p.nonce}">window.cartoConfig = ${JSON.stringify(p.config).replace(/</g, '\\u003c')};</script>
+<script nonce="${p.nonce}">window.lineworkConfig = ${JSON.stringify(p.config).replace(/</g, '\\u003c')};</script>
 <script nonce="${p.nonce}" src="${esc(p.script)}"></script>
 </body>
 </html>`;

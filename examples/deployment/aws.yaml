@@ -1,7 +1,7 @@
 # The same web shop (model.yaml) on AWS. Production runs in two zones, so the Orders API is there
 # twice: two nodes `of:` the same container. Zone b is `env: prod`, and with it everything inside;
 # test and dev are one zone, dev without the CDN in front.
-#   carto render examples/deployment/aws.yaml --view prod
+#   linework render examples/deployment/aws.yaml --view prod
 type: cloud
 provider: aws
 title: Web shop on AWS, per environment

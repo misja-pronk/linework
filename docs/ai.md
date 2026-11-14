@@ -1,7 +1,7 @@
 # Use your own AI
 
-Cartography has no AI of its own. Your own AI changes your diagrams: Claude Code, Copilot, Cursor,
-Codex, Claude Desktop or any other agent that speaks MCP. It does so through Cartography's MCP
+Linework has no AI of its own. Your own AI changes your diagrams: Claude Code, Copilot, Cursor,
+Codex, Claude Desktop or any other agent that speaks MCP. It does so through Linework's MCP
 server, which checks every change against the type's schema and lays it out before anything is
 written.
 
@@ -11,18 +11,18 @@ selected, and show its change as a proposal you accept or reject.
 
 ## Set up the MCP server
 
-**In VS Code**, install the Cartography extension ([vscode](vscode.md)) and you are done: it
+**In VS Code**, install the Linework extension ([vscode](vscode.md)) and you are done: it
 registers the MCP server with VS Code (1.101 or later), so Copilot's agent mode and other agents that
 use VS Code's MCP servers have the tools. See [In VS Code](#in-vs-code) below.
 
 Everywhere else, set the server up once. It is `packages/mcp`; [mcp.md](mcp.md) has every tool. From
 a clone, after `pnpm install` and `pnpm build` (which bundles it into
-`packages/mcp/dist/server.mjs`, run with plain Node.js 24; `/path/to/cartography` is your clone):
+`packages/mcp/dist/server.mjs`, run with plain Node.js 24; `/path/to/linework` is your clone):
 
 **Claude Code** (in a terminal or in its VS Code extension):
 
 ```sh
-claude mcp add cartography -- node /path/to/cartography/packages/mcp/dist/server.mjs
+claude mcp add linework -- node /path/to/linework/packages/mcp/dist/server.mjs
 ```
 
 **Cursor**: add `.cursor/mcp.json` to the project:
@@ -30,9 +30,9 @@ claude mcp add cartography -- node /path/to/cartography/packages/mcp/dist/server
 ```json
 {
   "mcpServers": {
-    "cartography": {
+    "linework": {
       "command": "node",
-      "args": ["/path/to/cartography/packages/mcp/dist/server.mjs"]
+      "args": ["/path/to/linework/packages/mcp/dist/server.mjs"]
     }
   }
 }
@@ -64,25 +64,25 @@ A file the agent writes with `edit_diagram` instead reloads (VS Code does that),
 what changed, with **Undo** to take it back. The extension listens on this computer only, and the MCP
 server finds it through a small file in the temp folder.
 
-## In the browser: carto serve
+## In the browser: linework serve
 
 ```sh
 pnpm build                                              # once: the web app and the bundles
-node packages/cli/dist/carto.mjs serve docs/architecture  # or from the source: pnpm carto serve <folder>
+node packages/cli/dist/linework.mjs serve docs/architecture  # or from the source: pnpm linework serve <folder>
 ```
 
 The bundle serves the web app copied beside it (`packages/cli/dist/web`), so the `dist` folder can
-live anywhere; from the source, `carto serve` needs `pnpm web:build` once.
+live anywhere; from the source, `linework serve` needs `pnpm web:build` once.
 
-`carto serve` opens one folder in the web editor at `http://127.0.0.1:4317/`, and gives an MCP
+`linework serve` opens one folder in the web editor at `http://127.0.0.1:4317/`, and gives an MCP
 endpoint at `/mcp`. It prints the line to connect Claude Code; the token stays the same, so you add
 it once:
 
 ```sh
-claude mcp add --transport http cartography http://127.0.0.1:4317/mcp --header "Authorization: Bearer <token>"
+claude mcp add --transport http linework http://127.0.0.1:4317/mcp --header "Authorization: Bearer <token>"
 ```
 
-The editor then reads and writes the folder through `carto serve`, and the **Your AI** panel (⌘J,
+The editor then reads and writes the folder through `linework serve`, and the **Your AI** panel (⌘J,
 Ctrl+I off a Mac) shows:
 
 - a **proposal** from the agent, with the diff marks and the YAML diff: **Accept** (⏎) is one undo
@@ -95,7 +95,7 @@ Ctrl+I off a Mac) shows:
 A proposal for another file of the folder opens that file in the editor first.
 
 A folder opened in the browser itself (Chrome, Edge) notices changed files too, by asking the browser
-or checking every two seconds while the tab is visible. Proposals need `carto serve` or VS Code.
+or checking every two seconds while the tab is visible. Proposals need `linework serve` or VS Code.
 
 ## Copy for your AI
 
@@ -108,14 +108,14 @@ that for your AI: the example shows it the style, and its answer replaces the dr
 
 ## From other tools
 
-Cartography has no importers. Your own AI converts a Mermaid, D2, PlantUML, Structurizr, draw.io,
+Linework has no importers. Your own AI converts a Mermaid, D2, PlantUML, Structurizr, draw.io,
 Excalidraw or Terraform file, a Kubernetes manifest or a Compose file well: give it the file and say
 which type to draw. It reads the type's schema with `get_schema`, writes the YAML, and checks it with
 `validate` (problems, and how the layout reads) until it is clean. Ask it to keep the ids, to pick
 real kinds instead of generic boxes, and to say what it left out.
 
 ```text
-Convert docs/checkout.mmd into a Cartography systems diagram in docs/checkout.yaml.
+Convert docs/checkout.mmd into a Linework systems diagram in docs/checkout.yaml.
 Keep the ids, group by subgraph, and validate it.
 ```
 
@@ -123,13 +123,13 @@ Without MCP, **Copy for your AI** with the file pasted under it does the same in
 
 ## Privacy
 
-Cartography never talks to the network. Nothing is sent anywhere by the editor, the VS Code
-extension, the MCP server or `carto serve`:
+Linework never talks to the network. Nothing is sent anywhere by the editor, the VS Code
+extension, the MCP server or `linework serve`:
 
-- `carto serve` and the VS Code extension listen on 127.0.0.1 only, and only answer requests with
+- `linework serve` and the VS Code extension listen on 127.0.0.1 only, and only answer requests with
   their token;
 - your agent sends what it reads to its own provider, under your agreement with them. That is your
-  agent's business, not Cartography's: choose an agent you may share the diagram with.
+  agent's business, not Linework's: choose an agent you may share the diagram with.
 
 Earlier versions had a built-in Claude client with an API key kept in the browser. It is gone, and a
 key it kept is removed from the browser's storage the first time the editor opens.

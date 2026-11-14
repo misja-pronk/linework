@@ -1,7 +1,7 @@
 // The open document: its text and pins (the editor holds the one undo history of both), where it came
 // from, what was last saved, and the copy in the store that brings it back after a reload.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { LayoutSidecar } from '@cartography/core';
+import type { LayoutSidecar } from '@linework/core';
 import type { EditorHandle } from '../editor.tsx';
 import { exampleLoader, starters } from '../library.ts';
 import { folderLoader, type Workspace } from '../files.ts';

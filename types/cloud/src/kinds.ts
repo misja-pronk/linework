@@ -1,9 +1,9 @@
 // The kinds of a cloud diagram: containers shared by the providers (organization, region, VPC, subnet,
 // zone), each provider's own (account and OU, folder and project) and the services people draw most.
 // Icons are generic Lucide line icons; `names` are the words of the official icon file names, so
-// `carto icons import <download> --pack aws|gcp` finds the vendor's own icon for each kind. The files
+// `linework icons import <download> --pack aws|gcp` finds the vendor's own icon for each kind. The files
 // themselves are never in this repo.
-import type { GraphGroup, Tone } from '@cartography/core';
+import type { GraphGroup, Tone } from '@linework/core';
 
 export type Provider = 'aws' | 'gcp' | 'azure';
 export const providers: Provider[] = ['aws', 'gcp', 'azure'];

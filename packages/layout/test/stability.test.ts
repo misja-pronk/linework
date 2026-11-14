@@ -1,6 +1,6 @@
 // Pins and the memory of the previous drawing: neither may redraw what was already there.
 import { describe, expect, it } from 'vitest';
-import { packLayout, unpackLayout, type Graph, type LayoutSidecar, type Placed, type Point, type Sized } from '@cartography/core';
+import { packLayout, unpackLayout, type Graph, type LayoutSidecar, type Placed, type Point, type Sized } from '@linework/core';
 import { layout, movedShare, type Spacing } from '../src/index.ts';
 
 const spacing: Spacing = { nodeGap: 24, layerGap: 64, groupPad: 20 };

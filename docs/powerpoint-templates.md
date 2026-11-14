@@ -1,7 +1,7 @@
 # PowerPoint in your own template
 
 A client hands you their PowerPoint template (`.potx`, or a `.pptx` that serves as one) and wants the
-architecture slides in it. Cartography makes the deck inside that template: the slides use the template's
+architecture slides in it. Linework makes the deck inside that template: the slides use the template's
 layouts, master, logo, footer and slide numbers, the title goes into the template's title placeholder, and the
 diagram is drawn in the template's colours and fonts, still as native shapes you can edit. A sequence
 diagram, git branching and a roadmap are the exception: they are one picture on the slide, with a warning
@@ -18,9 +18,9 @@ diagram, git branching and a roadmap are the exception: they are one picture on 
 - **Command line:**
 
   ```sh
-  carto render shop.yaml -o shop.pptx --template customer.potx
-  carto render shop.yaml -o shop.pptx --template customer.potx --layout "Title and Content"
-  carto deck *.yaml -o review.pptx --template customer.potx --title "Architecture review"
+  linework render shop.yaml -o shop.pptx --template customer.potx
+  linework render shop.yaml -o shop.pptx --template customer.potx --layout "Title and Content"
+  linework deck *.yaml -o review.pptx --template customer.potx --title "Architecture review"
   ```
 
   `--keep-look` keeps the diagram's own theme, `--keep-slides` keeps the template's own slides in front of the
@@ -55,15 +55,15 @@ fonts and media stay byte for byte as they were.
 
 ### How small the text gets
 
-A template usually leaves the drawing less room than Cartography's own slide: a title bar, a footer, a logo, wider
+A template usually leaves the drawing less room than Linework's own slide: a title bar, a footer, a logo, wider
 margins. The drawing is scaled into the room the table above describes, and that is the room it is measured in.
 The editor's PowerPoint export names the slides whose smallest text a reader needs (names on cards, lines and
-groups) comes out under 6 pt, as made in the template. On the command line, `carto validate --template
-customer.potx` (with `--layout` as for `carto render`) says the same per diagram before you make the deck; a
-diagram whose brand theme names a template (`pptx:`) is measured in it without asking. `carto render` and `carto deck` say it too when they make a deck, in the template or on a 4:3 slide (`--aspect 4:3`), as a warning per drawing that does not stop the deck. The editor's page frame
+groups) comes out under 6 pt, as made in the template. On the command line, `linework validate --template
+customer.potx` (with `--layout` as for `linework render`) says the same per diagram before you make the deck; a
+diagram whose brand theme names a template (`pptx:`) is measured in it without asking. `linework render` and `linework deck` say it too when they make a deck, in the template or on a 4:3 slide (`--aspect 4:3`), as a warning per drawing that does not stop the deck. The editor's page frame
 (⇧P) does the same: with a template chosen in the Export menu (or named by the theme) it is that template's
 slide, named after the file, and says the smallest text the deck in it would have. Without a template,
-validate and the page frame measure Cartography's own slide: the title top left, the drawing in
+validate and the page frame measure Linework's own slide: the title top left, the drawing in
 the rest with modest margins, nearly as large as the drawing fitted whole.
 
 ## Colours and fonts
@@ -81,7 +81,7 @@ through:
   the template's heading font.
 
 Every colour is checked. An accent too close to the background to draw with (a near-white grey, a pale yellow on
-cream) keeps Cartography's tone for that slot, and the export says so; an accent that reads only when darkened is
+cream) keeps Linework's tone for that slot, and the export says so; an accent that reads only when darkened is
 darkened just enough, and said when that is far from the colour itself.
 
 ![The same drawing in a made-up Dutch 4:3 template: green stripe, logo and footer from the master, orange and green from its accents, Verdana from its theme](powerpoint-templates/dutch.png)
@@ -114,11 +114,11 @@ PowerPoint, Word and Keynote take an SVG, but drop or misdraw much of what a bro
 - text is in Arial (or Courier New for code), which every machine has;
 - one group per node and per line, so *Ungroup* in PowerPoint gives shapes you can recolour.
 
-`--outline-text` goes one step further: every word becomes a path in the theme's own font, so the drawing looks exactly as in Cartography on any machine. The text can then no longer be edited or searched.
+`--outline-text` goes one step further: every word becomes a path in the theme's own font, so the drawing looks exactly as in Linework on any machine. The text can then no longer be edited or searched.
 
 ## Limits
 
-- Fonts are named, not embedded, as in every deck Cartography writes: where the template's face is not installed,
+- Fonts are named, not embedded, as in every deck Linework writes: where the template's face is not installed,
   PowerPoint substitutes. A template that embeds its fonts keeps them.
 - Text boxes are sized with Inter's widths, as for any brand font without font files: in a much wider face
   (Verdana) labels sit a little tight in their boxes, in a narrow one (Calibri) a little loose.

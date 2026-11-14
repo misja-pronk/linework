@@ -2,7 +2,7 @@
 // light theme (it survives video compression; a preference opts out), with one strip of actions. The
 // diagram is kept as it was when the session started, so at the end "What changed" can show the delta.
 import { useState, useSyncExternalStore } from 'react';
-import type { LayoutSidecar } from '@cartography/core';
+import type { LayoutSidecar } from '@linework/core';
 import { store } from '../store.ts';
 
 /** How many sessions show the sketch hint under the selection before it has done its job. */

@@ -5,7 +5,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { describeDiagram, diffDiagrams, editDiagram, renderDiagram } from '../src/index.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-mcp-edit-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linework-mcp-edit-'));
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 const shop = `type: azure

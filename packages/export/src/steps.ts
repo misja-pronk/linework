@@ -1,7 +1,7 @@
 // A diagram with steps becomes one slide or page per step: the same drawing in the same place,
 // only what shows and what stands out changes, so clicking through (or Morph) reads as one build-up.
-import { fadeState, finalState } from '@cartography/core';
-import type { StepView } from '@cartography/render';
+import { fadeState, finalState } from '@linework/core';
+import type { StepView } from '@linework/render';
 import type { Drawing } from './pptx.ts';
 
 export interface Page {

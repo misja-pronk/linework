@@ -1,9 +1,9 @@
 // The diff as a picture. Nothing here draws a diagram: it takes drawings as the renderer made them and
 // lays marks over them. What a mark means never rests on its colour alone: each kind has its own sign
 // (+ ~ −), its own outline (solid, dashed, dotted) and is named in the key.
-import type { Box, Graph, Placed, Point } from '@cartography/core';
-import { baselineOffset, fitText, measureText, themeTextFonts, withTextFonts, type Theme } from '@cartography/theme';
-import { dotGrid, drawSheet, esc, sheetPad } from '@cartography/render';
+import type { Box, Graph, Placed, Point } from '@linework/core';
+import { baselineOffset, fitText, measureText, themeTextFonts, withTextFonts, type Theme } from '@linework/theme';
+import { dotGrid, drawSheet, esc, sheetPad } from '@linework/render';
 import type { GraphDiff, Status } from './structure.ts';
 import { toldCounts } from './explain.ts';
 

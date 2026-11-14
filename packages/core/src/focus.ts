@@ -11,8 +11,8 @@
 // (a network link, a contract, an ERD relation) counts both ways.
 import type { Graph, GraphEdge, GraphNode, LegendItem } from './model.ts';
 import { selectorsOf } from './steps.ts';
-import type { Lang } from '@cartography/i18n';
-import { tr } from '@cartography/i18n/drawing';
+import type { Lang } from '@linework/i18n';
+import { tr } from '@linework/i18n/drawing';
 
 export type FocusDirection = 'both' | 'upstream' | 'downstream';
 

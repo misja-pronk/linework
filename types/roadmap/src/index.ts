@@ -14,7 +14,7 @@
 //     landing-zone: { lane: platform, label: Landing zone, from: 2026-01, to: 2026-02, status: done }
 //     aks: { lane: platform, after: landing-zone, duration: 8w, status: active, progress: 40% }
 //     go-live: { at: 2026-09-01, label: Go-live }      a milestone (on the axis when it has no lane)
-import { english, type BuildContext, type DiagramType, type Graph, type PaletteItem, type Path, type Reference, type RoadmapItem, type RoadmapShape, type RoadmapStatus, type Tone, tones } from '@cartography/core';
+import { english, type BuildContext, type DiagramType, type Graph, type PaletteItem, type Path, type Reference, type RoadmapItem, type RoadmapShape, type RoadmapStatus, type Tone, tones } from '@linework/core';
 import { addDuration, day, floorUnit, formatDay, nextUnit, parseDate, ticks, type Unit } from './dates.ts';
 
 export { addDuration, parseDate, ticks, type Unit };
@@ -263,7 +263,7 @@ const date = { type: ['string', 'integer'], description: '2026, 2026-03, 2026-Q2
 
 const schema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography roadmap',
+  title: 'Linework roadmap',
   type: 'object',
   required: ['type'],
   properties: {

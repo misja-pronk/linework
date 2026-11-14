@@ -1,6 +1,6 @@
 // A share link: the diagram itself, deflated and base64url-encoded, in the URL's #fragment. A browser
 // never sends the fragment to a server, so opening the link reads the diagram from the link alone.
-// The same code runs in the web app and in `carto share` (CompressionStream is in both).
+// The same code runs in the web app and in `linework share` (CompressionStream is in both).
 import type { LayoutSidecar } from './model.ts';
 import { parseSidecar } from './sidecar.ts';
 

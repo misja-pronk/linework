@@ -1,5 +1,5 @@
 // What the extension and its webview say to each other. Plain data both ways.
-import type { YamlDiffLine } from '@cartography/core';
+import type { YamlDiffLine } from '@linework/core';
 import type { Picture } from '../draw.ts';
 
 export type Kind = 'node' | 'group' | 'edge';

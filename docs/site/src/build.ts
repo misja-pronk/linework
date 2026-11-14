@@ -2,11 +2,11 @@
 // time), the template gallery, the benchmark, a search index and, when it has been built, the web app
 // itself under app/ so "Open in the editor" works offline. Plain files: open dist/index.html.
 //   pnpm docs:build              (builds the web app first)
-//   pnpm --filter @cartography/site build [--app <url>]   site only; --app points the editor links elsewhere
+//   pnpm --filter @linework/site build [--app <url>]   site only; --app points the editor links elsewhere
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { bundledFont } from '@cartography/theme';
+import { bundledFont } from '@linework/theme';
 import { pageCss } from './draw.ts';
 import { benchmarkCharts, benchmarkDrawings, benchmarkTeaser } from './bench-page.ts';
 import { buildGallery, galleryIndex, typePage, type TypeEntry } from './gallery.ts';
@@ -22,7 +22,7 @@ const out = path.resolve(values.out ?? path.join(here, 'dist'));
 const started = Date.now();
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as { repository?: { url?: string } | string };
-const repoUrl = (typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url ?? 'https://github.com/misja-pronk/cartography').replace(/^git\+/, '').replace(/\.git$/, '');
+const repoUrl = (typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url ?? 'https://github.com/misja-pronk/linework').replace(/^git\+/, '').replace(/\.git$/, '');
 
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(path.join(out, 'assets/fonts'), { recursive: true });
@@ -123,7 +123,7 @@ const resolver = (pagePath: string) => ({
 const faces: string[] = [];
 for (const family of ['Instrument Sans', 'Geist Mono']) {
   const f = bundledFont(family)!;
-  const name = `Carto${family.replace(/\s+/g, '')}`;
+  const name = `Linework${family.replace(/\s+/g, '')}`;
   for (const [weight, data] of Object.entries(f.woff2)) {
     const file = `${name}-${weight}.woff2`;
     fs.writeFileSync(path.join(out, 'assets/fonts', file), Buffer.from(data, 'base64'));
@@ -192,10 +192,10 @@ for (const [f, r] of rendered) {
   pages.push({ path: p, title: r.title, description: lead, body: `<article class="prose">${body}</article>`, headings: r.headings, wide: f === 'benchmark.md' || f === 'comparison/README.md' });
   for (const s of r.sections) search.push({ p: r.title, h: s.heading || r.title, u: s.id ? `${p}#${s.id}` : p, x: s.text.replace(/\s+/g, ' ').slice(0, 1200) });
 }
-pages.push({ path: 'index.html', title: 'Cartography', description: 'Architecture diagrams as text that look like a map sheet', body: await home({ root, gallery, ...(fs.existsSync(results) ? { benchmark: benchmarkTeaser(JSON.parse(fs.readFileSync(results, 'utf8'))) } : {}) }), home: true });
+pages.push({ path: 'index.html', title: 'Linework', description: 'Architecture diagrams as text that look like a map sheet', body: await home({ root, gallery, ...(fs.existsSync(results) ? { benchmark: benchmarkTeaser(JSON.parse(fs.readFileSync(results, 'utf8'))) } : {}) }), home: true });
 
 for (const p of pages) write(p);
-fs.writeFileSync(path.join(out, 'assets/search-index.js'), `window.CARTO_SEARCH=${JSON.stringify(search)};\n`);
+fs.writeFileSync(path.join(out, 'assets/search-index.js'), `window.LINEWORK_SEARCH=${JSON.stringify(search)};\n`);
 
 const size = (dir: string): number => fs.readdirSync(dir, { withFileTypes: true }).reduce((n, d) => n + (d.isDirectory() ? size(path.join(dir, d.name)) : fs.statSync(path.join(dir, d.name)).size), 0);
 console.log(`${pages.length} pages, ${gallery.reduce((n, e) => n + e.cards.length, 0)} gallery drawings, ${(size(out) / 1e6).toFixed(1)} MB in ${path.relative(process.cwd(), out) || out} (${((Date.now() - started) / 1000).toFixed(1)} s)`);

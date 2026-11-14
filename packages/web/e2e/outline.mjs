@@ -18,7 +18,7 @@ const yaml = () => page.evaluate(() => document.querySelector('.cm-content').inn
 const row = (key) => page.locator(`.outline [data-key="${key}"]`);
 const selectedRows = () => page.locator('.outline [aria-selected="true"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-key')));
 
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => localStorage.clear());
 await page.reload();
 await page.locator('.scenario-main', { hasText: 'Azure network' }).click();

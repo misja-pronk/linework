@@ -3,10 +3,10 @@
 // for, and the minimap. All in stage (SVG) coordinates.
 import './craft-overlays.css';
 import { useRef } from 'react';
-import type { Box, Placed, Point } from '@cartography/core';
+import type { Box, Placed, Point } from '@linework/core';
 import type { Snap } from './craft.ts';
 import { Icon } from './icon.tsx';
-import { listWords } from '@cartography/i18n';
+import { listWords } from '@linework/i18n';
 import { t, uiLang } from './i18n/index.ts';
 
 /** Alignment lines and equal-gap marks; `at` maps pin space to the stage. */

@@ -2,7 +2,7 @@
 // an interaction between two teams that do not touch. A shortest path with a price on every bend,
 // on the grid the boxes' own edges make (kept a margin away), so a line hugs no card and passes
 // through none.
-import type { Box, Point } from '@cartography/core';
+import type { Box, Point } from '@linework/core';
 
 export type Side = 'N' | 'E' | 'S' | 'W';
 

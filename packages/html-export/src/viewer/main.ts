@@ -4,9 +4,9 @@
 // dark. Text from the diagrams only ever goes in as text (textContent), SVGs are parsed as XML and
 // cleaned to what the renderer draws with, links leave only for http, https and mailto.
 import { gunzipSync, strFromU8 } from 'fflate';
-import { safeAttribute, safeHref, SVG_ELEMENTS } from '@cartography/embed/shared';
+import { safeAttribute, safeHref, SVG_ELEMENTS } from '@linework/embed/shared';
 import type { Payload, PDrawing, PElement, Picture } from '../payload.ts';
-import { readLang, translator, type Params } from '@cartography/i18n';
+import { readLang, translator, type Params } from '@linework/i18n';
 import { nl } from './nl.ts';
 
 // The page's own words in the language it was exported in (<html lang>: the diagram's `lang:`).
@@ -72,15 +72,15 @@ const plural = (n: number, one: string, many = `${one}s`) => t(`{count} ${one}|{
 const store = {
   get(k: string): string | null {
     try {
-      return localStorage.getItem(`carto-html:${k}`);
+      return localStorage.getItem(`linework-html:${k}`);
     } catch {
       return null;
     }
   },
   set(k: string, v: string | null) {
     try {
-      if (v === null) localStorage.removeItem(`carto-html:${k}`);
-      else localStorage.setItem(`carto-html:${k}`, v);
+      if (v === null) localStorage.removeItem(`linework-html:${k}`);
+      else localStorage.setItem(`linework-html:${k}`, v);
     } catch {
       // A page from disk may have no storage: the choice lasts until it is closed.
     }
@@ -90,7 +90,7 @@ const store = {
 // ---------------------------------------------------------------- data
 
 function load(): Payload {
-  const text = document.getElementById('carto-data')?.textContent ?? '';
+  const text = document.getElementById('linework-data')?.textContent ?? '';
   const bin = atob(text.trim());
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -112,11 +112,11 @@ function svgOf(pic: Picture, look: 'light' | 'dark'): SVGSVGElement | undefined 
       if (!SVG_ELEMENTS.has(child.localName) || child.localName === 'style') child.remove();
       else walk(child);
     }
-    const shared = el.getAttribute('data-carto-icon');
+    const shared = el.getAttribute('data-linework-icon');
     if (shared !== null) {
       const uri = data.icons[Number(shared)];
       if (uri) el.setAttribute('href', uri);
-      el.removeAttribute('data-carto-icon');
+      el.removeAttribute('data-linework-icon');
     }
     for (const a of [...el.attributes]) if (!safeAttribute(el.localName, a.name, a.value)) el.removeAttribute(a.name);
   };
@@ -415,8 +415,8 @@ function draw(pic: Picture) {
   const drawing = data.drawings[here.d]!;
   // What it shows in words, read after its name; kept out of sight, as the drawing says it to the eye.
   if (drawing.words) {
-    els.sheet.append(h('p', { id: 'carto-words', class: 'words' }, drawing.words));
-    svg.setAttribute('aria-describedby', 'carto-words');
+    els.sheet.append(h('p', { id: 'linework-words', class: 'words' }, drawing.words));
+    svg.setAttribute('aria-describedby', 'linework-words');
   }
   for (const el of svg.querySelectorAll('[data-node], [data-group]')) {
     const shape = shapeKey(el);
@@ -773,7 +773,7 @@ function tap(e: PointerEvent, target: EventTarget | null) {
 // ---------------------------------------------------------------- selection and details
 
 function ring(shape: string) {
-  sheetSvg?.querySelectorAll('.carto-hl').forEach((r) => r.remove());
+  sheetSvg?.querySelectorAll('.linework-hl').forEach((r) => r.remove());
   const el = shapeEl(shape);
   if (!el?.parentNode) return;
   let box: DOMRect;
@@ -784,7 +784,7 @@ function ring(shape: string) {
   }
   const pad = 5;
   const r = document.createElementNS(SVG_NS, 'rect');
-  r.setAttribute('class', 'carto-hl');
+  r.setAttribute('class', 'linework-hl');
   r.setAttribute('x', String(box.x - pad));
   r.setAttribute('y', String(box.y - pad));
   r.setAttribute('width', String(box.width + 2 * pad));
@@ -797,7 +797,7 @@ function ring(shape: string) {
 
 function clearSelection() {
   selected = undefined;
-  sheetSvg?.querySelectorAll('.carto-hl').forEach((r) => r.remove());
+  sheetSvg?.querySelectorAll('.linework-hl').forEach((r) => r.remove());
   if (panelFor === 'element') closePanel();
 }
 
@@ -933,12 +933,12 @@ function find(query: string): Hit[] {
 }
 
 const searchInput = h('input', { type: 'text', role: 'combobox', 'aria-expanded': 'false', 'aria-autocomplete': 'list', placeholder: t('Find an element or a view…'), 'aria-label': t('Search'), autocomplete: 'off', spellcheck: 'false' });
-const searchResults = h('div', { class: 'results', role: 'listbox', id: 'carto-results' });
+const searchResults = h('div', { class: 'results', role: 'listbox', id: 'linework-results' });
 let hitIndex = 0;
 
 function searchBox() {
   const dialog = h('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('Search') }, searchInput, searchResults, h('div', { class: 'foot' }, h('span', {}, h('kbd', {}, '↑'), ' ', h('kbd', {}, '↓'), t(' to move')), h('span', {}, h('kbd', {}, '↵'), t(' to open')), h('span', {}, h('kbd', {}, 'esc'), t(' to close'))));
-  searchInput.setAttribute('aria-controls', 'carto-results');
+  searchInput.setAttribute('aria-controls', 'linework-results');
   els.search.append(dialog);
   els.search.addEventListener('pointerdown', (e) => e.target === els.search && closeSearch());
   // Modal: Tab stays on the field, the arrows choose a result.
@@ -969,7 +969,7 @@ function listHits() {
   let group = '';
   for (const hit of hits) {
     if (hit.group !== group) nodes.push(h('div', { class: 'grp caps' }, t((group = hit.group))));
-    const a = h('a', { href: hit.href, role: 'option', id: `carto-hit-${nodes.length}` }, h('span', {}, hit.title), h('small', {}, hit.detail));
+    const a = h('a', { href: hit.href, role: 'option', id: `linework-hit-${nodes.length}` }, h('span', {}, hit.title), h('small', {}, hit.detail));
     a.addEventListener('click', closeSearch);
     nodes.push(a);
   }

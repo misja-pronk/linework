@@ -1,7 +1,7 @@
 // The builder on a journey: short steps open as their long form, steps and phases move, phases are picked by name.
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { findType, render } from '@cartography/engine';
+import { findType, render } from '@linework/engine';
 import { addEntry, canMove, deleteEntry, fieldsFor, moveEntry, parentKey, renameEntry, setField } from '../src/builder.ts';
 
 const journey = findType('journey')!;

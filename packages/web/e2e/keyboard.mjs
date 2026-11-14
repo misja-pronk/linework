@@ -21,12 +21,12 @@ const until = async (what, fn, arg) => {
 };
 const field = (not) => until('field to type in', (not) => document.activeElement?.tagName === 'INPUT' && !document.activeElement.closest(not), not);
 const written = (text) => until(`"${text}" in the YAML`, (text) => document.querySelector('.cm-content').innerText.includes(text), text);
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => {
   localStorage.clear();
-  localStorage.setItem('cartography:started', 'true');
+  localStorage.setItem('linework:started', 'true');
   // The YAML starts folded to its rail; these steps type in it.
-  localStorage.setItem('cartography:yaml-folded', 'false');
+  localStorage.setItem('linework:yaml-folded', 'false');
 });
 await page.reload();
 await page.waitForSelector('.drawing svg');

@@ -1,6 +1,6 @@
 // The YAML: the editor (or its rail when folded) and the splitter between it and the drawing.
 import './editor-pane.css';
-import type { Diagnostic, LayoutSidecar } from '@cartography/core';
+import type { Diagnostic, LayoutSidecar } from '@linework/core';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import { Editor, type EditorHandle } from '../editor.tsx';

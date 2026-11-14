@@ -5,7 +5,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { checkLiveCall, type LiveHost, type Proposal } from '@cartography/core';
+import { checkLiveCall, type LiveHost, type Proposal } from '@linework/core';
 import { announce, discoveredLink, endpointFor, handleLive, proposeChange, type LiveEndpoint } from '../src/index.ts';
 import { authorized } from '../src/http.ts';
 
@@ -17,11 +17,11 @@ edges:
   - web -> db
 `;
 
-const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'carto-live-')));
+const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'linework-live-')));
 const file = path.join(tmp, 'shop.yaml');
 const proposed: Proposal[] = [];
 const other = path.join(tmp, 'other.yaml');
-const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'carto-outside-')));
+const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'linework-outside-')));
 // As the editors do: a file of the folder is opened if it is not (here: shop.yaml is open, other.yaml
 // is not), a file outside it cannot be.
 const host: LiveHost = {
@@ -90,7 +90,7 @@ describe('a host found through discovery', () => {
   });
 
   it('says there is no editor for a folder no host has open', async () => {
-    const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-none-'));
+    const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'linework-none-'));
     fs.writeFileSync(path.join(elsewhere, 'a.yaml'), shop);
     expect(await discoveredLink(elsewhere).context()).toBeUndefined();
     expect(await proposeChange(discoveredLink(elsewhere), { file: 'a.yaml', edits: [{ op: 'delete', path: ['nodes', 'db'] }] }, elsewhere)).toMatchObject({ outcome: 'no-editor' });

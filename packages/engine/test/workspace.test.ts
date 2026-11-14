@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { drillTarget, elementAt, indexWorkspace } from '@cartography/core';
+import { drillTarget, elementAt, indexWorkspace } from '@linework/core';
 import { render } from '../src/index.ts';
 
 const dir = path.resolve(import.meta.dirname, '../../../examples/workspace');

@@ -4,8 +4,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { LayoutMemory, Placed } from '@cartography/core';
-import { measure } from '@cartography/layout';
+import type { LayoutMemory, Placed } from '@linework/core';
+import { measure } from '@linework/layout';
 import { render } from '../src/index.ts';
 import { exampleFiles, lab, moved, summary } from './stability.ts';
 

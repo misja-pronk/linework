@@ -1,6 +1,6 @@
-// carto icons [vendor] | import | list | show | find | map | unmap: the official icon packs in the config folder.
+// linework icons [vendor] | import | list | show | find | map | unmap: the official icon packs in the config folder.
 import fs from 'node:fs';
-import { coverage } from '@cartography/icons';
+import { coverage } from '@linework/icons';
 import type { IconsOptions } from '../args.ts';
 import { t } from '../i18n.ts';
 import type { Ctx } from '../io.ts';
@@ -14,7 +14,7 @@ export function iconsCommand(ctx: Ctx, files: string[], o: IconsOptions, usage: 
   if (!sub || isVendor(sub)) return (ctx.log(iconGuide(sub)), 0);
   if (sub === 'list') {
     const packs = listPacks();
-    if (!packs.length) ctx.log(t('No icon packs yet. Where to get them: carto icons'));
+    if (!packs.length) ctx.log(t('No icon packs yet. Where to get them: linework icons'));
     for (const p of packs) {
       const cov = coverage(p, coverageKinds(p.name));
       ctx.log(`${p.name.padEnd(12)} ${t('{have} of {count} kinds', { have: cov.have, count: cov.of })}${p.manual && Object.keys(p.manual).length ? `, ${t('{count} by hand', { count: Object.keys(p.manual).length })}` : ''} ${dim(t('imported {when} ← {source}', { when: p.imported ?? '?', source: p.source ?? '?' }))}`);
@@ -27,8 +27,8 @@ export function iconsCommand(ctx: Ctx, files: string[], o: IconsOptions, usage: 
       const r = importIcons(a, o.pack?.[0]);
       const name = r.pack.name;
       ctx.log(`${a} → ${r.dir}\n  ${t('{files} SVG files; {have} of {count} {pack} kinds have an icon', { files: r.files, have: r.coverage.have, count: r.coverage.of, pack: name })}${r.kept.length ? ` ${t('({count} mapped by hand before, kept)', { count: r.kept.length })}` : ''}`);
-      if (r.coverage.missing.length) ctx.log(dim(`  ${t('no icon yet: {kinds}', { kinds: r.coverage.missing.join(', ') })}\n  ${t('give one by hand: carto icons map {pack} <kind> <words>; see all: carto icons show {pack} -o {pack}.png', { pack: name })}`));
-      ctx.log(dim(`  ${t('use it: icons: official in the diagram, or carto render diagram.yaml --icons official')}`));
+      if (r.coverage.missing.length) ctx.log(dim(`  ${t('no icon yet: {kinds}', { kinds: r.coverage.missing.join(', ') })}\n  ${t('give one by hand: linework icons map {pack} <kind> <words>; see all: linework icons show {pack} -o {pack}.png', { pack: name })}`));
+      ctx.log(dim(`  ${t('use it: icons: official in the diagram, or linework render diagram.yaml --icons official')}`));
       return 0;
     } catch (e) {
       return fail(e);

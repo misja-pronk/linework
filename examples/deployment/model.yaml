@@ -1,6 +1,6 @@
 # One model of the web shop, deployed twice. azure.yaml and aws.yaml include this file and place the
 # same five containers on their own infrastructure with `of:`; their views draw one environment each:
-#   carto render examples/deployment/aws.yaml --all-views
+#   linework render examples/deployment/aws.yaml --all-views
 type: model
 title: Web shop
 

@@ -1,7 +1,7 @@
 // Packs dist/ into a .vsix (the zip VS Code installs with "Install from VSIX…" or `code
 // --install-extension`), without @vscode/vsce: the format is a zip with a manifest and a content
 // types file, and fflate (already in the tree) writes zips. Offline, no account, no Marketplace.
-//   node package.mjs            → cartography-<version>.vsix next to this file
+//   node package.mjs            → linework-<version>.vsix next to this file
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,7 +14,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(here, 'package.json'), 'utf8'))
 /** The manifest VS Code reads: the workspace name and the build-only fields left out. */
 export function extensionManifest(p = pkg) {
   const { devDependencies: _d, dependencies: _deps, scripts: _s, private: _p, ...rest } = p;
-  return { ...rest, name: 'cartography' };
+  return { ...rest, name: 'linework' };
 }
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -79,7 +79,7 @@ export function packVsix() {
     'extension/media/icon.png': fs.readFileSync(path.join(here, 'media/icon.png')),
   };
   for (const f of walk(dist)) files[`extension/dist/${f}`] = fs.readFileSync(path.join(dist, f));
-  const out = path.join(here, `cartography-${m.version}.vsix`);
+  const out = path.join(here, `linework-${m.version}.vsix`);
   fs.writeFileSync(out, zipSync(files, { level: 9 }));
   return { out, files: Object.keys(files).length, bytes: fs.statSync(out).size };
 }

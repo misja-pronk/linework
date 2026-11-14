@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import { Resvg } from '@resvg/resvg-js';
-import { allFontFiles, bundledFontFiles, fontFiles } from '@cartography/theme/node';
-import type { Theme } from '@cartography/theme';
-import { pdfFamilies, type FamilyBytes, type FontBytes } from '@cartography/export';
+import { allFontFiles, bundledFontFiles, fontFiles } from '@linework/theme/node';
+import type { Theme } from '@linework/theme';
+import { pdfFamilies, type FamilyBytes, type FontBytes } from '@linework/export';
 
 /** PNG without a browser; fonts come from the bundled TTFs (plus a brand theme's) so the result is the same on every machine. */
 export function toPng(svg: string, scale: number, extraFonts: string[] = []): Buffer {

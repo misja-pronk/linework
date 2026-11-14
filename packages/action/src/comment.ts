@@ -1,5 +1,5 @@
 // The pull request comment (and the job summary): per diagram what changed, in a picture and in words.
-import { markdownDiff, summary } from '@cartography/diff';
+import { markdownDiff, summary } from '@linework/diff';
 import { MARKER } from './github.ts';
 import type { Plan, Target } from './plan.ts';
 

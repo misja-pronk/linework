@@ -1,5 +1,5 @@
 // Screenshots of the built site, light and dark, desktop and phone width, to look at after a change:
-//   pnpm --filter @cartography/site shoot <outDir> [page.html …]
+//   pnpm --filter @linework/site shoot <outDir> [page.html …]
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';

@@ -2,7 +2,7 @@
 // thing without app.tsx passing it around: a theme (built-in or a .theme.yaml from the open folder)
 // that wins over the diagram's own. Official icon sets live in icon-packs.ts.
 import { useSyncExternalStore } from 'react';
-import { measureText, resolveTheme, SCALE_SAMPLE, themes, type Theme, type ThemeWarning } from '@cartography/theme';
+import { measureText, resolveTheme, SCALE_SAMPLE, themes, type Theme, type ThemeWarning } from '@linework/theme';
 import { store } from './store.ts';
 import type { Workspace } from './files.ts';
 

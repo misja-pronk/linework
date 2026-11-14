@@ -4,8 +4,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { Diagnostic } from '@cartography/core';
-import { git, repoRoot } from '@cartography/diff/node';
+import type { Diagnostic } from '@linework/core';
+import { git, repoRoot } from '@linework/diff/node';
 import { commentBody, titleOf } from './comment.ts';
 import { ApiError, githubApi, MARKER, upsertComment, type GitHubApi, type Posted } from './github.ts';
 import { imageUrl, publish, unpublish } from './images.ts';
@@ -66,7 +66,7 @@ export async function run(env: Env, deps: Deps = {}): Promise<RunResult> {
   if (mode !== 'diff' && mode !== 'render') throw new Error(`mode: "${asked}" is not one of auto, diff, render, setup`);
 
   const files = list(input('files'));
-  const output = path.resolve(root, input('output') || path.join(env.RUNNER_TEMP || os.tmpdir(), 'cartography'));
+  const output = path.resolve(root, input('output') || path.join(env.RUNNER_TEMP || os.tmpdir(), 'linework'));
   const annotate = (file: string, diagnostics: Diagnostic[]) => {
     for (const d of diagnostics) log(`::${d.severity === 'error' ? 'error' : 'warning'} file=${file}${d.line ? `,line=${d.line}${d.column ? `,col=${d.column}` : ''}` : ''}::${escape(d.message)}`);
   };
@@ -102,7 +102,7 @@ export async function run(env: Env, deps: Deps = {}): Promise<RunResult> {
   const fork = !!pr && pr.head?.repo?.full_name !== repo;
   const wanted = input('images', 'auto');
   if (!['auto', 'branch', 'artifact', 'none'].includes(wanted)) throw new Error(`images: "${wanted}" is not one of auto, branch, artifact, none`);
-  const branch = input('image-branch', 'cartography-diffs');
+  const branch = input('image-branch', 'linework-diffs');
   const folder = pr ? `pr-${pr.number}` : '';
   // A fork's token cannot push here, and a push to a branch needs a pull request to file it under.
   const onBranch = wanted === 'branch' || (wanted === 'auto' && !!pr && !fork);
@@ -163,7 +163,7 @@ export async function run(env: Env, deps: Deps = {}): Promise<RunResult> {
   }
 
   const run = env.GITHUB_RUN_ID ? `${env.GITHUB_SERVER_URL || 'https://github.com'}/${repo}/actions/runs/${env.GITHUB_RUN_ID}` : '';
-  const body = commentBody(p, { images: urls, against, head, ...(run && images === 'artifact' ? { artifact: { url: run, name: input('artifact-name', 'cartography-diagrams') } } : {}) });
+  const body = commentBody(p, { images: urls, against, head, ...(run && images === 'artifact' ? { artifact: { url: run, name: input('artifact-name', 'linework-diagrams') } } : {}) });
   if (body) fs.writeFileSync(path.join(output, 'comment.md'), body);
   summarise(body ?? '### Diagram changes\n\nNo diagram is touched by this change.');
 

@@ -1,6 +1,6 @@
 // Bundles the CLI and the MCP server into single ES modules that run on plain Node.js 24, without
 // node_modules or tsx:
-//   packages/cli/dist/carto.mjs     the carto command; web/ beside it is the editor `carto serve` serves
+//   packages/cli/dist/linework.mjs     the linework command; web/ beside it is the editor `linework serve` serves
 //   packages/mcp/dist/server.mjs    the MCP server over stdio
 // Beside each bundle: fonts/ (the TTFs resvg and the PDF export read), examples/ (get_schema's
 // examples) and resvg's native binary for this platform (PNG). Graphviz and wawoff2 carry their
@@ -73,11 +73,11 @@ async function bundle({ entry, outfile, web }) {
     banner: {
       js: [
         '#!/usr/bin/env node',
-        "import { createRequire as __cartoRequire } from 'node:module';",
-        "import { fileURLToPath as __cartoPath } from 'node:url';",
-        'const require = __cartoRequire(import.meta.url);',
-        'const __filename = __cartoPath(import.meta.url);',
-        "const __dirname = __cartoPath(new URL('.', import.meta.url));",
+        "import { createRequire as __lineworkRequire } from 'node:module';",
+        "import { fileURLToPath as __lineworkPath } from 'node:url';",
+        'const require = __lineworkRequire(import.meta.url);',
+        'const __filename = __lineworkPath(import.meta.url);',
+        "const __dirname = __lineworkPath(new URL('.', import.meta.url));",
       ].join('\n'),
     },
     // resvg's loader requires ./resvgjs.<platform>.node beside itself (__dirname: the bundle's
@@ -103,7 +103,7 @@ async function bundle({ entry, outfile, web }) {
 }
 
 const targets = {
-  cli: { entry: 'packages/cli/src/main.ts', outfile: path.join(root, 'packages/cli/dist/carto.mjs'), web: true },
+  cli: { entry: 'packages/cli/src/main.ts', outfile: path.join(root, 'packages/cli/dist/linework.mjs'), web: true },
   mcp: { entry: 'packages/mcp/src/main.ts', outfile: path.join(root, 'packages/mcp/dist/server.mjs') },
 };
 

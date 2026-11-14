@@ -3,7 +3,7 @@
 import './side-panel.css';
 import { useMemo, useState } from 'react';
 import { parse } from 'yaml';
-import { renamePins, type Link, type Path } from '@cartography/core';
+import { renamePins, type Link, type Path } from '@linework/core';
 import { t, say, type Message } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import { keyHint } from '../keys.ts';

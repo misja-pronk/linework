@@ -67,10 +67,10 @@ export function page(p: Page, nav: NavSection[], top: NavItem[]): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escape(p.home ? 'Cartography — architecture diagrams as text' : `${p.title} · Cartography`)}</title>
+<title>${escape(p.home ? 'Linework — architecture diagrams as text' : `${p.title} · Linework`)}</title>
 ${p.description ? `<meta name="description" content="${escape(p.description)}">` : ''}
 <meta name="color-scheme" content="light dark">
-<script>try{var t=localStorage.getItem('carto-site-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<script>try{var t=localStorage.getItem('linework-site-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="stylesheet" href="${to('assets/site.css')}">
 <link rel="icon" href="${to('assets/mark.svg')}" type="image/svg+xml">
 </head>
@@ -78,7 +78,7 @@ ${p.description ? `<meta name="description" content="${escape(p.description)}">`
 <a class="skip" href="#main">Skip to the content</a>
 <header class="top">
   <button class="menu" type="button" aria-label="Sections" aria-expanded="false">${MENU}</button>
-  <a class="brand" href="${to('index.html')}">${MARK}<span>Cartography</span></a>
+  <a class="brand" href="${to('index.html')}">${MARK}<span>Linework</span></a>
   <nav class="top-links" aria-label="Main">${topLinks}</nav>
   <button class="search-open" type="button" aria-label="Search the docs">${SEARCH}<span>Search</span><kbd>/</kbd></button>
   <button class="theme" type="button" aria-label="Switch light and dark">${MOON}${SUN}</button>
@@ -90,7 +90,7 @@ ${p.body}
   </main>
   ${onPage}
 </div>
-<footer class="foot"><div>${MARK}<span>Cartography · MIT licence · built from the repository's docs, offline, no tracking</span></div><div><a href="${to('gallery/index.html')}">Gallery</a><a href="${to('benchmark.html')}">Benchmark</a><a href="${to('getting-started.html')}">Get started</a></div></footer>
+<footer class="foot"><div>${MARK}<span>Linework · MIT licence · built from the repository's docs, offline, no tracking</span></div><div><a href="${to('gallery/index.html')}">Gallery</a><a href="${to('benchmark.html')}">Benchmark</a><a href="${to('getting-started.html')}">Get started</a></div></footer>
 <div class="search" role="dialog" aria-modal="true" aria-label="Search" hidden>
   <div class="search-box"><div class="search-field">${SEARCH}<input type="search" placeholder="Search the docs, types and examples" aria-label="Search"><kbd>Esc</kbd></div><ol class="search-results" role="listbox"></ol></div>
 </div>

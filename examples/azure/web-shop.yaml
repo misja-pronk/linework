@@ -42,7 +42,7 @@ edges:
   - pe-kv -> vault: { label: secrets, style: private, tags: [security] }
 
 # One drawing, three ways to look at it: the Layers control in the editor (L), or
-# carto render web-shop.yaml --layer security (--all-layers -o out/ for one picture each)
+# linework render web-shop.yaml --layer security (--all-layers -o out/ for one picture each)
 layers:
   security:
     tags: [security]
@@ -58,7 +58,7 @@ layers:
     dim-others: true
     caption: What takes the traffic and runs our code, from the front door to the Orders API.
 
-# Told in steps: Present in the editor, or carto render web-shop.yaml --all-steps
+# Told in steps: Present in the editor, or linework render web-shop.yaml --all-steps
 steps:
   - The web shop in production. One subscription, and nothing is public except the front door.
   - users -> edge -> web: A customer opens the shop. Front Door terminates TLS and reaches the web app over Private Link.

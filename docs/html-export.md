@@ -11,8 +11,8 @@ disk in Chrome, Safari, Firefox and Edge, needs no install and no hosted app, an
 - On the command line:
 
   ```sh
-  carto export-html shop.yaml -o shop.html          # one diagram, and the diagrams of its folder it drills into
-  carto export-html architecture/ -o harbour.html   # the whole folder, with a contents page
+  linework export-html shop.yaml -o shop.html       # one diagram, and the diagrams of its folder it drills into
+  linework export-html architecture/ -o harbour.html  # the whole folder, with a contents page
   ```
 
   | Option | |
@@ -20,18 +20,18 @@ disk in Chrome, Safari, Firefox and Edge, needs no install and no hosted app, an
   | `-o out.html` | where to write it; by default next to the diagram (`shop.html`) or the folder (`architecture.html`); `-o -` writes it to standard output |
   | `--title "…"` | the page's title; by default the model's title, or the diagram's |
   | `--all-steps` | also the steps nobody wrote (a dynamic view's numbered lines, a sequence's messages) |
-  | `--theme`, `--icons`, `--pack` | as for `carto render` |
+  | `--theme`, `--icons`, `--pack` | as for `linework render` |
 
   It exits 1 when a diagram has errors (the others are still written).
 
 A single diagram brings along what it leads to: the views of its own file, and the diagrams **in the same folder**
 that its elements link to (`links:`) or drill into (a system in a context view opens its container view). So
-`carto export-html context.yaml` carries the containers too; a link to a diagram that is not there stays a name in
+`linework export-html context.yaml` carries the containers too; a link to a diagram that is not there stays a name in
 the details panel.
 
 ## What the reader gets
 
-- **The drawing**, as Cartography draws it, fitted to the window. Two fingers or a drag move it, a pinch or
+- **The drawing**, as Linework draws it, fitted to the window. Two fingers or a drag move it, a pinch or
   ⌘/Ctrl + scroll zooms, the buttons at the bottom right do the same, and so do `+` `−` `0` (fit) `1` (actual size)
   and the arrow keys with ⇧.
 - **Views**: the sidebar lists every diagram and its views; `[` and `]` go to the previous and next one. A folder

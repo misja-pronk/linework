@@ -1,7 +1,7 @@
 // The diff pictures as PNG files: what a pull request comment can show. PNG, not SVG, because GitHub
 // shows a PNG from anywhere and is particular about SVG; drawn with resvg, no browser.
-import { ttfFiles } from '@cartography/cli/fonts';
-import { toPng } from '@cartography/cli/png';
+import { ttfFiles } from '@linework/cli/fonts';
+import { toPng } from '@linework/cli/png';
 import type { Target } from './plan.ts';
 
 export interface Shot {

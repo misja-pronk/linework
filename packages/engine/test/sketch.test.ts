@@ -1,6 +1,6 @@
 // The sketch look: drawn by hand, the same on every redraw, plain paths only.
 import { describe, expect, it } from 'vitest';
-import { themes } from '@cartography/theme';
+import { themes } from '@linework/theme';
 import { render } from '../src/index.ts';
 
 const shop = `type: systems

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render } from '@cartography/engine';
+import { render } from '@linework/engine';
 import { contextMap } from '../src/index.ts';
 
 describe('context map', () => {

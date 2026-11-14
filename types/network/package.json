@@ -1,5 +1,5 @@
 {
-  "name": "@cartography/network",
+  "name": "@linework/network",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
@@ -7,10 +7,10 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@cartography/core": "workspace:*"
+    "@linework/core": "workspace:*"
   },
   "devDependencies": {
-    "@cartography/engine": "workspace:*",
-    "@cartography/icons": "workspace:*"
+    "@linework/engine": "workspace:*",
+    "@linework/icons": "workspace:*"
   }
 }

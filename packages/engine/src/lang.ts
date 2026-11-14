@@ -2,9 +2,9 @@
 // key's labels, the kind names cards and groups carry as captions, and the label of an entry that has
 // none of its own (users: { kind: users } draws "Gebruikers"). What the author wrote stays as written,
 // and so does a name made from the entry's key (a team payments is called Payments, not Betalingen).
-import type { Graph, GraphGroup, GraphNode, Path } from '@cartography/core';
-import { readLang, type Lang } from '@cartography/i18n';
-import { term } from '@cartography/i18n/drawing';
+import type { Graph, GraphGroup, GraphNode, Path } from '@linework/core';
+import { readLang, type Lang } from '@linework/i18n';
+import { term } from '@linework/i18n/drawing';
 
 /** `lang:` as written: nl or en (also nl-NL, Dutch); undefined when it says neither. */
 export const diagramLang = (v: unknown): Lang | undefined => readLang(v);

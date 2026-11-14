@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { render } from '@cartography/engine';
+import { render } from '@linework/engine';
 import { cellValues, matrix } from '../src/index.ts';
 
 const crud = fs.readFileSync(new URL('../../../examples/matrix/crud-services.yaml', import.meta.url), 'utf8');

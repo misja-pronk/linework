@@ -1,11 +1,11 @@
 // The Your AI panel (⌘J): changes from the user's own AI agent, which reaches the editor through
-// Cartography's MCP server and carto serve (live/use-live.ts). A proposal shows as a marked-up drawing
+// Linework's MCP server and linework serve (live/use-live.ts). A proposal shows as a marked-up drawing
 // and the YAML diff, and is accepted (⏎, one undo step) or rejected (Esc); the agent hears which. A
-// file changed on disk shows the same way, already applied, with ⌘Z to take it back. Cartography
+// file changed on disk shows the same way, already applied, with ⌘Z to take it back. Linework
 // itself talks to no AI and to no network.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { applyOperations, yamlDiff, type DiagramType, type LayoutSidecar } from '@cartography/core';
-import { compare, summary as diffSummary, type Comparison } from '@cartography/diff';
+import { applyOperations, yamlDiff, type DiagramType, type LayoutSidecar } from '@linework/core';
+import { compare, summary as diffSummary, type Comparison } from '@linework/diff';
 import { Icon } from '../icon.tsx';
 import { t as tr } from '../i18n/index.ts';
 import type { Live } from '../live/use-live.ts';
@@ -91,7 +91,7 @@ export function AskPanel(p: AskPanelProps) {
       <header>
         <Icon name="sparkles" size={16} />
         <strong>{tr('Your AI')}</strong>
-        <span className="ask-scope">{p.live.served ? (p.live.connected ? tr('connected to carto serve') : tr('carto serve is not answering')) : tr('not connected')}</span>
+        <span className="ask-scope">{p.live.served ? (p.live.connected ? tr('connected to linework serve') : tr('linework serve is not answering')) : tr('not connected')}</span>
         <button className="icon-button" onClick={p.onClose} title={tr('Close (⌘J)')} aria-label={tr('Close')}>
           <Icon name="x" />
         </button>
@@ -115,8 +115,8 @@ export function AskPanel(p: AskPanelProps) {
         )}
         {!proposal && !p.change && (
           <div className="ask-empty">
-            <p>{tr('Ask your own AI (Claude Code, Copilot, Cursor, Codex…) for a change. Through Cartography’s MCP server it sees what you have open and selected, and its changes show here as a diff to accept or reject.')}</p>
-            {!p.live.served && <p className="fine">{tr('In the browser that needs carto serve: run carto serve in the folder and open the address it prints. In VS Code the extension does it.')}</p>}
+            <p>{tr('Ask your own AI (Claude Code, Copilot, Cursor, Codex…) for a change. Through Linework’s MCP server it sees what you have open and selected, and its changes show here as a diff to accept or reject.')}</p>
+            {!p.live.served && <p className="fine">{tr('In the browser that needs linework serve: run linework serve in the folder and open the address it prints. In VS Code the extension does it.')}</p>}
             <p className="fine">{tr('Only a chat window? Copy the diagram with its schema and instructions, and paste the answer back as YAML.')}</p>
             <button type="button" className="button ghost" onClick={p.onCopyForAi}>
               <Icon name="copy" /> {tr('Copy for your AI')}
@@ -133,7 +133,7 @@ export function AskPanel(p: AskPanelProps) {
         ))}
       </div>
       <footer className="ask-sent">
-        <span>{tr('Cartography talks to no AI and no network itself: your agent works on the files, and carto serve only listens on this computer.')}</span>
+        <span>{tr('Linework talks to no AI and no network itself: your agent works on the files, and linework serve only listens on this computer.')}</span>
       </footer>
     </aside>
   );

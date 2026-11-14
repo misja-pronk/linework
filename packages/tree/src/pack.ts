@@ -8,7 +8,7 @@
 // Plain arithmetic and a small search, so the same input always gives the same drawing; the
 // variant drawn before is kept unless another is clearly better, so one more chip does not
 // rearrange the map.
-import type { Box } from '@cartography/core';
+import type { Box } from '@linework/core';
 import { choose, slideScale, type Frame } from './fit.ts';
 
 export interface PackItem {

@@ -1,6 +1,6 @@
 // GitHub design: enterprise → organisations → teams and repositories, with environments,
 // workflows, secrets, rulesets, runners and apps, and who has which access.
-import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
+import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@linework/core';
 
 // Generic line icons; GitHub's logo and Octicons are not used (trademark).
 export const config: GraphTypeConfig = {
@@ -60,7 +60,7 @@ const PEOPLE = ['user', 'outside-collaborator'];
 /**
  * Who reaches which repository, as an access diagram has it (principals, resources, roles,
  * assignments): teams in a team reach what that team reaches, members what their team does. For
- * `carto diff`, which tells what was gained and lost in plain words from it.
+ * `linework diff`, which tells what was gained and lost in plain words from it.
  */
 export function accessOf(src: GraphSource) {
   const all = { ...(src.groups ?? {}), ...(src.nodes ?? {}) } as Record<string, { kind?: string; label?: string; caption?: string; in?: string } | string | null>;
@@ -128,7 +128,7 @@ export const github: DiagramType<GraphSource> = {
     'github', 'repository', 'repo', 'team', 'organisation', 'organization', 'workflow', 'actions', 'environment', 'ci', 'cd', 'pipeline',
     'codeowners', 'ruleset', 'branch protection', 'runner', 'secret', 'oidc',
   ],
-  schema: graphSchema('github', config, 'Cartography GitHub diagram'),
+  schema: graphSchema('github', config, 'Linework GitHub diagram'),
   palette,
   build: (src, ctx) => buildGraph(src, config, ctx),
   references: graphReferences,

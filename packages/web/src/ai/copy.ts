@@ -1,10 +1,10 @@
 // "Copy for your AI": the open diagram, its type's schema and short instructions as one text, for
 // people who only have a chat window. They paste it in, ask for a change, and paste the YAML back
 // (straight into the editor).
-import type { DiagramType } from '@cartography/core';
+import type { DiagramType } from '@linework/core';
 
 export function forYourAi(o: { yaml: string; type: DiagramType; file?: string; selection?: string[]; request?: string }): string {
-  return `This is a Cartography diagram: a YAML file that is checked against a JSON Schema and laid out automatically, so it has no positions or sizes.
+  return `This is a Linework diagram: a YAML file that is checked against a JSON Schema and laid out automatically, so it has no positions or sizes.
 
 Rules:
 - Follow the schema exactly; unknown keys are errors.

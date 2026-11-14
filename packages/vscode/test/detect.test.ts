@@ -11,7 +11,7 @@ describe('which files are diagrams', () => {
 
   it('knows a diagram by its name or its type', () => {
     const ids = typeIds();
-    expect(isDiagram('/a/b.carto.yaml', 'whatever: 1', ids)).toBe(true);
+    expect(isDiagram('/a/b.linework.yaml', 'whatever: 1', ids)).toBe(true);
     expect(isDiagram('/a/b.yaml', 'type: systems\n', ids)).toBe(true);
     expect(isDiagram('/a/b.yml', 'type: model\n', ids)).toBe(true);
     expect(isDiagram('/a/b.yaml', 'type: object\nproperties: {}\n', ids)).toBe(false);
@@ -21,7 +21,7 @@ describe('which files are diagrams', () => {
 
   it('names the sidecar as the CLI does', () => {
     expect(sidecarName('/x/shop.yaml')).toBe('/x/shop.layout.json');
-    expect(sidecarName('/x/shop.carto.yml')).toBe('/x/shop.carto.layout.json');
+    expect(sidecarName('/x/shop.linework.yml')).toBe('/x/shop.linework.layout.json');
   });
 
   it('offers every type with when to pick it, best matches first', () => {

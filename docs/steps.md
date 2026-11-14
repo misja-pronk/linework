@@ -97,7 +97,7 @@ A selector that names nothing is reported on its own line and column, like any o
 - `Nothing drawn here is called "apii"`: an id, group, tag or kind that is not in this drawing (or not in this view).
 - `"web ->" misses an end`: a route with an empty end.
 - `There is no line between "web" and "db"`: a warning; the step is drawn without that part of the route.
-- `All 5 steps: on a 16:9 slide their smallest text is 5.7 pt, under 6 pt …`: a warning from `carto validate`, which checks each step's slide as PowerPoint makes it (the same slide `carto render --format pptx` writes, so the number is the one PowerPoint shows). The steps of a drawing share one layout, so the longest title and caption decide how much room all of them leave the drawing; the warning names the steps whose words run to more than one line. Keep each to one line (about 110 characters, title included), and notes short.
+- `All 5 steps: on a 16:9 slide their smallest text is 5.7 pt, under 6 pt …`: a warning from `linework validate`, which checks each step's slide as PowerPoint makes it (the same slide `linework render --format pptx` writes, so the number is the one PowerPoint shows). The steps of a drawing share one layout, so the longest title and caption decide how much room all of them leave the drawing; the warning names the steps whose words run to more than one line. Keep each to one line (about 110 characters, title included), and notes short.
 
 ## In the editor
 
@@ -136,13 +136,13 @@ A file with views is presented view by view, in the order written, and step by s
 ## Command line and export
 
 ```sh
-carto render shop.yaml --step 3              # → shop-step-03.svg, the drawing at step 3
-carto render shop.yaml --step 3 -o s3.png     # → s3.png, as named (a step it does not have is an error)
-carto render shop.yaml --all-steps -f png    # → shop-step-01.png, shop-step-02.png, …
-carto render shop.yaml --view inside --all-steps
-carto render shop.yaml -o shop.pptx          # one slide per step
-carto render shop.yaml -o shop.pdf           # one page per step
-carto deck *.yaml -o deck.pptx               # every diagram; one slide per step where there are steps
+linework render shop.yaml --step 3           # → shop-step-03.svg, the drawing at step 3
+linework render shop.yaml --step 3 -o s3.png  # → s3.png, as named (a step it does not have is an error)
+linework render shop.yaml --all-steps -f png  # → shop-step-01.png, shop-step-02.png, …
+linework render shop.yaml --view inside --all-steps
+linework render shop.yaml -o shop.pptx       # one slide per step
+linework render shop.yaml -o shop.pdf        # one page per step
+linework deck *.yaml -o deck.pptx            # every diagram; one slide per step where there are steps
 ```
 
 | Format | With steps |

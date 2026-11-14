@@ -5,9 +5,9 @@
 It is not an enterprise-architecture repository. There is no value-stream modelling, no roll-up of scores, no import from LeanIX or Ardoq. What you get is a map that fits a slide, from a short YAML file, that you can diff and review like code.
 
 ```sh
-carto new capabilities map.yaml                  # a small map with a maturity heatmap
-carto render map.yaml --format png               # svg, png, pdf, pptx (native shapes)
-carto render map.yaml --view investment -o investment.png
+linework new capabilities map.yaml               # a small map with a maturity heatmap
+linework render map.yaml --format png            # svg, png, pdf, pptx (native shapes)
+linework render map.yaml --view investment -o investment.png
 ```
 
 ![Enterprise capability map, maturity](capabilities/enterprise.png)

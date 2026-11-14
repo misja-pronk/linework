@@ -1,12 +1,12 @@
 {
-  "name": "@cartography/class",
+  "name": "@linework/class",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
   "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@cartography/core": "workspace:*" },
+  "dependencies": { "@linework/core": "workspace:*" },
   "devDependencies": {
-    "@cartography/engine": "workspace:*",
+    "@linework/engine": "workspace:*",
     "yaml": "^2.9.1"
   }
 }

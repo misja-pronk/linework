@@ -2,9 +2,9 @@
 // and the share link the web editor opens.
 import path from 'node:path';
 import * as vscode from 'vscode';
-import { SHARE_LIMIT, shareLink, withViewPins } from '@cartography/core';
-import { render, type RenderResult } from '@cartography/engine';
-import { toPptx } from '@cartography/export';
+import { SHARE_LIMIT, shareLink, withViewPins } from '@linework/core';
+import { render, type RenderResult } from '@linework/engine';
+import { toPptx } from '@linework/export';
 import { readSidecar, renderOptions, writeSidecar, type DrawAsk } from './draw.ts';
 import { isDiagramDoc } from './language.ts';
 import { scheme, type Preview } from './preview.ts';
@@ -24,7 +24,7 @@ async function target(previews: Previews, arg?: unknown): Promise<vscode.TextDoc
   if (arg instanceof vscode.Uri) doc = await vscode.workspace.openTextDocument(arg);
   else doc = previews.active() ?? vscode.window.activeTextEditor?.document;
   if (doc && isDiagramDoc(doc)) return doc;
-  void vscode.window.showWarningMessage('Open a Cartography diagram first: a YAML file that starts with "type:", or a *.carto.yaml file.');
+  void vscode.window.showWarningMessage('Open a Linework diagram first: a YAML file that starts with "type:", or a *.linework.yaml file.');
   return undefined;
 }
 
@@ -39,7 +39,7 @@ function askOf(doc: vscode.TextDocument, previews: Previews): DrawAsk {
     view: p?.last?.result.view ?? p?.view,
     step: p?.step,
     ...(p?.focus !== undefined ? { focus: p.focus } : {}),
-    // Exports look as `carto render` makes them: the diagram's theme, else light (not the editor's colours).
+    // Exports look as `linework render` makes them: the diagram's theme, else light (not the editor's colours).
     scheme: 'light',
     themeOverride: settings().theme,
   };
@@ -81,12 +81,12 @@ async function link(doc: vscode.TextDocument): Promise<string | undefined> {
 export function registerCommands(context: vscode.ExtensionContext, previews: Previews): void {
   const on = (id: string, run: (...args: unknown[]) => unknown) => context.subscriptions.push(vscode.commands.registerCommand(id, run));
 
-  on('cartography.showPreview', async (arg) => {
+  on('linework.showPreview', async (arg) => {
     const doc = await target(previews, arg);
     if (doc) await previews.open(doc, 'preview', vscode.ViewColumn.Beside);
   });
 
-  on('cartography.present', async (arg) => {
+  on('linework.present', async (arg) => {
     const doc = await target(previews, arg);
     if (!doc) return;
     const from = previews.of(doc);
@@ -103,22 +103,22 @@ export function registerCommands(context: vscode.ExtensionContext, previews: Pre
     });
   });
 
-  on('cartography.newDiagram', async () => {
+  on('linework.newDiagram', async () => {
     const items = typeChoices().map((c) => ({ label: c.label, description: c.id, detail: `${c.description}${c.detail ? ` — ${c.detail}` : ''}`, choice: c }));
-    const picked = await vscode.window.showQuickPick(items, { title: 'New Cartography diagram', placeHolder: 'What do you want to draw? Type to filter (pods, who has access, roadmap…)', matchOnDescription: true, matchOnDetail: true });
+    const picked = await vscode.window.showQuickPick(items, { title: 'New Linework diagram', placeHolder: 'What do you want to draw? Type to filter (pods, who has access, roadmap…)', matchOnDescription: true, matchOnDetail: true });
     if (!picked) return;
     const doc = await vscode.workspace.openTextDocument({ language: 'yaml', content: picked.choice.template });
     await vscode.window.showTextDocument(doc, vscode.ViewColumn.Active);
     await previews.open(doc, 'preview', vscode.ViewColumn.Beside);
   });
 
-  on('cartography.exportSvg', async (arg) => {
+  on('linework.exportSvg', async (arg) => {
     const doc = await target(previews, arg);
     const r = doc && (await drawFor(doc, previews, 'embed'));
     if (doc && r?.svg) await saveAs(doc, suffixOf(r), 'svg', 'SVG', async () => r.svg!);
   });
 
-  on('cartography.exportPng', async (arg) => {
+  on('linework.exportPng', async (arg) => {
     const doc = await target(previews, arg);
     const r = doc && (await drawFor(doc, previews, 'embed'));
     if (!doc || !r?.svg) return;
@@ -128,16 +128,16 @@ export function registerCommands(context: vscode.ExtensionContext, previews: Pre
     await saveAs(doc, suffixOf(r), 'png', 'PNG', () => p.rasterize(r.svg!, r.width! * k, r.height! * k));
   });
 
-  on('cartography.exportPptx', async (arg) => {
+  on('linework.exportPptx', async (arg) => {
     const doc = await target(previews, arg);
     const r = doc && (await drawFor(doc, previews, 'none'));
     if (!doc || !r?.svg) return;
     const p = previews.of(doc);
-    // A slide per written step (or only the step on screen), as `carto render --format pptx`; the preview, when open, gives icons a PNG fallback.
+    // A slide per written step (or only the step on screen), as `linework render --format pptx`; the preview, when open, gives icons a PNG fallback.
     await saveAs(doc, suffixOf(r), 'pptx', 'PowerPoint', () => toPptx([{ ...r, name: path.basename(doc.fileName) }], { theme: r.theme ?? scheme(), ...(p ? { rasterize: (svg: string, w: number, h: number) => p.rasterize(svg, w, h) } : {}) }));
   });
 
-  on('cartography.copyShareLink', async (arg) => {
+  on('linework.copyShareLink', async (arg) => {
     const doc = await target(previews, arg);
     const url = doc && (await link(doc));
     if (!url) return;
@@ -145,13 +145,13 @@ export function registerCommands(context: vscode.ExtensionContext, previews: Pre
     void vscode.window.showInformationMessage(`Share link copied (${Math.ceil(url.length / 100) / 10} kB). The diagram is in the link itself; opening it sends nothing to a server.`);
   });
 
-  on('cartography.openInEditor', async (arg) => {
+  on('linework.openInEditor', async (arg) => {
     const doc = await target(previews, arg);
     const url = doc && (await link(doc));
     if (url) await vscode.env.openExternal(vscode.Uri.parse(url, true));
   });
 
-  on('cartography.clearPins', async (arg) => {
+  on('linework.clearPins', async (arg) => {
     const doc = await target(previews, arg);
     if (!doc || doc.uri.scheme !== 'file') return;
     const p = previews.of(doc);

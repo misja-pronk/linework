@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import { unzipSync, strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { render, slideTextPt, textPtAt, type RenderResult } from '@cartography/engine';
-import { SMALL_PX, smallestTextPx } from '@cartography/render';
-import { themes } from '@cartography/theme';
-import { bundledFontFiles, fontFiles } from '@cartography/theme/node';
+import { render, slideTextPt, textPtAt, type RenderResult } from '@linework/engine';
+import { SMALL_PX, smallestTextPx } from '@linework/render';
+import { themes } from '@linework/theme';
+import { bundledFontFiles, fontFiles } from '@linework/theme/node';
 import { pages, pdfFamilies, slideScale, svgOnPage, toPdf, toPptx, type FamilyBytes, type FontBytes, type SlideText } from '../src/index.ts';
 import { clean, fitConnector, polygonPreset, simplify, subpaths, underCurve } from '../src/slide.ts';
 
@@ -127,7 +127,7 @@ describe('pptx', () => {
     const survey = parts(await toPptx(await Promise.all(['systems/web-shop.yaml', 'erd/orders.yaml'].map((f) => draw(f)))));
     const slide = survey.text('ppt/slides/slide1.xml');
     const t = themes.survey!;
-    // The faces Cartography brings along are on few machines: named as faces every Mac and PC has (Apple's importer sets a missing one in Times).
+    // The faces Linework brings along are on few machines: named as faces every Mac and PC has (Apple's importer sets a missing one in Times).
     expect(slide).toContain('<a:latin typeface="Arial" panose="020B0604020202020204" pitchFamily="34"');
     expect(survey.text('ppt/slides/slide2.xml')).toContain('<a:latin typeface="Courier New" panose="020B0609020204030204" pitchFamily="49"');
     expect(slide).not.toContain('Instrument Sans');

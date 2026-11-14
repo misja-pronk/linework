@@ -1,7 +1,7 @@
 # The web shop of model.yaml on Azure. `of:` says which container a resource runs: it takes the
 # container's name and technology, links back to the model, and the model's relations are drawn
 # between what runs them. `env:` marks what only some environments have; each view draws one.
-#   carto render examples/deployment/azure.yaml --view prod
+#   linework render examples/deployment/azure.yaml --view prod
 type: azure
 title: Web shop on Azure
 subtitle: Every environment at once

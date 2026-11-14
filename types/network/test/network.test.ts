@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { icon } from '@cartography/icons';
-import { matchTypes } from '@cartography/core';
-import { render, types } from '@cartography/engine';
+import { icon } from '@linework/icons';
+import { matchTypes } from '@linework/core';
+import { render, types } from '@linework/engine';
 import { config, network, range, vlanList } from '../src/index.ts';
 
 const office = `type: network

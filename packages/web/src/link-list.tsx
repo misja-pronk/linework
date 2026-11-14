@@ -1,5 +1,5 @@
 // An element's links in the inspector: follow one (⌘-click on the drawing follows the first).
-import type { Link } from '@cartography/core';
+import type { Link } from '@linework/core';
 import { Icon } from './icon.tsx';
 import { t } from './i18n/index.ts';
 import { linkIcon, linkText } from './links.ts';

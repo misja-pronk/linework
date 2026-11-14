@@ -27,12 +27,12 @@ const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, acc
 const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
 const fail = (m) => problems.push(m);
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.evaluate(async ({ files }) => {
   localStorage.clear();
-  localStorage.setItem('cartography:started', 'true');
+  localStorage.setItem('linework:started', 'true');
   await new Promise((ok) => {
-    const r = indexedDB.deleteDatabase('cartography-pptx');
+    const r = indexedDB.deleteDatabase('linework-pptx');
     r.onsuccess = r.onerror = r.onblocked = () => ok();
   });
   const opfs = await navigator.storage.getDirectory();
@@ -64,9 +64,9 @@ const menu = async () => {
   await page.click('button:has-text("Export")');
   await page.waitForSelector('.menu [role="menuitem"]');
 };
-// The page frame (shift-P) in a template: its slide, and the smallest text the deck in it reports, as carto validate --template does.
+// The page frame (shift-P) in a template: its slide, and the smallest text the deck in it reports, as linework validate --template does.
 const measure = (template, keepLook) => {
-  const code = `const fs = require('node:fs'); Promise.all([import('@cartography/engine'), import('@cartography/export')]).then(async ([{ render }, { toPptx }]) => { const r = await render(fs.readFileSync(${JSON.stringify(path.join(root, 'examples/systems/web-shop.yaml'))}, 'utf8'), { fonts: 'none' }); let pt; await toPptx({ ...r, name: 'shop' }, { theme: r.theme, template: new Uint8Array(fs.readFileSync(${JSON.stringify(template)})), keepLook: ${!!keepLook}, steps: false, onSlide: (s) => (pt ??= s.smallestPt), onWarning: () => {} }); console.log(pt.toFixed(1)); });`;
+  const code = `const fs = require('node:fs'); Promise.all([import('@linework/engine'), import('@linework/export')]).then(async ([{ render }, { toPptx }]) => { const r = await render(fs.readFileSync(${JSON.stringify(path.join(root, 'examples/systems/web-shop.yaml'))}, 'utf8'), { fonts: 'none' }); let pt; await toPptx({ ...r, name: 'shop' }, { theme: r.theme, template: new Uint8Array(fs.readFileSync(${JSON.stringify(template)})), keepLook: ${!!keepLook}, steps: false, onSlide: (s) => (pt ??= s.smallestPt), onWarning: () => {} }); console.log(pt.toFixed(1)); });`;
   const r = spawnSync(tsx, ['-e', code], { cwd: path.join(root, 'packages/cli'), encoding: 'utf8' });
   if (r.status) throw new Error(r.stderr);
   return r.stdout.trim();
@@ -118,7 +118,7 @@ if (!d.text('ppt/slides/slide1.xml').includes('<p:ph type="title"/>')) fail('in-
 if (!d.text('ppt/slides/slide1.xml').includes('typeface="Arial"')) fail('in-template: not in the template body face');
 if (d.text('ppt/presentation.xml').includes('sectionLst')) fail('in-template: sample sections left behind');
 if (!d.text('[Content_Types].xml').includes('presentation.main+xml')) fail('in-template: still a template content type');
-if (!Object.keys(d.parts).some((p) => p.startsWith('ppt/media/cartography-icon') && p.endsWith('.png'))) fail('in-template: icons have no PNG fallback');
+if (!Object.keys(d.parts).some((p) => p.startsWith('ppt/media/linework-icon') && p.endsWith('.png'))) fail('in-template: icons have no PNG fallback');
 await pageFrame('in-template', 'template.potx', 16 / 9, path.join(out, 'exemplar.potx'));
 
 // 2. Remembered for this folder after a reload.
@@ -153,7 +153,7 @@ await menu();
 await page.click('[role=menuitemcheckbox]:has-text("Keep the diagram")');
 await page.keyboard.press('Escape');
 d = await savePptx('dutch-keep-look');
-// The diagram's own face, as slides name it: a face Cartography brings along becomes Arial, which every machine has.
+// The diagram's own face, as slides name it: a face Linework brings along becomes Arial, which every machine has.
 if (!d.text('ppt/slides/slide1.xml').includes('typeface="Arial"')) fail('keep look: not in the diagram\'s own face');
 
 // 5. Let go of it: our own deck again.
@@ -161,7 +161,7 @@ await menu();
 await page.click('[data-template-clear]');
 d = await savePptx('plain');
 if (!d.text('ppt/presentation.xml').includes('<p:sldSz cx="12192000" cy="6858000"/>')) fail('plain: not our own 16:9');
-if (Object.keys(d.parts).some((p) => p.includes('cartography-icon'))) fail('plain: still made in a template');
+if (Object.keys(d.parts).some((p) => p.includes('linework-icon'))) fail('plain: still made in a template');
 
 console.log(problems.length ? 'PROBLEMS:\n' + problems.join('\n') : 'all pptx template steps ok');
 await browser.close();

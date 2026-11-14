@@ -1,9 +1,9 @@
-// carto's help: the whole manual (carto help all), each command's part of it, the short list of
-// commands (carto --help), and what to say for a command that is not one. Built per run, in its language.
+// linework's help: the whole manual (linework help all), each command's part of it, the short list of
+// commands (linework --help), and what to say for a command that is not one. Built per run, in its language.
 import { configDir } from './packs.ts';
 import { helpText, t } from './i18n.ts';
 
-/** The commands, grouped, one line each: what `carto --help` shows. */
+/** The commands, grouped, one line each: what `linework --help` shows. */
 const groups = (): [string, [string, string][]][] => [
   [t('Create'), [
     ['new', t('start from a template')],
@@ -29,7 +29,7 @@ const groups = (): [string, [string, string][]][] => [
     ['icons', t('import and list vendor icon packs')],
   ]],
 ];
-/** Older names, still taken: `carto export --to html` is the same as `carto export-html`. */
+/** Older names, still taken: `linework export --to html` is the same as `linework export-html`. */
 const aliases: [string, string][] = [
   ['export-html', 'export --to html'],
 ];
@@ -41,7 +41,7 @@ const aliases: [string, string][] = [
 const commonEntries: Record<string, number> = { render: 4, deck: 2, diff: 3, new: 1, icons: 3, 'export-html': 2, validate: 1 };
 
 export interface Help {
-  /** Everything: carto help all. */
+  /** Everything: linework help all. */
   all: string;
   /** Whether there is help for the command, i.e. it is one. */
   has(cmd: string): boolean;
@@ -53,15 +53,15 @@ export interface Help {
 
 /** The help, in the language of the run. */
 export function help(): Help {
-  const all = helpText(`carto — architecture diagrams that look good
+  const all = helpText(`linework — architecture diagrams that look good
 
-  carto render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
+  linework render <file.yaml…> [-o out] [--format svg|png|pptx|pdf] [--theme name|file.theme.yaml]
                [--pack azure] [--scale 2]           --theme wins over the diagram's theme:; -o x.pptx or x.pdf picks the format too
                [--view name | --all-views]      one of the diagram's views, or each to <file>--<view>.svg; pptx, pdf: a slide (page) each
                                                 present: views: pptx, pdf and --all-views are the views; --view '' the canvas
                [--step 3 | --all-steps]         the drawing at one of its steps:, or each to <file>-step-01.svg;
                                                 pptx and pdf get a slide (page) per step by themselves
-               [--icons official|lucide]        the vendor's official icons (carto icons import) or our line icons,
+               [--icons official|lucide]        the vendor's official icons (linework icons import) or our line icons,
                                                 whatever the diagram's icons: says
                [--layer security | --all-layers] through one (or several) of its layers:, or each to <file>--<layer>.svg;
                [--dim]                          pptx and pdf: a slide (page) per layer. --dim fades the rest in place
@@ -77,72 +77,72 @@ export function help(): Help {
                [--keep-look] [--keep-slides]    layout, --keep-look keeps the diagram's own theme, --keep-slides the
                                                 template's own slides in front
                [--aspect 16:9|4:3] [--page fit|a4|a3]  pptx: the slide shape; pdf: the page size (default fit)
-  carto deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each, one per step where a diagram has steps:
+  linework deck <file.yaml…> -o deck.pptx|deck.pdf  all diagrams in one deck, a slide (page) each, one per step where a diagram has steps:
                [--all-steps | --no-steps]           also step through sequence messages and dynamic views; or never
                [--title "Deck title"] [--subtitle …] title slide in front (pptx)
                [--aspect 16:9|4:3] [--font Inter]   slide shape and typeface (pptx)
-               [--template x.potx] [--layout name]  in a PowerPoint template, as carto render (pptx)
+               [--template x.potx] [--layout name]  in a PowerPoint template, as linework render (pptx)
                [--keep-look] [--keep-slides]
                [--page fit|a4|a3]                   page size (pdf, default fit)
-  carto watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
-  carto serve  [folder] [--port 4317]           the web editor for a folder, with an MCP endpoint for your own AI
-  carto export-html <file.yaml|folder> [-o out.html]  one HTML file to send: every view and step drawn (light and
+  linework watch  <file.yaml…> [same options]      re-render on every save (and when included files change)
+  linework serve  [folder] [--port 4317]           the web editor for a folder, with an MCP endpoint for your own AI
+  linework export-html <file.yaml|folder> [-o out.html]  one HTML file to send: every view and step drawn (light and
                [--title "…"] [--all-steps]      dark), pan and zoom, presenter, drill-down, search, element
                                                 details, print; works offline from disk. A file brings the
                                                 diagrams it drills into; a folder gets a contents page.
                                                 More: docs/html-export.md
-  carto describe <file.yaml> [-o out.md|.txt|.html]  the diagram in plain words: what it shows, its groups and
+  linework describe <file.yaml> [-o out.md|.txt|.html]  the diagram in plain words: what it shows, its groups and
                [--view name | --all-views]      elements, connections in reading order, steps, layers, trust boundaries
                [--format text|md|html]          and key (sequence: the messages; ERD: tables and relations).
                                                 The same words are in every SVG, PNG, PDF and slide. docs/describe.md
-  carto share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
+  linework share <file.yaml> [--base URL]          a link that opens the diagram read-only in the web app; the diagram
                                                 travels in the link's #fragment, never to a server (default base
                                                 http://localhost:5178/)
-  carto validate <file.yaml…|folder>            check files (each diagram of a folder) and each of their views,
+  linework validate <file.yaml…|folder>            check files (each diagram of a folder) and each of their views,
                                                 print problems; warns when the smallest text on its PowerPoint
-                                                slide (as carto render --format pptx makes it) is under 6 pt
+                                                slide (as linework render --format pptx makes it) is under 6 pt
                [--template x.potx] [--layout name]  measure that on a slide of a PowerPoint template
                [--drift]                        also fail when <file>.layout.json pins, bends or locks things
                                                 (or views) that are no longer in the diagram
                [--drift --fix]                  drop those entries from <file>.layout.json
-  carto diff <before.yaml> <after.yaml>         what changed between two versions, by id: added, removed and
+  linework diff <before.yaml> <after.yaml>         what changed between two versions, by id: added, removed and
                                                 changed nodes, groups and lines
-  carto diff --git <ref> <file.yaml…>           the same against the file at a branch, tag or commit (includes too);
+  linework diff --git <ref> <file.yaml…>           the same against the file at a branch, tag or commit (includes too);
                                                 --since <ref> says the same
-  carto diff --snapshot <label> <file.yaml…>    against a snapshot the editor wrote next to it (<name>.snapshots/<label>.yaml)
+  linework diff --snapshot <label> <file.yaml…>    against a snapshot the editor wrote next to it (<name>.snapshots/<label>.yaml)
                [-o diff.svg|diff.png|diff.md|folder]  also the picture (or, .md, the changes in plain sentences): the newer drawing with what was added and
                                                 changed marked, what was removed as ghosts where it was, and a key
                [--side-by-side]                 the picture as before and after, each with its own marks
                [--json] [--view name] [--fresh] [--exit-code]
                                                 --fresh lays the newer drawing out from scratch instead of keeping
                                                 what was there in place; --exit-code exits 1 when something changed
-  carto new <type> [file.yaml]                  start from a template; no type: which to pick
-  carto export <file.yaml…|folder> --to html [-o out]
-                                                the same as carto export-html (its options apply)
-  carto icons [azure|aws|gcp|kubernetes]        where to download each official icon set, and what is imported
-  carto icons import <folder|file.zip> [--pack azure]
+  linework new <type> [file.yaml]                  start from a template; no type: which to pick
+  linework export <file.yaml…|folder> --to html [-o out]
+                                                the same as linework export-html (its options apply)
+  linework icons [azure|aws|gcp|kubernetes]        where to download each official icon set, and what is imported
+  linework icons import <folder|file.zip> [--pack azure]
                                                 index an official icon download (Azure, AWS, Google Cloud,
                                                 Kubernetes) into a pack in ${configDir()};
                                                 the vendor is told from the files when --pack is left out
-  carto icons list                              packs, when imported, and how many kinds each covers
-  carto icons show <pack> [-o sheet.png|.svg]   which kind got which icon, and which have none
-  carto icons find <pack> <words…>              icons of the pack by name, to map one by hand
-  carto icons map <pack> <kind> <words…|file>   give a kind an icon by hand (kept when a newer set is imported)
-  carto icons unmap <pack> <kind>               the kind draws its line icon again
+  linework icons list                              packs, when imported, and how many kinds each covers
+  linework icons show <pack> [-o sheet.png|.svg]   which kind got which icon, and which have none
+  linework icons find <pack> <words…>              icons of the pack by name, to map one by hand
+  linework icons map <pack> <kind> <words…|file>   give a kind an icon by hand (kept when a newer set is imported)
+  linework icons unmap <pack> <kind>               the kind draws its line icon again
                then: icons: official in a diagram, or --icons official|lucide on render, deck or watch
-  carto themes                                  built-in themes
-  carto types [words…]                          which type to pick, best match first
+  linework themes                                  built-in themes
+  linework types [words…]                          which type to pick, best match first
 
 Manual positions are read from <file>.layout.json next to the diagram (per view under "views").
 The same file can hold a layout note ("layout") per view: render reads it and only --stable writes it,
 so the same YAML and layout file always give the same picture. More: docs/ci.md`, { configDir: configDir() });
 
-  /** Each command's part of the full help, from the lines that start with "carto <command>". */
+  /** Each command's part of the full help, from the lines that start with "linework <command>". */
   const usage = new Map<string, string>();
   {
     let current = '';
     for (const line of all.split('\n').slice(2)) {
-      const m = /^  carto ([\w-]+)/.exec(line);
+      const m = /^  linework ([\w-]+)/.exec(line);
       if (m) current = m[1]!;
       else if (!line.startsWith('   ')) current = '';
       if (current) usage.set(current, (usage.has(current) ? usage.get(current) + '\n' : '') + line);
@@ -154,23 +154,23 @@ so the same YAML and layout file always give the same picture. More: docs/ci.md`
   // The group names' column: as wide as the longest (Controleren) and a space.
   const groupWidth = Math.max(8, ...grouped.map(([title]) => title.length + 1));
 
-  const short = `${helpText('carto — architecture diagrams that look good')}
-${helpText('Usage: carto <command> [files…] [options] [--lang en|nl]')}
+  const short = `${helpText('linework — architecture diagrams that look good')}
+${helpText('Usage: linework <command> [files…] [options] [--lang en|nl]')}
 
 ${grouped.map(([title, list]) => list.map(([c, what], i) => `${(i ? '' : title).padEnd(groupWidth)}${c.padEnd(11)}${what}`).join('\n')).join('\n')}
 
-${t('carto <command> --help: its options · carto help all: everything · - is stdin or stdout')}
-${t('Example: carto render shop.yaml -o shop.png')}`;
+${t('linework <command> --help: its options · linework help all: everything · - is stdin or stdout')}
+${t('Example: linework render shop.yaml -o shop.png')}`;
 
   /** One command's help: what it does, its common options, then the rest. */
   function commandHelp(cmd: string): string {
     const lines = usage.get(cmd)!.split('\n');
     // An entry starts at a usage line or an option line; lines indented further belong to the one above.
     const entries: string[][] = [];
-    for (const line of lines) (/^ {2}carto |^ {15}\S/.test(line) || !entries.length ? entries.push([line]) : entries.at(-1)!.push(line));
+    for (const line of lines) (/^ {2}linework |^ {15}\S/.test(line) || !entries.length ? entries.push([line]) : entries.at(-1)!.push(line));
     const what = cmd === 'export' ? 'the interactive HTML file' : grouped.flatMap(([, l]) => l).find(([c]) => c === cmd)?.[1];
     const alias = aliases.find(([c]) => c === cmd)?.[1];
-    const head = `carto ${cmd}${what ? ` — ${what}` : alias ? ` (also: carto ${alias})` : ''}`;
+    const head = `linework ${cmd}${what ? ` — ${what}` : alias ? ` (also: linework ${alias})` : ''}`;
     const n = commonEntries[cmd] ?? entries.length;
     const common = entries.slice(0, n).flat().join('\n');
     const more = entries.slice(n).flat().join('\n');
@@ -180,7 +180,7 @@ ${t('Example: carto render shop.yaml -o shop.png')}`;
   return {
     all,
     has: (cmd) => usage.has(cmd),
-    for: (cmd) => (cmd && usage.has(cmd) ? `${commandHelp(cmd)}\n\n${t('All commands: carto --help')}` : short),
+    for: (cmd) => (cmd && usage.has(cmd) ? `${commandHelp(cmd)}\n\n${t('All commands: linework --help')}` : short),
     commands,
   };
 }
@@ -198,8 +198,8 @@ export function nearest(word: string, commands: string[]): string | undefined {
   return best && best[1] <= Math.max(1, Math.floor(word.length / 3)) ? best[0] : undefined;
 }
 
-/** What carto says for a command it does not have: the one meant, when it is close. */
+/** What linework says for a command it does not have: the one meant, when it is close. */
 export function unknownCommand(cmd: string, h: Help): string {
   const guess = nearest(cmd, h.commands);
-  return `carto: ${guess ? t('unknown command "{name}". Did you mean "carto {guess}"?', { name: cmd, guess }) : t('unknown command "{name}"', { name: cmd })}\n${t('Commands: {list}', { list: h.commands.join(', ') })}\n${t('More: carto --help')}`;
+  return `linework: ${guess ? t('unknown command "{name}". Did you mean "linework {guess}"?', { name: cmd, guess }) : t('unknown command "{name}"', { name: cmd })}\n${t('Commands: {list}', { list: h.commands.join(', ') })}\n${t('More: linework --help')}`;
 }

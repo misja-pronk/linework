@@ -3,7 +3,7 @@
 // far taller (a deep top-down drawing) is cut between rows and its parts stand side by side. Only
 // whole blocks move: a top-level group with everything in it, or a top-level node. When the drawing
 // is a single group, the blocks inside it are wrapped instead and the group fits around them.
-import type { Box, Graph } from '@cartography/core';
+import type { Box, Graph } from '@linework/core';
 import type { Placement } from './dot.ts';
 
 /** The shortest part is at least this share of the longest. */
