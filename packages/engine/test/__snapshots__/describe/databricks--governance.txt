@@ -1,6 +1,6 @@
 Who administers
 
-Roles, groups and access packages diagram: Northwind lakehouse · the platform team runs the metastore and workspaces; no data grants, yet it can take ownership. 5 elements, with 4 connections.
+Unity Catalog access diagram: Northwind lakehouse · the platform team runs the metastore and workspaces; no data grants, yet it can take ownership. 5 elements, with 4 connections.
 
 Elements
 - platform-team (Metastore and workspace admins)

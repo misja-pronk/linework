@@ -1,6 +1,6 @@
 One domain through its environments
 
-Roles, groups and access packages diagram: Northwind lakehouse · orders-team owns dev and reads test and prod; there the service principal owns and writes. 8 elements, with 8 connections.
+Unity Catalog access diagram: Northwind lakehouse · orders-team owns dev and reads test and prod; there the service principal owns and writes. 8 elements, with 8 connections.
 
 Elements
 - orders-team (Account group)

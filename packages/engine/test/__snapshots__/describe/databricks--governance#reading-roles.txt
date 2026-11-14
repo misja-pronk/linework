@@ -1,6 +1,6 @@
 What the reading roles hold
 
-Roles, groups and access packages diagram: Northwind lakehouse · BROWSE and USE CATALOG on a catalog, USE SCHEMA and SELECT on a schema or catalog. A table of 5 rows by 8 columns.
+Unity Catalog access diagram: Northwind lakehouse · BROWSE and USE CATALOG on a catalog, USE SCHEMA and SELECT on a schema or catalog. A table of 5 rows by 8 columns.
 
 By row (Role by permission)
 Columns: BROWSE, USE CATALOG, USE SCHEMA, SELECT, READ VOLUME, EXECUTE, ALL PRIVILEGES and MANAGE.

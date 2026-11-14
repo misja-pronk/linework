@@ -1,6 +1,6 @@
 Landing files in production
 
-Roles, groups and access packages diagram: Northwind lakehouse · only sp-lakehouse-prod reads the landing containers, and only from dbw-lakehouse-prod. 7 elements, with 6 connections.
+Unity Catalog access diagram: Northwind lakehouse · only sp-lakehouse-prod reads the landing containers, and only from dbw-lakehouse-prod. 7 elements, with 6 connections.
 
 Elements
 - sp-lakehouse-prod (Deploys and runs prod)

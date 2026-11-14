@@ -260,7 +260,7 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
       const pic = picture(light, dark);
       const wsView = viewName ? ix.views.find((v) => v.file === file && v.name === viewName) : undefined;
       const title = (viewName ? (first.views?.find((v) => v.name === viewName) ?? (viewName === written?.name ? written : undefined))?.title : undefined) ?? light.graph.title ?? baseOf(file).replace(/\.ya?ml$/i, '');
-      const typeName = first.type?.name ?? first.type?.id ?? pfile.type;
+      const typeName = first.typeName ?? first.type?.name ?? first.type?.id ?? pfile.type;
       const drawing: PDrawing = { key: keyOf(file, viewName), file, ...(viewName ? { view: viewName } : {}), title, kind: wsView?.kind ? tr(first.lang, '{kind} view', { kind: wsView.kind }) : viewName ? tr(first.lang, 'view of {type}', { type: typeName }) : `${typeName}`, words: toText(inWords({ ...light, name: baseOf(file) }), { title: false }).trim(), ...pic, shapes: {}, drill: {} };
       const index = n++;
       drawings.push(drawing);

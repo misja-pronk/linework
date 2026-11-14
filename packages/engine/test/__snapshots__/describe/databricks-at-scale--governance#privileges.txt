@@ -1,6 +1,6 @@
 What each role holds
 
-Roles, groups and access packages diagram: Unity Catalog privileges on catalogs and schemas; the admin roles are in Who administers. A table of 7 rows by 8 columns.
+Unity Catalog access diagram: Unity Catalog privileges on catalogs and schemas; the admin roles are in Who administers. A table of 7 rows by 8 columns.
 
 By row (Role by permission)
 Columns: BROWSE, USE CATALOG, USE SCHEMA, SELECT, MODIFY, CREATE TABLE, MANAGE and transfer and drop.

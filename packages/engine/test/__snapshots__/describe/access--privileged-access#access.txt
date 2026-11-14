@@ -1,6 +1,6 @@
 Privileged access
 
-Roles, groups and access packages, who × where: Who × where. A table of 6 rows by 2 columns.
+Roles and groups, who × where: Who × where. A table of 6 rows by 2 columns.
 
 By row (Who by where)
 Columns: Northwind and AU Netherlands.

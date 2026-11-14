@@ -597,7 +597,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // read it wherever the file goes. The type's own view the file is written for says what the drawing as
   // written says, so the two stay one picture (the presenter keeps one slide for both). The editor and the viewers draw their own, beside the drawing.
   if (!opts.interactive && !opts.marks) {
-    const said = describe({ lang, graph, type, steps, stepsImplied: !told, layers: lens.info, views: model?.views.size ? [...model.views.values()] : ownViews, view: model?.view?.name ?? (ownView !== written ? ownView : undefined), name: opts.file });
+    const said = describe({ lang, graph, type, ...(type.nameFor?.(built) ? { typeName: type.nameFor(built) } : {}), steps, stepsImplied: !told, layers: lens.info, views: model?.views.size ? [...model.views.values()] : ownViews, view: model?.view?.name ?? (ownView !== written ? ownView : undefined), name: opts.file });
     const at = step ? steps[step - 1] : undefined;
     const title = at ? `${said.title}, ${tr(lang, 'step {n} of {count}', { n: step!, count: steps.length })}${at.title ? `: ${at.title}` : ''}` : said.title;
     const desc = toText(said, { title: false }).trim();

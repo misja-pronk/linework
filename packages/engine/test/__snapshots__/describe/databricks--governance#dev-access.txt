@@ -1,6 +1,6 @@
 Who × where in development
 
-Roles, groups and access packages diagram: Northwind lakehouse · each team owns its dev catalog; the bundle's pipelines write there as sp-lakehouse-dev. A table of 7 rows by 6 columns.
+Unity Catalog access diagram: Northwind lakehouse · each team owns its dev catalog; the bundle's pipelines write there as sp-lakehouse-dev. A table of 7 rows by 6 columns.
 
 By row (Who by where)
 Columns: orders_dev, webshop_dev, finance_dev, sales_dev, customers_dev and supply_dev.

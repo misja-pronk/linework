@@ -54,6 +54,16 @@ flow:
     expect(told).toEqual(drawn);
   });
 
+  it('says what the file holds by the type\'s own name for it, as the editor does', async () => {
+    const r = await render('type: access\nprincipals:\n  analysts: account-group\nresources:\n  sales: catalog\nroles:\n  read: { label: USE CATALOG }\nassignments:\n  - analysts is read on sales\n', { fonts: 'none' });
+    expect(r.typeName).toBe('Unity Catalog access');
+    const text = toText(describe({ ...r }));
+    expect(text).toContain('Unity Catalog access diagram');
+    expect(text).not.toContain('Roles, groups and access packages');
+    expect(r.svg).toContain('<desc id="carto-');
+    expect(/<desc[^>]*>([^<]*)/.exec(r.svg!)![1]).toMatch(/^Unity Catalog access diagram/);
+  });
+
   it('says a kind drawn as its icon in the key is an icon, not a pill', async () => {
     const r = await render(fs.readFileSync(path.join(root, 'data-products/northwind-mesh.yaml'), 'utf8'), { fonts: 'none' });
     const key = toText(describe({ ...r }));
