@@ -1,20 +1,22 @@
-# Who may do what in the Northwind lakehouse, in Unity Catalog. Drawn for Orders through dev, test and prod,
-# Customers (personal data) and Sales (shared with Contoso); the other domains follow the Orders pattern.
+# Who may do what in the Northwind lakehouse, in Unity Catalog: all six domains through dev, test and prod.
 #   principals   account groups, synced from Entra ID by automatic identity management (nested groups too);
 #                a service principal per environment runs the jobs; Contoso is an OpenSharing recipient
-#   resources    the uc-weu metastore, <domain>_<env> catalogs (each ISOLATED and bound to
-#                its environment's workspace only), gold schemas in their catalog, and the share
+#   resources    the uc-weu metastore, a workspace per environment, <domain>_<env> catalogs (each ISOLATED and
+#                bound to its environment's workspace only), the gold schemas analysts read, and the share
 #   roles        bundles of Unity Catalog privileges (USE CATALOG, USE SCHEMA, SELECT, MODIFY, BROWSE, MANAGE);
 #                the roles view lists what each holds
 #   assignments  a domain team owns its dev catalog, reads test, and in prod reads and MANAGEs (decides who reads)
-#                but does not write: only the environment's service principal MODIFYs
+#                but does not write: only the environment's service principal MODIFYs, in test and in prod
+#   policies     an ABAC column mask on customers_prod masks every column with the governed tag pii,
+#                except for customers-team and the jobs
+# The whole file is a working canvas (present: views); its views are the slides, one concern each.
 # tags put each environment on a layer (Layers menu, or carto render --layer prod).
 # Ids are the model's (model.yaml) where the thing is the same; catalogs drop the uc-weu. prefix.
 type: access
 title: Unity Catalog access
 subtitle: Northwind lakehouse · account groups from Entra ID, grants per domain and environment
 include: [model.yaml]
-view: graph   # graph, access (who × where) or roles
+present: views
 
 layers:
   dev: { tags: [dev], title: Development }
@@ -23,82 +25,175 @@ layers:
 
 principals:
   # Account groups: made and filled in Entra ID, synced by automatic identity management
-  platform-team: { kind: account-group, label: platform-team, caption: Metastore admins }
+  platform-team: { kind: account-group, label: platform-team, caption: Metastore and workspace admins }
   engineers: { kind: account-group, label: engineers, caption: Every domain team }
   orders-team: { kind: account-group, label: orders-team, member-of: engineers }
-  customers-team: { kind: account-group, label: customers-team, member-of: engineers }
-  analysts: { kind: account-group, label: analysts, caption: Power BI and Genie }
+  webshop-team: { kind: account-group, label: webshop-team, member-of: engineers }
+  finance-team: { kind: account-group, label: finance-team, member-of: engineers }
   sales-team: { kind: account-group, label: sales-team, member-of: engineers }
+  customers-team: { kind: account-group, label: customers-team, member-of: engineers }
+  supply-team: { kind: account-group, label: supply-team, member-of: engineers }
+  analysts: { kind: account-group, label: analysts, caption: Power BI and Genie }
   # Service principals: one per environment, the identity every job and pipeline there runs as
   sp-lakehouse-dev: { kind: service-principal, label: sp-lakehouse-dev, caption: Runs the jobs in dev, tags: [dev] }
   sp-lakehouse-test: { kind: service-principal, label: sp-lakehouse-test, caption: Runs the jobs in test, tags: [test] }
   sp-lakehouse-prod: { kind: service-principal, label: sp-lakehouse-prod, caption: Runs the jobs in prod, tags: [prod] }
   # OpenSharing recipient: Contoso's own Databricks account (Databricks-to-Databricks)
-  contoso: { kind: connected-org, label: contoso, caption: OpenSharing recipient, tags: [prod] }
+  contoso: { kind: recipient, label: contoso, caption: Databricks-to-Databricks, tags: [prod] }
 
 resources:
   uc-weu: { kind: metastore, label: uc-weu, caption: Metastore }
-  orders_dev: { kind: catalog, label: orders_dev, caption: Bound to dev, tags: [dev] }
-  orders_test: { kind: catalog, label: orders_test, caption: Bound to test, tags: [test] }
-  orders_prod: { kind: catalog, label: orders_prod, caption: Bound to prod, tags: [prod] }
-  customers_prod: { kind: catalog, label: customers_prod, caption: Bound to prod, tags: [prod] }
-  customers_prod_gold: { kind: schema, label: customers_prod.gold, caption: pii tagged, in: customers_prod, tags: [prod] }
-  sales_prod: { kind: catalog, label: sales_prod, caption: Bound to prod, tags: [prod] }
+  dbw-lakehouse-dev: { kind: databricks, label: dbw-lakehouse-dev, tags: [dev] }
+  dbw-lakehouse-test: { kind: databricks, label: dbw-lakehouse-test, tags: [test] }
+  dbw-lakehouse-prod: { kind: databricks, label: dbw-lakehouse-prod, tags: [prod] }
+  # Catalogs: ISOLATED, each bound to its environment's workspace only (the caption says which)
+  orders_dev: { kind: catalog, label: orders_dev, bound: dbw-lakehouse-dev, tags: [dev] }
+  webshop_dev: { kind: catalog, label: webshop_dev, bound: dbw-lakehouse-dev, tags: [dev] }
+  finance_dev: { kind: catalog, label: finance_dev, bound: dbw-lakehouse-dev, tags: [dev] }
+  sales_dev: { kind: catalog, label: sales_dev, bound: dbw-lakehouse-dev, tags: [dev] }
+  customers_dev: { kind: catalog, label: customers_dev, bound: dbw-lakehouse-dev, tags: [dev] }
+  supply_dev: { kind: catalog, label: supply_dev, bound: dbw-lakehouse-dev, tags: [dev] }
+  orders_test: { kind: catalog, label: orders_test, bound: dbw-lakehouse-test, tags: [test] }
+  webshop_test: { kind: catalog, label: webshop_test, bound: dbw-lakehouse-test, tags: [test] }
+  finance_test: { kind: catalog, label: finance_test, bound: dbw-lakehouse-test, tags: [test] }
+  sales_test: { kind: catalog, label: sales_test, bound: dbw-lakehouse-test, tags: [test] }
+  customers_test: { kind: catalog, label: customers_test, bound: dbw-lakehouse-test, tags: [test] }
+  supply_test: { kind: catalog, label: supply_test, bound: dbw-lakehouse-test, tags: [test] }
+  orders_prod: { kind: catalog, label: orders_prod, bound: dbw-lakehouse-prod, tags: [prod] }
+  webshop_prod: { kind: catalog, label: webshop_prod, bound: dbw-lakehouse-prod, tags: [prod] }
+  finance_prod: { kind: catalog, label: finance_prod, bound: dbw-lakehouse-prod, tags: [prod] }
+  sales_prod: { kind: catalog, label: sales_prod, bound: dbw-lakehouse-prod, tags: [prod] }
+  customers_prod: { kind: catalog, label: customers_prod, bound: dbw-lakehouse-prod, tags: [prod, pii] }
+  supply_prod: { kind: catalog, label: supply_prod, bound: dbw-lakehouse-prod, tags: [prod] }
+  # The gold schemas analysts read
+  orders_prod_gold: { kind: schema, label: orders_prod.gold, in: orders_prod, tags: [prod] }
+  finance_prod_gold: { kind: schema, label: finance_prod.gold, in: finance_prod, tags: [prod] }
   sales_prod_gold: { kind: schema, label: sales_prod.gold, caption: sell_through, in: sales_prod, tags: [prod] }
-  contoso_sell_through: { kind: resource, label: contoso_sell_through, caption: Share, tags: [prod] }
+  customers_prod_gold: { kind: schema, label: customers_prod.gold, caption: pii tagged columns, in: customers_prod, tags: [prod, pii] }
+  # OpenSharing share, under the metastore
+  contoso_sell_through: { kind: share, label: contoso_sell_through, caption: sales_prod.gold.sell_through, tags: [prod] }
 
 roles:
   # Privileges as Unity Catalog names them; a role is the set a group gets on one securable
   metastore-admin: { label: Metastore admin, tone: rose, permissions: [CREATE CATALOG, take ownership] }
+  workspace-admin: { label: Workspace admin, tone: rose, permissions: [manage workspace] }
+  workspace-user: { label: Workspace user, tone: slate, permissions: [sign in] }
   browse: { label: BROWSE, tone: slate, permissions: [BROWSE] }
   read: { label: Read, tone: teal, inherits: browse, permissions: [USE CATALOG, USE SCHEMA, SELECT] }
-  read-masked: { label: Read · pii masked, tone: teal, inherits: read }   # the mask is an ABAC policy, not a privilege
   write: { label: Write, tone: indigo, inherits: read, permissions: [MODIFY, CREATE TABLE] }
   manage: { label: MANAGE, tone: amber, inherits: read, permissions: [MANAGE] }
   owner: { label: Owner, tone: violet, inherits: [write, manage], permissions: [transfer and drop] }
   share-read: { label: SELECT on share, tone: teal, permissions: [SELECT on share] }
 
-assignments:
-  # The platform team runs the metastore (and the account); it holds no grants on domain data
-  - platform-team is metastore-admin on uc-weu
-  # Orders through its environments: the team owns dev, reads test, reads and MANAGEs prod;
-  # each environment's service principal writes
-  - { principal: orders-team, role: owner, scope: orders_dev, tags: [dev] }
-  - { principal: sp-lakehouse-dev, role: write, scope: orders_dev, tags: [dev] }
-  - { principal: orders-team, role: read, scope: orders_test, tags: [test] }
-  - { principal: sp-lakehouse-test, role: write, scope: orders_test, tags: [test] }
-  - { principal: orders-team, role: manage, scope: orders_prod, tags: [prod] }
-  - { principal: sp-lakehouse-prod, role: write, scope: orders_prod, tags: [prod] }
-  # Every engineer may find production data: BROWSE shows names and comments, no rows
-  - { principal: engineers, role: browse, scope: orders_prod, tags: [prod] }
-  # Personal data: an ABAC column mask on customers_prod masks every column with the governed tag pii,
-  # except for customers-team
-  - { principal: customers-team, role: manage, scope: customers_prod, tags: [prod] }
-  - { principal: sp-lakehouse-prod, role: write, scope: customers_prod, tags: [prod] }
-  - { principal: analysts, role: read-masked, scope: customers_prod_gold, tags: [prod] }
-  # Sales: analysts read its gold; sell_through is shared with Contoso, who reads it in its own account
-  - { principal: sales-team, role: manage, scope: sales_prod, tags: [prod] }
-  - { principal: sp-lakehouse-prod, role: write, scope: sales_prod, tags: [prod] }
-  - { principal: analysts, role: read, scope: sales_prod_gold, tags: [prod] }
-  - { principal: sales-team, role: owner, scope: contoso_sell_through, tags: [prod] }
-  - { principal: contoso, role: share-read, scope: contoso_sell_through, tags: [prod] }
+policies:
+  # ABAC: set on the catalog, it masks every column tagged pii for everyone but the CRM team and the jobs
+  mask-pii: { kind: column-mask, label: mask_pii, tag: pii, on: customers_prod, excludes: [customers-team, sp-lakehouse-prod] }
 
-steps:
-  - title: Groups come from Entra ID
-    caption: Automatic identity management syncs Entra groups, nested ones too, to the account.
-    focus: [platform-team, engineers, orders-team, customers-team, sales-team, analysts]
-  - title: The platform team administers
-    caption: platform-team is metastore admin (and account admin); it holds no grants on domain data.
-    path: platform-team -> uc-weu
-  - title: One domain, three environments
-    caption: orders-team owns dev, reads test, and in prod reads and MANAGEs, so it decides who reads.
-    path: [orders-team -> orders_dev, orders-team -> orders_test, orders-team -> orders_prod]
-  - title: Only service principals write
-    caption: Jobs run as their environment's service principal; catalogs are bound to one workspace.
-    path: [sp-lakehouse-dev -> orders_dev, sp-lakehouse-test -> orders_test, sp-lakehouse-prod -> orders_prod, sp-lakehouse-prod -> customers_prod, sp-lakehouse-prod -> sales_prod]
-  - title: Personal data masked
-    caption: An ABAC policy masks columns tagged pii; analysts see the rows, not names and emails.
-    path: [analysts -> customers_prod_gold, customers-team -> customers_prod]
-  - title: Shared with Contoso
-    caption: sales-team owns the share; Contoso reads sell_through in its own Databricks account.
-    path: [sales-team -> contoso_sell_through, contoso -> contoso_sell_through]
+assignments:
+  # The platform team runs the metastore and the workspaces; it holds no grants on domain data
+  - platform-team is metastore-admin on uc-weu
+  - platform-team is workspace-admin on dbw-lakehouse-dev
+  - platform-team is workspace-admin on dbw-lakehouse-test
+  - platform-team is workspace-admin on dbw-lakehouse-prod
+  # Who may sign in where: engineers everywhere, analysts in prod, each service principal in its environment
+  - engineers is workspace-user on dbw-lakehouse-dev
+  - engineers is workspace-user on dbw-lakehouse-test
+  - engineers is workspace-user on dbw-lakehouse-prod
+  - analysts is workspace-user on dbw-lakehouse-prod
+  - sp-lakehouse-dev is workspace-user on dbw-lakehouse-dev
+  - sp-lakehouse-test is workspace-user on dbw-lakehouse-test
+  - sp-lakehouse-prod is workspace-user on dbw-lakehouse-prod
+  # Each domain team owns its dev catalog, reads test, and in prod reads and MANAGEs
+  - orders-team is owner on orders_dev
+  - orders-team is read on orders_test
+  - orders-team is manage on orders_prod
+  - webshop-team is owner on webshop_dev
+  - webshop-team is read on webshop_test
+  - webshop-team is manage on webshop_prod
+  - finance-team is owner on finance_dev
+  - finance-team is read on finance_test
+  - finance-team is manage on finance_prod
+  - sales-team is owner on sales_dev
+  - sales-team is read on sales_test
+  - sales-team is manage on sales_prod
+  - customers-team is owner on customers_dev
+  - customers-team is read on customers_test
+  - customers-team is manage on customers_prod
+  - supply-team is owner on supply_dev
+  - supply-team is read on supply_test
+  - supply-team is manage on supply_prod
+  # Only the environment's service principal writes
+  - sp-lakehouse-dev is write on orders_dev
+  - sp-lakehouse-dev is write on webshop_dev
+  - sp-lakehouse-dev is write on finance_dev
+  - sp-lakehouse-dev is write on sales_dev
+  - sp-lakehouse-dev is write on customers_dev
+  - sp-lakehouse-dev is write on supply_dev
+  - sp-lakehouse-test is write on orders_test
+  - sp-lakehouse-test is write on webshop_test
+  - sp-lakehouse-test is write on finance_test
+  - sp-lakehouse-test is write on sales_test
+  - sp-lakehouse-test is write on customers_test
+  - sp-lakehouse-test is write on supply_test
+  - sp-lakehouse-prod is write on orders_prod
+  - sp-lakehouse-prod is write on webshop_prod
+  - sp-lakehouse-prod is write on finance_prod
+  - sp-lakehouse-prod is write on sales_prod
+  - sp-lakehouse-prod is write on customers_prod
+  - sp-lakehouse-prod is write on supply_prod
+  # Every engineer may find production data: BROWSE shows names and comments, no rows
+  - engineers is browse on orders_prod
+  - engineers is browse on webshop_prod
+  - engineers is browse on finance_prod
+  - engineers is browse on sales_prod
+  - engineers is browse on customers_prod
+  - engineers is browse on supply_prod
+  # Analysts read gold; in customers_prod.gold the mask hides the pii columns
+  - analysts is read on orders_prod_gold
+  - analysts is read on finance_prod_gold
+  - analysts is read on sales_prod_gold
+  - analysts is read on customers_prod_gold
+  # sell_through is shared with Contoso, who reads it in its own account
+  - sales-team is owner on contoso_sell_through
+  - contoso is share-read on contoso_sell_through
+
+views:
+  admins:
+    title: Who administers
+    subtitle: The platform team runs the metastore and the workspaces, and holds no grants on domain data
+    include: [platform-team]
+  orders:
+    title: One domain through its environments
+    subtitle: orders-team owns dev, reads test, reads and MANAGEs prod; only the service principals write
+    include: [orders-team, engineers, kind:service-principal, orders_dev, orders_test, orders_prod]
+  production:
+    title: Who reads production
+    subtitle: Analysts read the gold schemas, pii masked; Contoso reads its share. Each team MANAGEs its own catalog
+    include: [analysts, contoso]
+    environment: prod
+    exclude: [kind:databricks]
+  pii:
+    title: Personal data
+    subtitle: mask_pii masks the columns tagged pii for everyone but customers-team and the prod jobs
+    include: [customers_prod.*]
+  sharing:
+    title: Shared with Contoso
+    subtitle: sales-team owns the share; Contoso reads sell_through in its own Databricks account
+    include: [contoso_sell_through, sales_prod.*]
+    exclude: [engineers, sp-lakehouse-prod]
+  prod-access:
+    title: Who × where in production
+    subtitle: Data only; every engineer may also BROWSE the six catalogs (names and comments, no rows)
+    show: access
+    environment: prod
+    exclude: [uc-weu, kind:databricks, engineers, contoso_sell_through]
+  dev-test-access:
+    title: Who × where in dev and test
+    subtitle: Each team owns its dev catalog and reads test; the environment's service principal writes
+    show: access
+    exclude: [tag:prod, uc-weu, kind:databricks, platform-team, engineers]
+  privileges:
+    title: What each role holds
+    subtitle: Unity Catalog privileges on catalogs and schemas; the admin roles are in Who administers
+    show: roles
+    exclude: [uc-weu, kind:databricks]
