@@ -196,7 +196,7 @@ export function App() {
 
   /** A: the quick add over the drawing, in both views (the builder's shapes tab is for browsing). */
   const addShape = () => setAdding((a) => !a);
-  useGlobalKeys({ modal, setModal, presenting: navState.presenting, present: nav.present, toggleAsk: side.toggleAsk, saveYaml: files.saveYaml, openFile: files.openFile, saveSvg: exports.saveSvg, savePng: exports.savePng, view, setView: prefs.openView, session: session.on, toggleSession });
+  useGlobalKeys({ modal, setModal, presenting: navState.presenting, present: nav.present, toggleAsk: side.toggleAsk, saveYaml: files.saveYaml, openFile: files.openFile, saveSvg: exports.saveSvg, savePng: exports.savePng, view, setView: prefs.openView, session: session.on, toggleSession, back: nav.back });
   const onCanvasKey = canvasKeys({ drawing, selection, selected, setSelection, select: sel.select, selectMany: sel.selectMany, edits, pinning, nav, craft, layers, undo, redo, addShape, connect: () => setModal('connect'), sketch: sketching.onKey });
   const title = (result?.graph as { title?: string } | undefined)?.title || doc.name.replace(/\.ya?ml$/i, '');
   const commands = () =>

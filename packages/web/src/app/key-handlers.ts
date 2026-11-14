@@ -28,6 +28,8 @@ interface GlobalKeys {
   /** In a session only the sheet shows: the keys that open other panes or views stay quiet. */
   session: boolean;
   toggleSession(): void;
+  /** Back from a link followed (navigation.ts). */
+  back(): void;
 }
 
 /** The regions F6 goes round, in order: each as its box and what in it takes the focus. */
@@ -79,6 +81,7 @@ export function useGlobalKeys(k: GlobalKeys) {
       else if (id === 'export-svg') k.saveSvg();
       else if (id === 'export-png') k.savePng();
       else if (id === 'switch-view') k.setView(k.view === 'visual' ? 'code' : 'visual');
+      else if (id === 'back') k.back();
       else return;
       e.preventDefault();
     };

@@ -210,7 +210,8 @@ links:
 
 - Linked elements carry a small link icon.
 - **SVG exports** contain real `<a href>` links. Links to diagrams point at the SVG the CLI writes next to them (`containers.yaml#containers` → `containers--containers.svg`), so a folder rendered with `--all-views` can be clicked through in a browser.
-- **In the editor** ⌘-click (Ctrl-click elsewhere) follows the first link, and the inspector lists them all: URLs open in a new tab, diagrams and views open in place (from the open folder, or among the bundled examples).
+- **In the editor** ⌘-click (Ctrl-click elsewhere) follows the first link, and the inspector lists them all: URLs open in a new tab, diagrams and views open in place (from the open folder, or among the bundled examples). **Back to …** over the drawing, or ⌘[ (Ctrl+[), goes back to where the link was followed from, in the view it showed; a walk of several links comes back one step at a time.
+- Double-click on a linked card still renames it, as on any card: the editor is for changing the drawing, and a slip of the mouse should not take you to another file. Following is the deliberate ⌘-click. While presenting (P), ⌘-click or Tab and ↵ follows a link, and ⌫ (or the Back button) comes back.
 - Links in an included model are relative to the model file; Cartography rebases them for the diagram.
 
 ## Pins per view

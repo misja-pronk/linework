@@ -16,6 +16,16 @@ import type { Doc } from './document.ts';
 import type { Drawing } from './drawing.ts';
 import type { Notify } from './toasts.tsx';
 
+/** A place a link was followed from: the document (its path in the folder, or the example) and its view. */
+export interface Place {
+  doc: string;
+  view?: string;
+  path?: string;
+  starter?: string;
+  /** What Back says it goes to. */
+  name: string;
+}
+
 export type FocusAsk = { on: string[]; hops: number | 'all'; direction: Focus['direction'] } | null;
 
 /** What is looked at, per document: the view picked, the step shown, a focus set here; and presenting. */
@@ -33,7 +43,9 @@ export function useNavigationState(docId: string) {
   const focusAsked = lens && lens.doc === docId && lens.view === viewName ? lens.focus : undefined;
   /** A step just made from the selection: the strip asks for its name. */
   const [naming, setNaming] = useState<number>();
-  return { docId, picked, setPicked, viewName, stepAt, setStepAt, stepNo, presenting, setPresenting, setLens, focusAsked, naming, setNaming };
+  /** Where followed links came from, the latest last: Back (⌘[) goes there again, in the view it showed. */
+  const [trail, setTrail] = useState<Place[]>([]);
+  return { docId, picked, setPicked, viewName, stepAt, setStepAt, stepNo, presenting, setPresenting, setLens, focusAsked, naming, setNaming, trail, setTrail };
 }
 export type NavigationState = ReturnType<typeof useNavigationState>;
 
@@ -60,23 +72,55 @@ interface Props {
 export function useNavigation(p: Props) {
   const { state: s, drawing, text, textNow, ws, doc, here, selection, notify } = p;
   const { drawn, result, rendered, type } = drawing;
-  const { docId, viewName, setPicked, focusAsked, setLens, setStepAt } = s;
+  const { docId, viewName, setPicked, focusAsked, setLens, setStepAt, trail, setTrail } = s;
 
   // ------------------------------------------------------------ links
+
+  /** Here, as Back comes back to it: this document in the view it shows. */
+  const place = (): Place => {
+    const file = (doc.path ?? doc.starter?.replace(/^example:/, '') ?? doc.name).split('/').pop()!;
+    // The view as asked for (none: the one it opens in), named as the picker names the one drawn.
+    const view = viewName;
+    const shown = view || drawn?.view;
+    return { doc: docId, ...(view !== undefined ? { view } : {}), ...(ws && doc.path ? { path: doc.path } : doc.starter ? { starter: doc.starter } : {}), name: shown && drawn?.views?.some((v) => v.name === shown) ? `${file} · ${viewTitle(shown)}` : file };
+  };
+  /** Remembers here before a link leads away (the latest few: a long walk keeps its way back). */
+  const leave = () => setTrail((tr) => [...tr, place()].slice(-20));
 
   /** Follows a link: a URL in a new tab, another view here, or another diagram (and view) next to this one. */
   const follow = (link: Link) => {
     const to = linkTarget(link, here);
     if (to.kind === 'url') return void window.open(to.url, '_blank', 'noopener');
     if (to.kind === 'none') return notify(to.why, { tone: 'error' });
-    if (to.kind === 'view') return setPicked({ doc: docId, name: to.view });
+    if (to.kind === 'view') return (leave(), setPicked({ doc: docId, name: to.view }));
     if (ws && doc.path) {
       if (!ws.files.has(to.path)) return notify(t('There is no {path} in {folder}', { path: to.path, folder: ws.name }), { tone: 'error' });
+      leave();
       setPicked({ doc: to.path, name: to.view });
       return void p.openInFolder(ws, to.path);
     }
     const st = starters.find((x) => x.id === `example:${to.path}`);
     if (!st) return notify(t('There is no example {path}', { path: to.path }), { tone: 'error' });
+    leave();
+    setPicked({ doc: st.id, name: to.view });
+    void p.pick(st);
+  };
+
+  /** Where Back goes: the place the last link was followed from. */
+  const backTo = trail.at(-1);
+  /** Back (⌘[): to where the last link was followed from, in the view it showed then. */
+  const back = () => {
+    const to = trail.at(-1);
+    if (!to) return notify(t('No link followed yet: ⌘-click a linked element to go there, and ⌘[ comes back'));
+    setTrail((tr) => tr.slice(0, -1));
+    if (to.doc === docId) return setPicked({ doc: docId, name: to.view });
+    if (to.path && ws) {
+      if (!ws.files.has(to.path)) return notify(t('There is no {path} in {folder}', { path: to.path, folder: ws.name }), { tone: 'error' });
+      setPicked({ doc: to.path, name: to.view });
+      return void p.openInFolder(ws, to.path);
+    }
+    const st = to.starter ? starters.find((x) => x.id === to.starter) : undefined;
+    if (!st) return notify(t('{name} is not at hand any more', { name: to.name }), { tone: 'error' });
     setPicked({ doc: st.id, name: to.view });
     void p.pick(st);
   };
@@ -202,6 +246,6 @@ export function useNavigation(p: Props) {
     return st && { text: st.text, path, file, load: exampleLoader(st.id) };
   };
 
-  return { follow, viewList, viewTitle, showView, viewNow, nextView, ownView, keepView, focusOn, leaveFocus, focusOnSelection, focusHops, focusDirection, stepList, written, pickStep, stepBy, editSteps, addStepFromSelection, present, presentOther };
+  return { follow, back, backTo, viewList, viewTitle, showView, viewNow, nextView, ownView, keepView, focusOn, leaveFocus, focusOnSelection, focusHops, focusDirection, stepList, written, pickStep, stepBy, editSteps, addStepFromSelection, present, presentOther };
 }
 export type Navigation = ReturnType<typeof useNavigation>;

@@ -57,6 +57,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: 'next-pane', keys: ['f6', 'shift+f6'], what: 'Next / previous region: top bar, outline, YAML, drawing, toolbar, steps, properties', context: 'anywhere', group: 'Anywhere' },
   { id: 'sheet', keys: ['?'], what: 'This sheet', context: 'not-typing', group: 'Anywhere' },
   { id: 'present', keys: ['p', 'mod+enter'], what: 'Present full screen (not while typing)', context: 'not-typing', group: 'Anywhere' },
+  { id: 'back', keys: ['mod+['], what: 'Back to where a link was followed from (⌘-click on a linked element follows it)', context: 'not-typing', group: 'Anywhere' },
   { id: 'session', keys: ['shift+s'], what: 'Session: only the sheet, to draw live with people watching (End session leaves)', context: 'not-typing', group: 'Anywhere' },
 
   // ------------------------------------------------------------ the drawing
