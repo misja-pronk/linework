@@ -12,7 +12,7 @@ Groups and elements
     - sell_through (Table)
 - bi-warehouse (Serverless SQL warehouse)
 - Power BI (Fabric capacity F64): Reports on gold through the SQL warehouse
-- sales-pipeline (Lakeflow pipeline)
+- sales-pipeline (Nightly)
 - orders_prod (Catalog)
 - contoso_sell_through (OpenSharing)
 - customers_prod (Catalog)

@@ -9,12 +9,12 @@ title: Northwind lakehouse
 
 each:
   domain:
-    orders: { team: Order management team }
-    webshop: { team: Web shop team }
-    finance: { team: Finance data team }
-    sales: { team: Sales analytics team }
-    customers: { team: CRM team }
-    supply: { team: Supply chain data team }
+    orders: { team: Order management team, runs: Nightly }
+    webshop: { team: Web shop team, runs: Continuous }
+    finance: { team: Finance data team, runs: Nightly }
+    sales: { team: Sales analytics team, runs: Nightly }
+    customers: { team: CRM team, runs: Nightly }
+    supply: { team: Supply chain data team, runs: SFTP connector · hourly }
   env:
     dev: { cidr: 10.1.8.0/22, host: 10.1.8.0/24, container: 10.1.9.0/24, pep: 10.1.10.0/27 }
     test: { cidr: 10.1.12.0/22, host: 10.1.12.0/24, container: 10.1.13.0/24, pep: 10.1.14.0/27 }
@@ -57,12 +57,8 @@ elements:
       webshop-ingest: { kind: lakeflow-connect, label: webshop-ingest, technology: SQL Server connector, owner: webshop-team }
       salesforce-ingest: { kind: lakeflow-connect, label: salesforce-ingest, technology: Salesforce connector, owner: customers-team }
       clickstream: { kind: lakeflow-pipeline, label: clickstream, technology: Streaming · Kafka API, owner: webshop-team }
-      orders-pipeline: { kind: lakeflow-pipeline, label: orders-pipeline, owner: orders-team }
-      webshop-pipeline: { kind: lakeflow-pipeline, label: webshop-pipeline, technology: Continuous, owner: webshop-team }
-      finance-pipeline: { kind: lakeflow-pipeline, label: finance-pipeline, owner: finance-team }
-      sales-pipeline: { kind: lakeflow-pipeline, label: sales-pipeline, owner: sales-team }
-      customers-pipeline: { kind: lakeflow-pipeline, label: customers-pipeline, owner: customers-team }
-      supply-pipeline: { kind: lakeflow-pipeline, label: supply-pipeline, technology: SFTP connector · hourly, owner: supply-team }
+      # A Lakeflow pipeline per domain (bronze to gold), owned by the domain's team; domain: says how it runs
+      <domain>-pipeline: { kind: lakeflow-pipeline, label: <domain>-pipeline, technology: <domain.runs>, owner: <domain>-team }
       nightly: { kind: lakeflow-job, label: nightly, technology: 02:00 · serverless, description: "Runs orders, customers and finance, then sales; webshop runs continuously and supply hourly" }
       forecast-training: { kind: lakeflow-job, label: forecast-training, technology: Weekly · MLflow, owner: supply-team }
       bi-warehouse: { kind: sql-warehouse, label: bi-warehouse, technology: Serverless SQL warehouse }

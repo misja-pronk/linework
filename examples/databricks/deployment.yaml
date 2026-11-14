@@ -23,6 +23,12 @@ subtitle: Northwind lakehouse · no public access, every hop over Private Link o
 direction: right
 include: [model.yaml]
 present: views
+# The environments before production are built alike, a spoke each, so they are written once: one more value under
+# built: (and in model.yaml's each:) is one more environment, with its view.
+each:
+  built:
+    test: { title: Test, cidr: 10.1.12.0/22 }
+    dev: { title: Development, cidr: 10.1.8.0/22 }
 # The ERP's line runs through the hub here (gateway → firewall → ExpressRoute), not straight to erp-ingest.
 exclude: ['erp -> lakehouse.erp-ingest']
 
@@ -31,8 +37,7 @@ groups:
   vnet-hub-weu: { ref: vnet-hub-weu, caption: 10.0.0.0/22 · sub-connectivity }
   zones: { kind: boundary, label: Private DNS zones, caption: Linked to vnet-hub-weu }
   vnet-lakehouse-prod: { ref: vnet-lakehouse-prod, caption: 10.1.16.0/21 · peered to the hub, env: prod }
-  vnet-lakehouse-test: { ref: vnet-lakehouse-test, caption: 10.1.12.0/22 · peered to the hub, env: test }
-  vnet-lakehouse-dev: { ref: vnet-lakehouse-dev, caption: 10.1.8.0/22 · peered to the hub, env: dev }
+  vnet-lakehouse-<built>: { ref: vnet-lakehouse-<built>, caption: <built.cidr> · peered to the hub, env: <built> }
   managed-prod: { kind: resource-group, label: databricks-rg-dbw-lakehouse-prod, caption: Managed by Databricks, env: prod }
   control: { kind: control-plane, label: Databricks control plane, caption: West Europe }
   serverless: { kind: serverless-plane, label: Serverless compute plane, caption: Run by Databricks }
@@ -49,8 +54,7 @@ nodes:
   afw-hub: { ref: afw-hub, caption: Premium · 10.0.0.68 · SNAT out, in: vnet-hub-weu }
   rt-hub-gateway: { ref: rt-hub-gateway, caption: On GatewaySubnet, in: vnet-hub-weu }
   pep-dbw-lakehouse-prod-ui: { ref: pep-dbw-lakehouse-prod-ui, caption: databricks_ui_api · snet-pep, in: vnet-hub-weu, env: prod }
-  pep-dbw-lakehouse-test-ui: { ref: pep-dbw-lakehouse-test-ui, caption: databricks_ui_api · snet-pep, in: vnet-hub-weu, env: test }
-  pep-dbw-lakehouse-dev-ui: { ref: pep-dbw-lakehouse-dev-ui, caption: databricks_ui_api · snet-pep, in: vnet-hub-weu, env: dev }
+  pep-dbw-lakehouse-<built>-ui: { ref: pep-dbw-lakehouse-<built>-ui, caption: databricks_ui_api · snet-pep, in: vnet-hub-weu, env: <built> }
   pep-dbw-webauth-weu: { ref: pep-dbw-webauth-weu, caption: browser_authentication · snet-pep, in: vnet-hub-weu }
   pbi-gateway: { kind: fabric, label: VNet data gateway, caption: Power BI · snet-pbi-gateway, in: vnet-hub-weu, env: prod }
   # Cloud Fetch clients need their own dfs and blob endpoints to workspace storage, in their own network
@@ -62,8 +66,7 @@ nodes:
 
   # Control plane
   dbw-lakehouse-prod: { ref: dbw-lakehouse-prod, caption: Web app · REST API · SCC relay, in: control, env: prod }
-  dbw-lakehouse-test: { ref: dbw-lakehouse-test, caption: Web app · REST API · SCC relay, in: control, env: test }
-  dbw-lakehouse-dev: { ref: dbw-lakehouse-dev, caption: Web app · REST API · SCC relay, in: control, env: dev }
+  dbw-lakehouse-<built>: { ref: dbw-lakehouse-<built>, caption: Web app · REST API · SCC relay, in: control, env: <built> }
   dbw-webauth-weu: { ref: dbw-webauth-weu, caption: Browser sign-in only, in: control }
 
   # Production spoke
@@ -91,25 +94,18 @@ nodes:
   contoso-retail: { ref: contoso-retail, caption: Recipient · Databricks-to-Databricks, env: prod }
 
   # Test and development: built as production, a spoke each
-  clusters-test: { kind: compute, label: Cluster VMs, caption: Host and container subnets · SCC, in: vnet-lakehouse-test }
-  pep-dbw-lakehouse-test: { ref: pep-dbw-lakehouse-test, caption: databricks_ui_api · back-end, in: vnet-lakehouse-test }
-  pep-storderstest-dfs: { ref: pep-storderstest-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-test }
-  storderstest: { ref: storderstest, caption: ADLS Gen2 · one per domain, env: test }
-  ncc-lakehouse-test: { ref: ncc-lakehouse-test, caption: Attached to dbw-lakehouse-test, in: serverless, env: test }
-  clusters-dev: { kind: compute, label: Cluster VMs, caption: Host and container subnets · SCC, in: vnet-lakehouse-dev }
-  pep-dbw-lakehouse-dev: { ref: pep-dbw-lakehouse-dev, caption: databricks_ui_api · back-end, in: vnet-lakehouse-dev }
-  pep-stordersdev-dfs: { ref: pep-stordersdev-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-dev }
-  stordersdev: { ref: stordersdev, caption: ADLS Gen2 · one per domain, env: dev }
-  ncc-lakehouse-dev: { ref: ncc-lakehouse-dev, caption: Attached to dbw-lakehouse-dev, in: serverless, env: dev }
+  clusters-<built>: { kind: compute, label: Cluster VMs, caption: Host and container subnets · SCC, in: vnet-lakehouse-<built> }
+  pep-dbw-lakehouse-<built>: { ref: pep-dbw-lakehouse-<built>, caption: databricks_ui_api · back-end, in: vnet-lakehouse-<built> }
+  pep-storders<built>-dfs: { ref: pep-storders<built>-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-<built> }
+  storders<built>: { ref: storders<built>, caption: ADLS Gen2 · one per domain, env: <built> }
+  ncc-lakehouse-<built>: { ref: ncc-lakehouse-<built>, caption: Attached to dbw-lakehouse-<built>, in: serverless, env: <built> }
 
 edges:
   # From the offices, over ExpressRoute
   - browser -> ergw-hub-weu: { label: HTTPS, style: private }
   - ergw-hub-weu -> pep-dbw-lakehouse-prod-ui: { style: private }
-  - ergw-hub-weu -> pep-dbw-lakehouse-test-ui: { style: private }
-  - ergw-hub-weu -> pep-dbw-lakehouse-dev-ui: { style: private }
-  - clusters-test -> afw-hub: { label: 0.0.0.0/0, style: private }
-  - clusters-dev -> afw-hub: { label: 0.0.0.0/0, style: private }
+  - ergw-hub-weu -> pep-dbw-lakehouse-<built>-ui: { style: private }
+  - clusters-<built> -> afw-hub: { label: 0.0.0.0/0, style: private }
   - ergw-hub-weu -> pep-dbw-webauth-weu: { label: SSO, style: private }
   - office-dns -> dnspr-hub-weu: { label: DNS · over ExpressRoute, style: private }
   - dnspr-hub-weu -> privatelink-azuredatabricks-net: Resolves
@@ -140,12 +136,9 @@ edges:
   - contoso-retail -> secureconnect: { label: OpenSharing, style: private }
   - secureconnect -> ncc-opensharing-weu: { style: private }
   # Test and development
-  - clusters-test -> pep-dbw-lakehouse-test: { label: SCC relay · REST, style: private }
-  - clusters-test -> pep-storderstest-dfs: { style: private }
-  - clusters-dev -> pep-dbw-lakehouse-dev: { label: SCC relay · REST, style: private }
-  - clusters-dev -> pep-stordersdev-dfs: { style: private }
-  - ncc-lakehouse-test -> storderstest: { label: dfs, style: private }
-  - ncc-lakehouse-dev -> stordersdev: { label: dfs, style: private }
+  - clusters-<built> -> pep-dbw-lakehouse-<built>: { label: SCC relay · REST, style: private }
+  - clusters-<built> -> pep-storders<built>-dfs: { style: private }
+  - ncc-lakehouse-<built> -> storders<built>: { label: dfs, style: private }
 
 views:
   hub:
@@ -161,7 +154,7 @@ views:
         caption: Office DNS forwards *.azuredatabricks.net to the resolver, which answers from the zones linked to the hub.
         path: office-dns -> dnspr-hub-weu -> privatelink-azuredatabricks-net
       - title: A user's browser
-        caption: The workspace URL resolves to the front-end endpoint; test and dev have one each in snet-pep.
+        caption: The workspace URL resolves to the front-end endpoint; the other environments have one each.
         path: browser -> ergw-hub-weu -> pep-dbw-lakehouse-prod-ui -> dbw-lakehouse-prod
       - title: Signing in
         caption: After Entra ID the browser returns through the region's one browser_authentication endpoint.
@@ -248,13 +241,8 @@ views:
       - title: On the metastore
         caption: That NCC is attached to uc-weu, not to a workspace, and serves every share in the metastore.
         path: ncc-opensharing-weu -> uc-weu
-  test:
-    title: Test
-    environment: test
+  <built>:
+    title: <built.title>
+    environment: <built>
     subtitle: Northwind lakehouse · built as production, in its own spoke, workspace and NCC
-    include: [vnet-lakehouse-test, storderstest, dbw-lakehouse-test, ncc-lakehouse-test, pep-dbw-lakehouse-test-ui, afw-hub]
-  dev:
-    title: Development
-    environment: dev
-    subtitle: Northwind lakehouse · built as production, in its own spoke, workspace and NCC
-    include: [vnet-lakehouse-dev, stordersdev, dbw-lakehouse-dev, ncc-lakehouse-dev, pep-dbw-lakehouse-dev-ui, afw-hub]
+    include: [vnet-lakehouse-<built>, storders<built>, dbw-lakehouse-<built>, ncc-lakehouse-<built>, pep-dbw-lakehouse-<built>-ui, afw-hub]

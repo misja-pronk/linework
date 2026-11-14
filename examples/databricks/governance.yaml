@@ -155,10 +155,9 @@ views:
     include: [contoso_sell_through, sales_prod.*]
     exclude: [engineers, sp-lakehouse-prod, analysts, customer-360-app]
   storage:
-    title: Credentials and connections in production
-    subtitle: Northwind lakehouse · each credential is bound to dbw-lakehouse-prod alone; the jobs read SFTP through a connection
-    include: [kind:resource]
-    environment: prod
+    title: Credentials and connections
+    subtitle: Northwind lakehouse · a credential per domain and environment, bound to its workspace alone (orders shown)
+    include: [cred_orders_<env>, sftp_suppliers]
   <env>-access:
     title: Who × where in <env.title>
     subtitle: Northwind lakehouse · <env.access>
