@@ -62,6 +62,9 @@ export const SCENARIOS: Scenario[] = [
     also: [
       ['Deployment', 'databricks/deployment.yaml'],
       ['Environments', 'databricks/environments.yaml'],
+      ['Governance', 'databricks/governance.yaml'],
+      ['Medallion', 'databricks/medallion.yaml'],
+      ['Data mesh', 'databricks/mesh.yaml'],
     ],
   },
   {
