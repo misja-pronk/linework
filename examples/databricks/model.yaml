@@ -1,0 +1,325 @@
+# Northwind's lakehouse on Azure Databricks, described once (West Europe). Diagrams in this folder include it.
+#   teams         who owns what (owner: on the rest)
+#   sources       ERP (on-premises), web shop (Azure SQL, Event Hubs), Salesforce
+#   lakehouse     what the bundle deploys to every workspace: Lakeflow Connect, pipelines, jobs, warehouse, serving, app
+#   uc            the Unity Catalog metastore: <env>_<domain> catalogs (bronze, silver, gold schemas),
+#                 storage credentials, external locations, shares and recipients
+#   per env       sub-, rg-, vnet- (host, container, pep subnets), nsg-, rt- (0.0.0.0/0 to afw-hub),
+#                 dbw-, dbac-, st (containers: catalogs, landing), kv-, ncc-, pep- (back-end, front-end, dfs)
+#   hub           vnet-hub-weu with afw-hub, the front-end and browser-auth endpoints, dbw-webauth-weu, DNS zones
+#   consumers     Power BI, analysts, sales reps, replenishment, Contoso Retail (OpenSharing)
+# One workspace per environment, shared by the domains (catalogs and groups keep them apart, as Databricks
+# advises); dbw-webauth-weu only serves browser sign-in over Private Link. Each <env>_ catalog is ISOLATED and
+# bound to dbw-lakehouse-<env> only. Relations describe production.
+type: model
+title: Northwind lakehouse
+
+elements:
+  # Teams
+  platform-team: { kind: users, label: Data platform team, description: Runs the workspaces and Unity Catalog, tags: [team] }
+  orders-team: { kind: users, label: Order management team, tags: [team] }
+  webshop-team: { kind: users, label: Web shop team, tags: [team] }
+  finance-team: { kind: users, label: Finance data team, tags: [team] }
+  sales-team: { kind: users, label: Sales analytics team, tags: [team] }
+  customers-team: { kind: users, label: CRM team, tags: [team] }
+  supply-team: { kind: users, label: Supply chain data team, tags: [team] }
+  analysts: { kind: users, label: Business analysts, description: Read gold data in Power BI and Genie }
+  sales-reps: { kind: users, label: Sales reps, description: Look up customers in the Customer 360 app }
+
+  # Identity
+  entra-id: { kind: identity, label: Entra ID, technology: northwind.onmicrosoft.com, description: Users and groups; synced to the Databricks account by automatic identity management }
+  databricks-account: { kind: control-plane, label: Databricks account, technology: Account console, description: Holds account groups and workspaces and the metastore, owner: platform-team }
+
+  # Sources
+  erp: { kind: external, label: ERP, technology: SQL Server · on-premises, description: Orders and invoices and stock, tags: [source] }
+  sqldb-webshop-prod: { kind: database, label: sqldb-webshop-prod, technology: Azure SQL Database, description: Web shop orders and accounts, owner: webshop-team, tags: [source, prod] }
+  evhns-webshop-prod: { kind: topic, label: evhns-webshop-prod, technology: Event Hubs · clickstream, description: Clickstream events of the web shop, owner: webshop-team, tags: [source, prod] }
+  salesforce: { kind: external, label: Salesforce, technology: Sales Cloud, description: Accounts and opportunities, tags: [source, external] }
+
+  # What the bundle deploys (Declarative Automation Bundles), the same in every workspace
+  lakehouse:
+    kind: databricks
+    label: Northwind lakehouse
+    description: Pipelines, jobs and serving, deployed from Git to dev, test and prod
+    owner: platform-team
+    elements:
+      erp-ingest: { kind: lakeflow-connect, label: erp-ingest, technology: SQL Server connector · ingestion gateway, owner: orders-team }
+      webshop-ingest: { kind: lakeflow-connect, label: webshop-ingest, technology: SQL Server connector, owner: webshop-team }
+      salesforce-ingest: { kind: lakeflow-connect, label: salesforce-ingest, technology: Salesforce connector, owner: customers-team }
+      clickstream: { kind: lakeflow-pipeline, label: clickstream, technology: Streaming · Kafka API, owner: webshop-team }
+      orders-pipeline: { kind: lakeflow-pipeline, label: orders-pipeline, owner: orders-team }
+      webshop-pipeline: { kind: lakeflow-pipeline, label: webshop-pipeline, owner: webshop-team }
+      finance-pipeline: { kind: lakeflow-pipeline, label: finance-pipeline, owner: finance-team }
+      sales-pipeline: { kind: lakeflow-pipeline, label: sales-pipeline, owner: sales-team }
+      customers-pipeline: { kind: lakeflow-pipeline, label: customers-pipeline, owner: customers-team }
+      supply-pipeline: { kind: lakeflow-pipeline, label: supply-pipeline, technology: Auto Loader, owner: supply-team }
+      nightly: { kind: lakeflow-job, label: nightly, technology: 02:00 · serverless, description: Runs the domain pipelines in order }
+      forecast-training: { kind: lakeflow-job, label: forecast-training, technology: Weekly · MLflow, owner: supply-team }
+      bi-warehouse: { kind: sql-warehouse, label: bi-warehouse, technology: Serverless SQL warehouse }
+      demand-forecast: { kind: model-serving, label: demand-forecast, technology: Serving endpoint, owner: supply-team }
+      customer-360: { kind: databricks-app, label: customer-360, technology: Databricks App, owner: sales-team }
+
+  # Unity Catalog: one metastore for the region, every environment in it
+  uc-weu:
+    kind: metastore
+    label: uc-weu
+    technology: Unity Catalog · West Europe
+    description: No metastore storage; every catalog has its own managed location
+    owner: platform-team
+    elements:
+      system: { kind: catalog, label: system, description: System tables for billing and audit and lineage }
+      dev_orders: { kind: catalog, label: dev_orders, owner: orders-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      dev_webshop: { kind: catalog, label: dev_webshop, owner: webshop-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      dev_finance: { kind: catalog, label: dev_finance, owner: finance-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      dev_sales: { kind: catalog, label: dev_sales, owner: sales-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      dev_customers: { kind: catalog, label: dev_customers, owner: customers-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      dev_supply: { kind: catalog, label: dev_supply, owner: supply-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      test_orders: { kind: catalog, label: test_orders, owner: orders-team, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      test_webshop: { kind: catalog, label: test_webshop, owner: webshop-team, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      test_finance: { kind: catalog, label: test_finance, owner: finance-team, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      test_sales: { kind: catalog, label: test_sales, owner: sales-team, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      test_customers: { kind: catalog, label: test_customers, owner: customers-team, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      test_supply: { kind: catalog, label: test_supply, owner: supply-team, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      prod_orders:
+        kind: catalog
+        label: prod_orders
+        owner: orders-team
+        tags: [prod]
+        elements:
+          bronze: { kind: schema, label: bronze }
+          silver: { kind: schema, label: silver }
+          gold: { kind: schema, label: gold, elements: { orders: { kind: table, label: orders } } }
+      prod_webshop:
+        kind: catalog
+        label: prod_webshop
+        owner: webshop-team
+        tags: [prod]
+        elements:
+          bronze: { kind: schema, label: bronze }
+          silver: { kind: schema, label: silver }
+          gold: { kind: schema, label: gold, elements: { sessions: { kind: table, label: sessions } } }
+      prod_finance:
+        kind: catalog
+        label: prod_finance
+        owner: finance-team
+        tags: [prod]
+        elements:
+          bronze: { kind: schema, label: bronze }
+          silver: { kind: schema, label: silver }
+          gold: { kind: schema, label: gold, elements: { revenue: { kind: table, label: revenue } } }
+      prod_sales:
+        kind: catalog
+        label: prod_sales
+        owner: sales-team
+        tags: [prod]
+        elements:
+          bronze: { kind: schema, label: bronze }
+          silver: { kind: schema, label: silver }
+          gold: { kind: schema, label: gold, elements: { sell_through: { kind: table, label: sell_through } } }
+      prod_customers:
+        kind: catalog
+        label: prod_customers
+        owner: customers-team
+        tags: [prod]
+        elements:
+          bronze: { kind: schema, label: bronze }
+          silver: { kind: schema, label: silver }
+          gold: { kind: schema, label: gold, elements: { customers: { kind: table, label: customers, tags: [pii] } } }
+      prod_supply:
+        kind: catalog
+        label: prod_supply
+        owner: supply-team
+        tags: [prod]
+        elements:
+          bronze: { kind: schema, label: bronze, elements: { supplier_files: { kind: volume, label: supplier_files } } }
+          silver: { kind: schema, label: silver }
+          gold:
+            kind: schema
+            label: gold
+            elements:
+              stock_levels: { kind: table, label: stock_levels }
+              demand_forecast: { kind: registered-model, label: demand_forecast }
+      cred_lakehouse_dev: { kind: storage-credential, label: cred_lakehouse_dev, tags: [dev] }
+      cred_lakehouse_test: { kind: storage-credential, label: cred_lakehouse_test, tags: [test] }
+      cred_lakehouse_prod: { kind: storage-credential, label: cred_lakehouse_prod, tags: [prod] }
+      dev_catalogs: { kind: external-location, label: dev_catalogs, technology: catalogs@stlakehousedev, tags: [dev] }
+      dev_landing: { kind: external-location, label: dev_landing, technology: landing@stlakehousedev, tags: [dev] }
+      test_catalogs: { kind: external-location, label: test_catalogs, technology: catalogs@stlakehousetest, tags: [test] }
+      test_landing: { kind: external-location, label: test_landing, technology: landing@stlakehousetest, tags: [test] }
+      prod_catalogs: { kind: external-location, label: prod_catalogs, technology: catalogs@stlakehouseprod, tags: [prod] }
+      prod_landing: { kind: external-location, label: prod_landing, technology: landing@stlakehouseprod, tags: [prod] }
+      contoso_sell_through: { kind: share, label: contoso_sell_through, technology: OpenSharing, owner: sales-team }
+      contoso: { kind: recipient, label: contoso, technology: Databricks-to-Databricks }
+
+  # Hub (Connectivity subscription, the network team's): as in examples/azure/hub-spoke.yaml
+  sub-connectivity: { kind: subscription, label: sub-connectivity }
+  vnet-hub-weu:
+    kind: vnet
+    label: vnet-hub-weu
+    technology: 10.0.0.0/22
+    elements:
+      AzureFirewallSubnet: { kind: subnet, label: AzureFirewallSubnet, technology: 10.0.0.64/26 }
+      snet-pep: { kind: subnet, label: snet-pep, technology: 10.0.1.0/26 }
+      snet-webauth-host: { kind: subnet, label: snet-webauth-host, technology: 10.0.1.64/28 }
+      snet-webauth-container: { kind: subnet, label: snet-webauth-container, technology: 10.0.1.80/28 }
+  afw-hub: { kind: firewall, label: afw-hub, technology: Premium · 10.0.0.68 }
+  dbw-webauth-weu: { kind: databricks, label: dbw-webauth-weu, technology: Private web auth · no workloads, description: Holds the region's browser_authentication endpoint; delete lock, owner: platform-team }
+  pep-dbw-webauth-weu: { kind: private-endpoint, label: pep-dbw-webauth-weu, technology: browser_authentication }
+  pep-dbw-lakehouse-dev-ui: { kind: private-endpoint, label: pep-dbw-lakehouse-dev-ui, technology: databricks_ui_api · front-end, tags: [dev] }
+  pep-dbw-lakehouse-test-ui: { kind: private-endpoint, label: pep-dbw-lakehouse-test-ui, technology: databricks_ui_api · front-end, tags: [test] }
+  pep-dbw-lakehouse-prod-ui: { kind: private-endpoint, label: pep-dbw-lakehouse-prod-ui, technology: databricks_ui_api · front-end, tags: [prod] }
+  privatelink-azuredatabricks-net: { kind: dns, label: privatelink.azuredatabricks.net, technology: Private DNS zone }
+  privatelink-dfs-core-windows-net: { kind: dns, label: privatelink.dfs.core.windows.net, technology: Private DNS zone }
+
+  # Development
+  sub-lakehouse-dev: { kind: subscription, label: sub-lakehouse-dev, tags: [dev] }
+  rg-lakehouse-dev: { kind: resource-group, label: rg-lakehouse-dev, tags: [dev] }
+  vnet-lakehouse-dev:
+    kind: vnet
+    label: vnet-lakehouse-dev
+    technology: 10.1.8.0/22
+    tags: [dev]
+    elements:
+      snet-dbw-host: { kind: subnet, label: snet-dbw-host, technology: 10.1.8.0/24 }
+      snet-dbw-container: { kind: subnet, label: snet-dbw-container, technology: 10.1.9.0/24 }
+      snet-pep: { kind: subnet, label: snet-pep, technology: 10.1.10.0/27 }
+  nsg-dbw-lakehouse-dev: { kind: nsg, label: nsg-dbw-lakehouse-dev, technology: Rules managed by Databricks, tags: [dev] }
+  rt-lakehouse-dev: { kind: route-table, label: rt-lakehouse-dev, technology: 0.0.0.0/0 → 10.0.0.68, tags: [dev] }
+  dbw-lakehouse-dev: { kind: databricks, label: dbw-lakehouse-dev, technology: Premium · VNet-injected · no public access, owner: platform-team, tags: [dev] }
+  dbac-lakehouse-dev: { kind: access-connector, label: dbac-lakehouse-dev, technology: System-assigned identity, tags: [dev] }
+  stlakehousedev: { kind: storage, label: stlakehousedev, technology: ADLS Gen2 · catalogs · landing, tags: [dev] }
+  kv-lakehouse-dev: { kind: secrets, label: kv-lakehouse-dev, technology: Key Vault · secret scope, tags: [dev] }
+  ncc-lakehouse-dev: { kind: ncc, label: ncc-lakehouse-dev, technology: Private endpoint to stlakehousedev, tags: [dev] }
+  pep-dbw-lakehouse-dev: { kind: private-endpoint, label: pep-dbw-lakehouse-dev, technology: databricks_ui_api · back-end, tags: [dev] }
+  pep-stlakehousedev-dfs: { kind: private-endpoint, label: pep-stlakehousedev-dfs, technology: dfs, tags: [dev] }
+
+  # Test
+  sub-lakehouse-test: { kind: subscription, label: sub-lakehouse-test, tags: [test] }
+  rg-lakehouse-test: { kind: resource-group, label: rg-lakehouse-test, tags: [test] }
+  vnet-lakehouse-test:
+    kind: vnet
+    label: vnet-lakehouse-test
+    technology: 10.1.12.0/22
+    tags: [test]
+    elements:
+      snet-dbw-host: { kind: subnet, label: snet-dbw-host, technology: 10.1.12.0/24 }
+      snet-dbw-container: { kind: subnet, label: snet-dbw-container, technology: 10.1.13.0/24 }
+      snet-pep: { kind: subnet, label: snet-pep, technology: 10.1.14.0/27 }
+  nsg-dbw-lakehouse-test: { kind: nsg, label: nsg-dbw-lakehouse-test, technology: Rules managed by Databricks, tags: [test] }
+  rt-lakehouse-test: { kind: route-table, label: rt-lakehouse-test, technology: 0.0.0.0/0 → 10.0.0.68, tags: [test] }
+  dbw-lakehouse-test: { kind: databricks, label: dbw-lakehouse-test, technology: Premium · VNet-injected · no public access, owner: platform-team, tags: [test] }
+  dbac-lakehouse-test: { kind: access-connector, label: dbac-lakehouse-test, technology: System-assigned identity, tags: [test] }
+  stlakehousetest: { kind: storage, label: stlakehousetest, technology: ADLS Gen2 · catalogs · landing, tags: [test] }
+  kv-lakehouse-test: { kind: secrets, label: kv-lakehouse-test, technology: Key Vault · secret scope, tags: [test] }
+  ncc-lakehouse-test: { kind: ncc, label: ncc-lakehouse-test, technology: Private endpoint to stlakehousetest, tags: [test] }
+  pep-dbw-lakehouse-test: { kind: private-endpoint, label: pep-dbw-lakehouse-test, technology: databricks_ui_api · back-end, tags: [test] }
+  pep-stlakehousetest-dfs: { kind: private-endpoint, label: pep-stlakehousetest-dfs, technology: dfs, tags: [test] }
+
+  # Production
+  sub-lakehouse-prod: { kind: subscription, label: sub-lakehouse-prod, tags: [prod] }
+  rg-lakehouse-prod: { kind: resource-group, label: rg-lakehouse-prod, tags: [prod] }
+  vnet-lakehouse-prod:
+    kind: vnet
+    label: vnet-lakehouse-prod
+    technology: 10.1.16.0/21
+    tags: [prod]
+    elements:
+      snet-dbw-host: { kind: subnet, label: snet-dbw-host, technology: 10.1.16.0/23 }
+      snet-dbw-container: { kind: subnet, label: snet-dbw-container, technology: 10.1.18.0/23 }
+      snet-pep: { kind: subnet, label: snet-pep, technology: 10.1.20.0/27 }
+  nsg-dbw-lakehouse-prod: { kind: nsg, label: nsg-dbw-lakehouse-prod, technology: Rules managed by Databricks, tags: [prod] }
+  rt-lakehouse-prod: { kind: route-table, label: rt-lakehouse-prod, technology: 0.0.0.0/0 → 10.0.0.68, tags: [prod] }
+  dbw-lakehouse-prod: { kind: databricks, label: dbw-lakehouse-prod, technology: Premium · VNet-injected · no public access, owner: platform-team, tags: [prod] }
+  dbac-lakehouse-prod: { kind: access-connector, label: dbac-lakehouse-prod, technology: System-assigned identity, tags: [prod] }
+  stlakehouseprod: { kind: storage, label: stlakehouseprod, technology: ADLS Gen2 · catalogs · landing, tags: [prod] }
+  kv-lakehouse-prod: { kind: secrets, label: kv-lakehouse-prod, technology: Key Vault · secret scope, tags: [prod] }
+  ncc-lakehouse-prod: { kind: ncc, label: ncc-lakehouse-prod, technology: Private endpoint to stlakehouseprod, tags: [prod] }
+  pep-dbw-lakehouse-prod: { kind: private-endpoint, label: pep-dbw-lakehouse-prod, technology: databricks_ui_api · back-end, tags: [prod] }
+  pep-stlakehouseprod-dfs: { kind: private-endpoint, label: pep-stlakehouseprod-dfs, technology: dfs, tags: [prod] }
+
+  # Consumers
+  power-bi: { kind: fabric, label: Power BI, technology: Fabric capacity F64, description: Reports on gold through the SQL warehouse }
+  replenishment: { kind: service, label: Replenishment, description: Orders stock from suppliers on the demand forecast, owner: supply-team }
+  contoso-retail: { kind: external, label: Contoso Retail, description: Retail partner; reads sell-through in its own Databricks account, tags: [external] }
+
+relations:
+  # Ingestion into bronze
+  - erp -> lakehouse.erp-ingest: { label: CDC, technology: SQL Server, style: data }
+  - sqldb-webshop-prod -> lakehouse.webshop-ingest: { label: CDC, style: data }
+  - salesforce -> lakehouse.salesforce-ingest: { label: API, style: data }
+  - evhns-webshop-prod -> lakehouse.clickstream: { label: Kafka, style: data }
+  - lakehouse.erp-ingest -> uc-weu.prod_orders.bronze: { style: data }
+  - lakehouse.erp-ingest -> uc-weu.prod_finance.bronze: { style: data }
+  - lakehouse.erp-ingest -> uc-weu.prod_supply.bronze: { style: data }
+  - lakehouse.webshop-ingest -> uc-weu.prod_webshop.bronze: { style: data }
+  - lakehouse.clickstream -> uc-weu.prod_webshop.bronze: { style: data }
+  - lakehouse.salesforce-ingest -> uc-weu.prod_customers.bronze: { style: data }
+  - lakehouse.salesforce-ingest -> uc-weu.prod_sales.bronze: { style: data }
+  # Bronze → silver → gold, one pipeline per domain
+  - uc-weu.prod_orders.bronze -> lakehouse.orders-pipeline: { style: data }
+  - lakehouse.orders-pipeline -> uc-weu.prod_orders.gold: { style: data }
+  - uc-weu.prod_webshop.bronze -> lakehouse.webshop-pipeline: { style: data }
+  - lakehouse.webshop-pipeline -> uc-weu.prod_webshop.gold: { style: data }
+  - uc-weu.prod_finance.bronze -> lakehouse.finance-pipeline: { style: data }
+  - lakehouse.finance-pipeline -> uc-weu.prod_finance.gold: { style: data }
+  - uc-weu.prod_customers.bronze -> lakehouse.customers-pipeline: { style: data }
+  - lakehouse.customers-pipeline -> uc-weu.prod_customers.gold: { style: data }
+  - uc-weu.prod_supply.bronze -> lakehouse.supply-pipeline: { style: data }
+  - lakehouse.supply-pipeline -> uc-weu.prod_supply.gold: { style: data }
+  - uc-weu.prod_sales.bronze -> lakehouse.sales-pipeline: { style: data }
+  - uc-weu.prod_orders.gold -> lakehouse.sales-pipeline: { label: orders, style: data }
+  - uc-weu.prod_customers.gold -> lakehouse.sales-pipeline: { label: customers, style: data }
+  - lakehouse.sales-pipeline -> uc-weu.prod_sales.gold: { style: data }
+  - lakehouse.nightly -> lakehouse.orders-pipeline: Runs
+  - lakehouse.nightly -> lakehouse.sales-pipeline: Runs
+  - lakehouse.nightly -> lakehouse.finance-pipeline: Runs
+  # Machine learning
+  - uc-weu.prod_supply.gold -> lakehouse.forecast-training: { style: data }
+  - lakehouse.forecast-training -> uc-weu.prod_supply.gold.demand_forecast: Registers
+  - lakehouse.demand-forecast -> uc-weu.prod_supply.gold.demand_forecast: Serves
+  - replenishment -> lakehouse.demand-forecast: { label: Scores, technology: REST }
+  # Consumption and sharing
+  - lakehouse.bi-warehouse -> uc-weu.prod_sales.gold: { label: Reads, style: data }
+  - lakehouse.bi-warehouse -> uc-weu.prod_finance.gold: { label: Reads, style: data }
+  - power-bi -> lakehouse.bi-warehouse: { label: DirectQuery, style: data }
+  - analysts -> power-bi: Reports
+  - sales-reps -> lakehouse.customer-360: Looks up customers
+  - lakehouse.customer-360 -> lakehouse.bi-warehouse: SQL
+  - uc-weu.prod_sales.gold.sell_through -> uc-weu.contoso_sell_through: Shared in
+  - uc-weu.contoso_sell_through -> uc-weu.contoso: Granted to
+  - uc-weu.contoso -> contoso-retail: { label: OpenSharing, style: data }
+  # Identity
+  - entra-id -> databricks-account: { label: Automatic identity management, style: identity }
+  - databricks-account -> uc-weu: Owns
+  # Storage: catalog → external location → credential → access connector → storage account
+  - uc-weu.dev_catalogs -> uc-weu.cred_lakehouse_dev: Uses
+  - uc-weu.dev_landing -> uc-weu.cred_lakehouse_dev: Uses
+  - uc-weu.cred_lakehouse_dev -> dbac-lakehouse-dev: { label: Managed identity, style: identity }
+  - dbac-lakehouse-dev -> stlakehousedev: { label: Storage Blob Data Contributor, style: role }
+  - uc-weu.test_catalogs -> uc-weu.cred_lakehouse_test: Uses
+  - uc-weu.test_landing -> uc-weu.cred_lakehouse_test: Uses
+  - uc-weu.cred_lakehouse_test -> dbac-lakehouse-test: { label: Managed identity, style: identity }
+  - dbac-lakehouse-test -> stlakehousetest: { label: Storage Blob Data Contributor, style: role }
+  - uc-weu.prod_catalogs -> uc-weu.cred_lakehouse_prod: Uses
+  - uc-weu.prod_landing -> uc-weu.cred_lakehouse_prod: Uses
+  - uc-weu.cred_lakehouse_prod -> dbac-lakehouse-prod: { label: Managed identity, style: identity }
+  - dbac-lakehouse-prod -> stlakehouseprod: { label: Storage Blob Data Contributor, style: role }
+  # Workspaces: attached to the metastore, reached over Private Link, egress through the hub firewall
+  - dbw-lakehouse-dev -> uc-weu: Attached
+  - dbw-lakehouse-test -> uc-weu: Attached
+  - dbw-lakehouse-prod -> uc-weu: Attached
+  - pep-dbw-lakehouse-prod-ui -> dbw-lakehouse-prod: { label: front-end, style: private }
+  - pep-dbw-lakehouse-prod -> dbw-lakehouse-prod: { label: back-end, style: private }
+  - pep-dbw-webauth-weu -> dbw-webauth-weu: { label: browser sign-in, style: private }
+  - pep-stlakehouseprod-dfs -> stlakehouseprod: { style: private }
+  - ncc-lakehouse-prod -> stlakehouseprod: { label: serverless, style: private }
+  - rt-lakehouse-prod -> afw-hub: { label: 0.0.0.0/0, style: private }
+
+views:
+  # The model drawn on its own: where data comes from, the platform, who uses it.
+  landscape:
+    title: Northwind lakehouse
+    subtitle: Sources, the lakehouse and Unity Catalog, and who uses the data
+    direction: right
+    include: [erp, sqldb-webshop-prod, evhns-webshop-prod, salesforce, lakehouse, uc-weu, power-bi, replenishment, contoso-retail, analysts, sales-reps]
+    exclude: ['uc-weu -> lakehouse']   # pipelines read gold of other domains too: drawn once, as the lakehouse writing

@@ -82,6 +82,7 @@ const crossingBudget: Record<string, number> = {
   'model/context.yaml': 0,
   'model/deployment.yaml': 0,
   'model/model.yaml': 0,
+  'databricks/model.yaml': 0,
   'workspace/access.yaml': 0,
   'workspace/containers.yaml': 0,
   'workspace/containers.yaml#payments': 1, // wrapped for a slide (text 5.6 → 7 pt): the interbank payments pass the nightly extract

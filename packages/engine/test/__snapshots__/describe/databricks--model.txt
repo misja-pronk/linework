@@ -1,0 +1,32 @@
+Northwind lakehouse
+
+Architecture diagram: Sources, the lakehouse and Unity Catalog, and who uses the data. 11 elements, with 10 connections.
+
+Elements
+- Business analysts (Users): Read gold data in Power BI and Genie
+- Power BI (Fabric capacity F64): Reports on gold through the SQL warehouse
+- Northwind lakehouse (System): Pipelines, jobs and serving, deployed from Git to dev, test and prod
+- uc-weu (Unity Catalog · West Europe): No metastore storage; every catalog has its own managed location
+- Contoso Retail (External system): Retail partner; reads sell-through in its own Databricks account
+- Sales reps (Users): Look up customers in the Customer 360 app
+- ERP (SQL Server · on-premises): Orders and invoices and stock
+- sqldb-webshop-prod (Azure SQL Database): Web shop orders and accounts
+- evhns-webshop-prod (Event Hubs · clickstream): Clickstream events of the web shop
+- Salesforce (Sales Cloud): Accounts and opportunities
+- Replenishment (Service): Orders stock from suppliers on the demand forecast
+
+Connections
+- Business analysts connect to Power BI (Reports).
+- Power BI sends data to Northwind lakehouse (DirectQuery).
+- Northwind lakehouse sends data to uc-weu (Registers, Serves, Reads).
+- uc-weu sends data to Contoso Retail (OpenSharing).
+- Sales reps connect to Northwind lakehouse (Looks up customers).
+- ERP sends data to Northwind lakehouse (CDC [SQL Server]).
+- sqldb-webshop-prod sends data to Northwind lakehouse (CDC).
+- evhns-webshop-prod sends data to Northwind lakehouse (Kafka).
+- Salesforce sends data to Northwind lakehouse (API).
+- Replenishment connects to Northwind lakehouse (Scores [REST]).
+
+Key
+- Solid line: Connection
+- Solid teal line with ticks: Data flow
