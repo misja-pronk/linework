@@ -15,12 +15,13 @@ subtitle: Northwind lakehouse · products per domain, published from Unity Catal
 view: overview   # overview, or detailed-<domain> or detailed-<product>: ports and contracts (the view picker lists them)
 
 domains:
-  orders: { label: Orders, owner: Order management team }
+  # In the order the overview stands them, top to bottom
   webshop: { label: Web shop, owner: Web shop team }
-  customers: { label: Customers, owner: CRM team }
-  sales: { label: Sales, owner: Sales analytics team }
-  finance: { label: Finance, owner: Finance data team }
   supply: { label: Supply chain, owner: Supply chain data team }
+  orders: { label: Orders, owner: Order management team }
+  finance: { label: Finance, owner: Finance data team }
+  sales: { label: Sales, owner: Sales analytics team }
+  customers: { label: Customers, owner: CRM team }
 
 sources:
   erp: { kind: erp, label: ERP, caption: SQL Server · CDC }
@@ -101,7 +102,7 @@ products:
 consumers:
   power-bi: { kind: dashboard, label: Power BI, caption: Reports, uses: [sell-through.sell-through, revenue, sessions] }
   customer-360: { kind: application, label: Customer 360, caption: Databricks App, uses: [customers, sell-through.sell-through] }
-  replenishment: { kind: application, label: Replenishment, caption: Supply planning, uses: [forecast.endpoint] }
+  replenishment: { kind: application, label: Replenishment, uses: [forecast.endpoint] }
   contoso-retail: { kind: partner, label: Contoso Retail, caption: OpenSharing, uses: [sell-through.share] }
 
 contracts:
