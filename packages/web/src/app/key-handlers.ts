@@ -116,7 +116,7 @@ export const OUTLINE_KEYS = ['add', 'delete', 'duplicate', 'copy', 'paste'] as c
 /** The drawing's keys, when it has the focus itself. */
 export function canvasKeys(c: CanvasKeys) {
   const { drawing, selection, selected, edits, pinning, nav } = c;
-  const { result, drawn } = drawing;
+  const { result } = drawing;
 
   /** Tab order: elements, then groups, then lines. */
   const cycle = (dir: 1 | -1): boolean => {
@@ -155,8 +155,9 @@ export function canvasKeys(c: CanvasKeys) {
       pinning.arrangeSelection(arrange);
       return e.preventDefault();
     }
-    // The drawing's keys, by the table in keys.ts (the sheet shows the same).
-    const id = shortcutFor(e, drawn?.focus ? ['drawing', 'focus'] : ['drawing']);
+    // The drawing's keys, by the table in keys.ts (the sheet shows the same). In a focus asked for and
+    // not drawn yet (F, then + at once), the focus keys work already.
+    const id = shortcutFor(e, nav.focusNow() ? ['drawing', 'focus'] : ['drawing']);
     const step = e.shiftKey ? NUDGE * 5 : NUDGE;
     switch (id) {
       case 'undo': c.undo(); break;

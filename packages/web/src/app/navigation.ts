@@ -177,11 +177,17 @@ export function useNavigation(p: Props) {
     const ends = (id: string) => g.edges.filter((e) => e.id === id).flatMap((e) => [e.from.node, e.to.node]);
     const on = [...new Set(selection.flatMap((x) => (x.kind === 'edge' ? ends(x.id) : [x.id])))];
     if (!on.length) return;
-    const now = drawn?.focus;
+    const now = focusNow();
     setFocus({ on, hops: !now ? 1 : now.hops === Infinity ? 'all' : now.hops, direction: now?.direction ?? 'both' });
   };
-  const refocus = (change: (now: Focus) => Partial<Pick<Focus, 'hops' | 'direction'>>) => {
-    const now = drawn?.focus;
+  /**
+   * The focus to change: the one asked for last, while its drawing is still on its way (the drawing is
+   * made in a worker: F then + at once reaches two hops, not one), else the one drawn.
+   */
+  const focusNow = (): Pick<Focus, 'on' | 'hops' | 'direction'> | undefined =>
+    focusAsked ? { on: focusAsked.on, hops: focusAsked.hops === 'all' ? Infinity : focusAsked.hops, direction: focusAsked.direction } : focusAsked === null ? undefined : drawn?.focus;
+  const refocus = (change: (now: Pick<Focus, 'on' | 'hops' | 'direction'>) => Partial<Pick<Focus, 'hops' | 'direction'>>) => {
+    const now = focusNow();
     if (!now) return notify(t('No focus yet: select something and press F'));
     const next = { hops: now.hops, direction: now.direction, ...change(now) };
     setFocus({ on: now.on, hops: next.hops === Infinity ? 'all' : next.hops, direction: next.direction });
@@ -254,6 +260,6 @@ export function useNavigation(p: Props) {
     return st && { text: st.text, path, file, load: exampleLoader(st.id) };
   };
 
-  return { follow, back, backTo, viewList, viewTitle, showView, viewNow, nextView, ownView, keepView, focusOn, leaveFocus, focusOnSelection, focusHops, focusDirection, stepList, written, pickStep, stepBy, editSteps, addStepFromSelection, present, presentOther };
+  return { follow, back, backTo, viewList, viewTitle, showView, viewNow, nextView, ownView, keepView, focusOn, focusNow, leaveFocus, focusOnSelection, focusHops, focusDirection, stepList, written, pickStep, stepBy, editSteps, addStepFromSelection, present, presentOther };
 }
 export type Navigation = ReturnType<typeof useNavigation>;
