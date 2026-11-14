@@ -11,11 +11,11 @@ direction: right
 include: [model.yaml]
 
 groups:
-  office: { kind: on-premises, label: Northwind offices, caption: ExpressRoute }
-  vnet-hub-weu: { ref: vnet-hub-weu, caption: 10.0.0.0/22 · sub-connectivity }
-  vnet-lakehouse-prod: { ref: vnet-lakehouse-prod, caption: 10.1.16.0/21 · sub-lakehouse-prod }
-  control: { kind: control-plane, label: Databricks control plane, caption: West Europe }
   serverless: { kind: serverless-plane, label: Serverless compute plane, caption: Run by Databricks }
+  vnet-lakehouse-prod: { ref: vnet-lakehouse-prod, caption: 10.1.16.0/21 · sub-lakehouse-prod }
+  vnet-hub-weu: { ref: vnet-hub-weu, caption: 10.0.0.0/22 · sub-connectivity }
+  office: { kind: on-premises, label: Northwind offices, caption: ExpressRoute }
+  control: { kind: control-plane, label: Databricks control plane, caption: West Europe }
 
 nodes:
   browser: { kind: user, label: Data engineer, caption: Browser, in: office }
