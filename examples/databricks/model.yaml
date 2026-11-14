@@ -1,5 +1,6 @@
 # Northwind's lakehouse on Azure Databricks, described once (West Europe). Diagrams in this folder include it.
-#   teams         who owns what (owner: on the rest)
+#   teams         who owns what (owner: on the rest; on a catalog, its Unity Catalog owner: the domain team in dev,
+#                 sp-lakehouse-test and sp-lakehouse-prod in test and prod, see governance.yaml)
 #   sources       ERP (on-premises), web shop (Azure SQL, Event Hubs), Salesforce
 #   lakehouse     what the bundle deploys to every workspace: Lakeflow Connect, pipelines, jobs, warehouse, serving, app
 #   uc            the Unity Catalog metastore: <domain>_<env> catalogs (bronze, silver, gold schemas),
@@ -76,16 +77,16 @@ elements:
       sales_dev: { kind: catalog, label: sales_dev, owner: sales-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
       customers_dev: { kind: catalog, label: customers_dev, owner: customers-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
       supply_dev: { kind: catalog, label: supply_dev, owner: supply-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      orders_test: { kind: catalog, label: orders_test, owner: orders-team, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      webshop_test: { kind: catalog, label: webshop_test, owner: webshop-team, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      finance_test: { kind: catalog, label: finance_test, owner: finance-team, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      sales_test: { kind: catalog, label: sales_test, owner: sales-team, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      customers_test: { kind: catalog, label: customers_test, owner: customers-team, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      supply_test: { kind: catalog, label: supply_test, owner: supply-team, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      orders_test: { kind: catalog, label: orders_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      webshop_test: { kind: catalog, label: webshop_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      finance_test: { kind: catalog, label: finance_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      sales_test: { kind: catalog, label: sales_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      customers_test: { kind: catalog, label: customers_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      supply_test: { kind: catalog, label: supply_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
       orders_prod:
         kind: catalog
         label: orders_prod
-        owner: orders-team
+        owner: sp-lakehouse-prod
         tags: [prod]
         elements:
           bronze: { kind: schema, label: bronze }
@@ -94,7 +95,7 @@ elements:
       webshop_prod:
         kind: catalog
         label: webshop_prod
-        owner: webshop-team
+        owner: sp-lakehouse-prod
         tags: [prod]
         elements:
           bronze: { kind: schema, label: bronze }
@@ -103,7 +104,7 @@ elements:
       finance_prod:
         kind: catalog
         label: finance_prod
-        owner: finance-team
+        owner: sp-lakehouse-prod
         tags: [prod]
         elements:
           bronze: { kind: schema, label: bronze }
@@ -112,7 +113,7 @@ elements:
       sales_prod:
         kind: catalog
         label: sales_prod
-        owner: sales-team
+        owner: sp-lakehouse-prod
         tags: [prod]
         elements:
           bronze: { kind: schema, label: bronze }
@@ -121,7 +122,7 @@ elements:
       customers_prod:
         kind: catalog
         label: customers_prod
-        owner: customers-team
+        owner: sp-lakehouse-prod
         tags: [prod]
         elements:
           bronze: { kind: schema, label: bronze }
@@ -130,7 +131,7 @@ elements:
       supply_prod:
         kind: catalog
         label: supply_prod
-        owner: supply-team
+        owner: sp-lakehouse-prod
         tags: [prod]
         elements:
           bronze: { kind: schema, label: bronze, elements: { supplier_files: { kind: volume, label: supplier_files } } }
@@ -143,9 +144,10 @@ elements:
               demand_forecast: { kind: registered-model, label: demand_forecast }
       # Storage credentials: one per domain and environment, cred_<domain>_<env>. The Unity Catalog deployment guide
       # (docs/research/databricks-2026.md §5) advises separate storage accounts, storage credentials and access
-      # connectors per environment and per domain; a credential is the securable a domain team is granted and that is
-      # bound to one workspace. Access connectors stay per environment (Northwind's choice): the six credentials of an
-      # environment all use dbac-lakehouse-<env>, so domains are kept apart in Unity Catalog, not in Azure RBAC.
+      # connectors per environment and per domain. Each credential and each external location is ISOLATED and bound to
+      # dbw-lakehouse-<env> only, as the catalogs are (governance.yaml). Access connectors stay per environment
+      # (Northwind's choice): the six credentials of an environment all use dbac-lakehouse-<env>, so domains are kept
+      # apart in Unity Catalog, not in Azure RBAC.
       # External locations: <domain>_<env>_catalog (the catalog's managed location) and <domain>_<env>_landing
       # (files the domain ingests), on the containers catalog and landing of st<domain><env>.
       cred_orders_dev: { kind: storage-credential, label: cred_orders_dev, tags: [dev] }
