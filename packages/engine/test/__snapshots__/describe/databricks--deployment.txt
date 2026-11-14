@@ -1,0 +1,42 @@
+Secure deployment
+
+Azure infrastructure diagram: Northwind lakehouse · production · no public access, every hop over Private Link or through the hub firewall. 11 elements in 5 groups, with 10 connections.
+
+Groups and elements
+- Northwind offices (ExpressRoute)
+  - Data engineer (Browser)
+- vnet-hub-weu (10.0.0.0/22 · sub-connectivity)
+  - pep-dbw-lakehouse-prod-ui (front-end · snet-pep)
+  - pep-dbw-webauth-weu (browser_authentication)
+  - afw-hub (Premium · 10.0.0.68 · SNAT out)
+- Databricks control plane (West Europe)
+  - dbw-lakehouse-prod (Web app · REST API · SCC relay)
+  - dbw-webauth-weu (Browser sign-in only): Holds the region's browser_authentication endpoint; delete lock
+- vnet-lakehouse-prod (10.1.16.0/21 · sub-lakehouse-prod)
+  - Cluster VMs (SCC · no public IP)
+  - pep-dbw-lakehouse-prod (back-end · snet-pep)
+  - pep-stordersprod-dfs (dfs · snet-pep)
+- stordersprod (ADLS Gen2 · one per domain)
+- Serverless compute plane (Run by Databricks)
+  - ncc-lakehouse-prod (Private endpoint rules)
+
+Connections
+- Data engineer connects to pep-dbw-lakehouse-prod-ui (Private network: HTTPS) and connects to pep-dbw-webauth-weu (Private network: SSO).
+- pep-dbw-lakehouse-prod-ui connects to dbw-lakehouse-prod (Private network: front-end).
+- pep-dbw-webauth-weu connects to dbw-webauth-weu (Private network: browser sign-in).
+- Cluster VMs connects to pep-dbw-lakehouse-prod (Private network), connects to pep-stordersprod-dfs (Private network) and connects to afw-hub (Private network: 0.0.0.0/0).
+- pep-dbw-lakehouse-prod connects to dbw-lakehouse-prod (Private network: back-end).
+- pep-stordersprod-dfs connects to stordersprod (Private network).
+- ncc-lakehouse-prod connects to stordersprod (Private network: serverless).
+
+Walkthrough
+1. Production: A VNet-injected workspace with no public access; the hub holds the front-end endpoints and the firewall.
+2. A user's browser: The workspace URL resolves in privatelink.azuredatabricks.net to the front-end endpoint in the hub.
+3. Signing in: After Entra ID the browser returns through the region's one browser_authentication endpoint.
+4. A cluster: Clusters dial out to the SCC relay and the REST API through the back-end endpoint; no inbound ports.
+5. Reading data: Clusters reach each domain's account through its own dfs endpoint, named in privatelink.dfs.core.windows.net.
+6. Serverless: SQL warehouses and serverless jobs reach the same accounts through the NCC's private endpoints.
+7. Everything else: rt-lakehouse-prod sends 0.0.0.0/0 to afw-hub, so package mirrors and the rest leave through the firewall.
+
+Key
+- Dashed teal line: Private network
