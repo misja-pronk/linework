@@ -84,15 +84,20 @@ const crossingBudget: Record<string, number> = {
   'model/model.yaml': 0,
   'databricks/model.yaml': 0,
   'databricks/governance.yaml': 0, // a canvas: drawn as its first view, who administers
-  'databricks/governance.yaml#orders': 1, // orders-team's MANAGE line up to prod passes the dev service principal's line to dev
+  'databricks/governance.yaml#orders': 1, // orders-team's read line down to test passes the dev service principal's line to dev
   'databricks/governance.yaml#production': 0,
-  'databricks/governance.yaml#pii': 1, // the policy's line back to customers-team, whom it leaves alone, passes the prod service principal's write
+  'databricks/governance.yaml#pii': 1, // the policy's line back to the prod service principal, whom it leaves alone, passes customers-team's read
   'databricks/governance.yaml#sharing': 0,
+  'databricks/governance.yaml#landing': 0,
   'databricks/medallion.yaml': 0,
-  'databricks/mesh.yaml': 1, // the ERP's line to Revenue passes Orders' line down to the demand forecast
+  'databricks/mesh.yaml': 2, // the ERP's line to Revenue passes Orders' line down to the demand forecast; Web sessions' line down to Power BI passes the forecast's to replenishment
   'databricks/overview.yaml': 0,
   'databricks/deployment.yaml': 0,
   'databricks/environments.yaml': 0,
+  'databricks-at-scale/model.yaml': 0, // a canvas: drawn as its first view, the landscape
+  'databricks-at-scale/model.yaml#orders-storage': 0,
+  'databricks-at-scale/governance.yaml': 0, // a canvas: drawn as its first view, who administers
+  'databricks-at-scale/governance.yaml#orders': 1,
   'workspace/access.yaml': 0,
   'workspace/containers.yaml': 0,
   'workspace/containers.yaml#payments': 1, // wrapped for a slide (text 5.6 → 7 pt): the interbank payments pass the nightly extract
@@ -192,9 +197,8 @@ const jogBudget: Record<string, number> = {
   'systems/data-pipeline.yaml': 1, // two lines into one side
   'systems/saas-platform.yaml': 1, // the overview: the host dashboard's way in steps aside past the guest app's
   'databricks/governance.yaml#orders': 1, // two grants into orders_dev's side: one steps a lane aside
-  'databricks/governance.yaml#pii': 2, // four grants and the policy into one catalog's side: two step aside
-  'databricks/governance.yaml#sharing': 1, // sales-team's MANAGE steps up into its catalog under the gold schema
-  'databricks/mesh.yaml': 1, // the web shop's two sources join one line into Web sessions
+  'databricks-at-scale/governance.yaml#orders': 1, // two grants into orders_test's side: one steps a lane aside
+  'databricks/mesh.yaml': 2, // the web shop's two sources join one line into Web sessions; three lines into Power BI's side: one steps aside
 };
 
 // Labels sitting on a corner of their line: none, but for the ones named here.
@@ -227,7 +231,6 @@ const orderBudget: Record<string, number> = {
   'model/deployment.yaml': 1,
   'network/small-office.yaml': 1,
   'databricks/mesh.yaml': 1, // Orders stands below Customers and Sales: its lines run on to Sell-through and the demand forecast
-  'databricks/governance.yaml#production': 2, // the catalogs stand in the order of the analysts' grants, not the order written
 };
 
 // Lines on one track that are not one trunk (falseJoins): none, but for the ones named here.
@@ -239,6 +242,7 @@ const joinBudget: Record<string, number> = {
 // Labels with another line running through or right beside them (nearer than 6 px): none, but for the ones named here.
 const touchBudget: Record<string, number> = {
   'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
+  'databricks-at-scale/governance.yaml#orders': 1, // MANAGE sits where orders-team's line up to prod passes the test service principal's
   'c4/kestrel-bank.yaml#containers': 1,
   'c4/kestrel-bank.yaml#components': 1,
   'kubernetes/inference.yaml': 1,

@@ -5,45 +5,55 @@ subtitle: Northwind lakehouse · one bundle goes from Git through dev and test, 
 # How the lakehouse resource of model.yaml (pipelines, jobs, warehouse, serving, app) reaches each workspace,
 # told as examples/process/release-to-production.yaml tells the Orders API. One Declarative Automation Bundle
 # (databricks.yml) has the targets dev, test and prod; GitHub Actions deploys it with the Databricks CLI.
-#   identity   a service principal per environment, sp-lakehouse-<env>, signing in with OIDC: no secret in GitHub
-#   data       each target writes only its own catalogs, <domain>_<env>, bound to dbw-lakehouse-<env> alone
-#   gate       the GitHub environment prod has required reviewers
+#   identity   a service principal per environment, sp-lakehouse-<env>. Actions signs in as it with OIDC
+#              (workload identity federation, DATABRICKS_AUTH_TYPE github-oidc): its federation policy trusts this
+#              repository's GitHub environment of the same name, so no secret is kept in GitHub
+#   data       sp-lakehouse-test and -prod own the _test and _prod catalogs (governance.yaml); each catalog is bound
+#              to dbw-lakehouse-<env> alone
+#   gate       the GitHub environment prod has required reviewers, and only a job in it gets a token for sp-lakehouse-prod
+#   rollback   the previous release tag is deployed again
 lanes:
   github: GitHub
   reviewer: Reviewer
-  dev: { label: Development, description: dbw-lakehouse-dev }
-  test: { label: Test, description: dbw-lakehouse-test }
-  prod: { label: Production, description: dbw-lakehouse-prod }
+  databricks: Azure Databricks
 
 nodes:
   Pull request: { in: github, kind: start, caption: a change to the bundle }
-  Validate bundle: { in: github, kind: script, caption: bundle validate · unit tests }
-  Deploy to dev: { in: dev, kind: service, caption: as sp-lakehouse-dev }
-  Merged to main: { in: github, kind: user, caption: after review }
-  Deploy to test: { in: test, kind: service, caption: as sp-lakehouse-test }
-  Run the pipelines: { in: test, kind: script, caption: on test data }
-  # The production environment has required reviewers: the run waits until one of them approves.
+  # Each deploy is a GitHub Actions job that signs in with OIDC as the environment's service principal.
+  Deploy to dev: { in: databricks, kind: service, caption: OIDC as sp-lakehouse-dev }
+  Reviewed and merged: { in: github, kind: user, caption: into main }
+  Deploy to test: { in: databricks, kind: service, caption: OIDC as sp-lakehouse-test }
+  Run pipelines: { in: databricks, kind: script, caption: a red run stops it }
+  # The prod environment has required reviewers: the run waits until one of them approves.
   Release approved?: reviewer
-  Deploy to production: { in: prod, kind: service, caption: as sp-lakehouse-prod }
-  Live in production: { in: prod, kind: end }
+  Deploy to prod: { in: databricks, kind: service, caption: OIDC as sp-lakehouse-prod }
+  Smoke test green?: databricks
+  Live in prod: { in: databricks, kind: end }
   Release stopped: { in: reviewer, kind: end }
+  # Rolling back is deploying the previous release tag of the same bundle again.
+  Deploy the last tag: { in: databricks, kind: service, caption: OIDC as sp-lakehouse-prod }
+  Rolled back: { in: databricks, kind: end }
 
 flow:
-  - Pull request -> Validate bundle -> Deploy to dev -> Merged to main -> Deploy to test -> Run the pipelines -> Release approved? -yes-> Deploy to production -> Live in production
+  - Pull request -> Deploy to dev -> Reviewed and merged -> Deploy to test -> Run pipelines -> Release approved? -yes-> Deploy to prod -> Smoke test green? -yes-> Live in prod
   - Release approved? -no-> Release stopped
+  - Smoke test green? -no-> Deploy the last tag -> Rolled back
 
 steps:
   - title: One bundle, three workspaces
-    caption: The same bundle goes to dbw-lakehouse-dev, -test and -prod; each catalog is bound to one of them only.
+    caption: The same bundle goes to dbw-lakehouse-dev, -test and -prod, each with its own service principal. Each catalog is bound to one workspace only.
   - title: Every pull request
-    caption: Actions validates the bundle and deploys it to dev as sp-lakehouse-dev, which can write the _dev catalogs only.
-    path: Pull request -> Validate bundle -> Deploy to dev
+    caption: Actions signs in with OIDC as sp-lakehouse-dev, whose federation policy trusts this repository, so GitHub holds no secret, and deploys the bundle to dev.
+    path: Pull request -> Deploy to dev
   - title: Test
-    caption: After the merge the bundle goes to test, and the pipelines run end to end on the _test catalogs.
-    path: Merged to main -> Deploy to test -> Run the pipelines
+    caption: Once reviewed and merged into main, sp-lakehouse-test deploys the bundle and runs the pipelines end to end on the _test catalogs. A red run stops the release.
+    path: Deploy to dev -> Reviewed and merged -> Deploy to test -> Run pipelines
   - title: The gate
-    caption: The prod environment in GitHub has required reviewers. The run waits until one of them approves.
-    path: Run the pipelines -> Release approved?
+    caption: The prod environment in GitHub has required reviewers. Only a job in it gets a token for sp-lakehouse-prod, and it waits until one of them approves.
+    path: Run pipelines -> Release approved?
   - title: Production
-    caption: sp-lakehouse-prod deploys the same bundle; only it has MODIFY on the _prod catalogs, people read.
-    path: Release approved? -> Deploy to production -> Live in production
+    caption: sp-lakehouse-prod, owner of the _prod catalogs, deploys the same bundle and a smoke test checks it. People read production; only this principal writes.
+    path: Release approved? -> Deploy to prod -> Smoke test green? -> Live in prod
+  - title: Roll back
+    caption: A red smoke test? Actions deploys the previous release tag again. Tables the release wrote wrongly go back with RESTORE or a full refresh.
+    path: Smoke test green? -> Deploy the last tag -> Rolled back

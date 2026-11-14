@@ -12,12 +12,12 @@ Groups and elements
     - sell_through (Table)
 - bi-warehouse (Serverless SQL warehouse)
 - Power BI (Fabric capacity F64): Reports on gold through the SQL warehouse
-- Business analysts (Users): Read gold data in Power BI and Genie
+- Business analysts (Power BI · Genie): Read gold data in Power BI and Genie
 - sales-pipeline (Lakeflow pipeline)
 - orders_prod (Catalog)
 - contoso_sell_through (OpenSharing)
 - contoso (Databricks-to-Databricks)
-- Contoso Retail (External system): Retail partner; reads sell-through in its own Databricks account
+- Contoso Retail (Retail partner · own Databricks account): Retail partner; reads sell-through in its own Databricks account
 - customers_prod (Catalog)
 
 Connections

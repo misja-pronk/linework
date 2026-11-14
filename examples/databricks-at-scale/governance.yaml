@@ -1,0 +1,99 @@
+# Who may do what in Unity Catalog, for all twenty domains through dev, test and prod: 171 grants, written as
+# eleven lines. The rules are those of examples/databricks:
+#   a domain team owns its dev catalog, reads test, and in prod reads and MANAGEs but does not write;
+#   only the environment's service principal MODIFYs; every engineer may BROWSE production;
+#   analysts read the gold schemas, where mask_pii hides the columns tagged pii.
+# each: names the lists; <domain> and <env> in a name write the entry once per value (each: belongs to this
+# file, so the lists are written here as well as in model.yaml). The views team-access-1 and -2 and prod-readers-1
+# and -2 lay the who × where matrix out by those lists: a row per domain, a column per environment and who holds
+# a role there, ten domains a slide (page:).
+type: access
+title: Unity Catalog access at scale
+subtitle: Northwind lakehouse · twenty domains, three environments, account groups from Entra ID
+include: [model.yaml]
+present: views
+
+each:
+  domain: [orders, webshop, finance, sales, customers, supply, marketing, logistics, procurement, hr, payroll, pricing, inventory, returns, loyalty, fraud, support, products, partners, risk]
+  env: [dev, test, prod]
+  part: [1, 2]
+
+layers:
+  <env>: { tags: [<env>], title: <env> }
+
+principals:
+  platform-team: { kind: account-group, label: platform-team, caption: Metastore and workspace admins }
+  engineers: { kind: account-group, label: engineers, caption: Every domain team }
+  <domain>-team: { kind: account-group, label: <domain>-team, member-of: engineers }
+  analysts: { kind: account-group, label: analysts, caption: Power BI and Genie }
+  sp-lakehouse-<env>: { kind: service-principal, label: sp-lakehouse-<env>, caption: Runs the jobs in <env>, tags: [<env>] }
+
+resources:
+  uc-weu: { kind: metastore, label: uc-weu, caption: Metastore }
+  dbw-lakehouse-<env>: { kind: databricks, label: dbw-lakehouse-<env>, tags: [<env>] }
+  # Catalogs: ISOLATED, each bound to its environment's workspace only
+  <domain>_<env>: { kind: catalog, label: <domain>_<env>, bound: dbw-lakehouse-<env>, tags: [<env>] }
+  # The gold schemas analysts read
+  <domain>_prod_gold: { kind: schema, label: <domain>_prod.gold, in: <domain>_prod, tags: [prod] }
+
+roles:
+  metastore-admin: { label: Metastore admin, tone: rose, permissions: [CREATE CATALOG, take ownership] }
+  workspace-admin: { label: Workspace admin, tone: rose, permissions: [manage workspace] }
+  workspace-user: { label: Workspace user, tone: slate, permissions: [sign in] }
+  browse: { label: BROWSE, tone: slate, permissions: [BROWSE] }
+  read: { label: Read, tone: teal, inherits: browse, permissions: [USE CATALOG, USE SCHEMA, SELECT] }
+  write: { label: Write, tone: indigo, inherits: read, permissions: [MODIFY, CREATE TABLE] }
+  manage: { label: MANAGE, tone: amber, inherits: read, permissions: [MANAGE] }
+  owner: { label: Owner, tone: violet, inherits: [write, manage], permissions: [transfer and drop] }
+
+policies:
+  # ABAC: set on the catalog, it masks every column tagged pii for everyone but the CRM team and the jobs
+  mask-pii: { kind: column-mask, label: mask_pii, tag: pii, on: customers_prod, excludes: [customers-team, sp-lakehouse-prod] }
+
+assignments:
+  - platform-team is metastore-admin on uc-weu
+  - platform-team is workspace-admin on dbw-lakehouse-<env>
+  - engineers is workspace-user on dbw-lakehouse-<env>
+  - sp-lakehouse-<env> is workspace-user on dbw-lakehouse-<env>
+  - analysts is workspace-user on dbw-lakehouse-prod
+  # Each domain team owns its dev catalog, reads test, and in prod reads and MANAGEs
+  - <domain>-team is owner on <domain>_dev
+  - <domain>-team is read on <domain>_test
+  - <domain>-team is manage on <domain>_prod
+  # Only the environment's service principal writes
+  - sp-lakehouse-<env> is write on <domain>_<env>
+  # Every engineer may find production data; analysts read gold
+  - engineers is browse on <domain>_prod
+  - analysts is read on <domain>_prod_gold
+
+views:
+  admins:
+    title: Who administers
+    subtitle: The platform team runs the metastore and the three workspaces, and holds no grants on domain data
+    include: [platform-team]
+  orders:
+    title: One domain through its environments
+    subtitle: orders-team owns dev, reads test, reads and MANAGEs prod; only the service principals write
+    include: [orders-team, kind:service-principal, orders_<env>]
+  # Twenty domains are two slides: a view per part (part: 1 of 2, 2 of 2), the same columns on both
+  team-access-<part>:
+    title: Every domain, every environment (<part> of 2)
+    subtitle: A row per domain; per environment what its team holds on its catalog, and what the jobs hold
+    show: access
+    rows: domain
+    columns: env
+    page: <part> of 2
+    exclude: [engineers, analysts, kind:databricks, uc-weu]
+  prod-readers-<part>:
+    title: Who reads production (<part> of 2)
+    subtitle: Each team MANAGEs its catalog, the jobs write, every engineer may BROWSE and analysts read gold
+    show: access
+    rows: domain
+    page: <part> of 2
+    environment: prod
+    exclude: [kind:databricks, uc-weu]
+  privileges:
+    title: What each role holds
+    subtitle: Unity Catalog privileges on catalogs and schemas; the admin roles are in Who administers
+    show: roles
+    exclude: [uc-weu, kind:databricks]

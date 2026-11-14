@@ -5,8 +5,8 @@ Data products, demand forecast in detail: Demand forecast in detail. 4 elements 
 Groups and elements
 - Orders (Orders · Gold)
 - Supply chain (Domain · Supply chain data team)
-  - Demand forecast (Gold · beta · v0.4.0 · Planning analytics)
-  - Stock levels (Gold · v1.1.0 · Warehouse team)
+  - Demand forecast (Gold · beta · v0.4.0)
+  - Stock levels (Gold · v1.1.0)
 - Replenishment (Application)
 
 Connections

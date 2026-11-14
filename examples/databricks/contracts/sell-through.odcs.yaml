@@ -1,7 +1,8 @@
-# Open Data Contract Standard v3.1 — https://bitol-io.github.io/open-data-contract-standard/
+# Open Data Contract Standard v3.2.0 — https://bitol-io.github.io/open-data-contract-standard/
+# host: the workspace URL of dbw-lakehouse-prod (adb-<workspace id>.<n>.azuredatabricks.net), reached over Private Link
 # The Sell-through product: sales_prod.gold.sell_through, also in the OpenSharing share contoso_sell_through.
-# No personal data: it may leave Northwind.
-apiVersion: v3.1.0
+# No personal data. Classified confidential: shared with named partners under a data-sharing agreement, never public.
+apiVersion: v3.2.0
 kind: DataContract
 id: northwind-sell-through
 name: sell_through
@@ -14,43 +15,47 @@ description:
 servers:
   - server: prod
     type: databricks
-    host: dbw-lakehouse-prod
+    host: adb-2718281828459045.5.azuredatabricks.net
     catalog: sales_prod
     schema: gold
 schema:
   - id: sell_through_tbl
     name: sell_through
     physicalType: table
-    classification: internal
     properties:
       - name: day
         logicalType: date
         physicalType: DATE
+        classification: confidential
         primaryKey: true
         primaryKeyPosition: 1
         required: true
       - name: sku
         logicalType: string
         physicalType: STRING
+        classification: confidential
         primaryKey: true
         primaryKeyPosition: 2
         required: true
       - name: country
         logicalType: string
         physicalType: STRING
+        classification: confidential
         primaryKey: true
         primaryKeyPosition: 3
         required: true
       - name: units
         logicalType: integer
         physicalType: INT
+        classification: confidential
         required: true
       - name: revenue_eur
         logicalType: number
         physicalType: DECIMAL(14,2)
+        classification: confidential
         required: true
     quality:
-      - description: reconciles with orders_prod.gold.orders
+      - description: reconciles with Orders
 slaProperties:
   - property: latency
     value: 1

@@ -1,0 +1,17 @@
+What a pipeline needs
+
+Roles, groups and access packages diagram: Northwind lakehouse · granted on each dev catalog to sp-lakehouse-dev; in test and prod the principal owns them. A table of 1 row by 10 columns.
+
+By row (Role by permission)
+Columns: USE CATALOG, USE SCHEMA, SELECT, READ VOLUME, EXECUTE, MODIFY, CREATE SCHEMA, CREATE TABLE, CREATE MATERIALIZED VIEW and CREATE MODEL.
+- Pipeline (includes Read catalog): USE CATALOG: yes, inherited; USE SCHEMA: yes, inherited; SELECT: yes, inherited; READ VOLUME: yes, inherited; EXECUTE: yes, inherited; MODIFY: yes; CREATE SCHEMA: yes; CREATE TABLE: yes; CREATE MATERIALIZED VIEW: yes; CREATE MODEL: yes
+
+Layers
+Ways to look at this drawing by tag.
+- Development (tags dev; 0 elements).
+- Test (tags test; 0 elements).
+- Production (tags prod; 0 elements).
+
+Key
+- Indigo check mark: Granted by the role
+- Indigo outlined check mark: Included from another role

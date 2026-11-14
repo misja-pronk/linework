@@ -1,42 +1,38 @@
-Secure deployment
+Offices and the hub
 
-Azure infrastructure diagram: Northwind lakehouse · production · no public access, every hop over Private Link or through the hub firewall. 11 elements in 5 groups, with 10 connections.
+Azure infrastructure diagram: Northwind lakehouse · users reach the workspaces over ExpressRoute and the hub's private endpoints. 11 elements in 4 groups, with 7 connections.
 
 Groups and elements
-- Northwind offices (ExpressRoute)
+- Northwind on-premises (10.10.0.0/16)
   - Data engineer (Browser)
+  - Office DNS (Conditional forwarders)
 - vnet-hub-weu (10.0.0.0/22 · sub-connectivity)
-  - pep-dbw-lakehouse-prod-ui (front-end · snet-pep)
-  - pep-dbw-webauth-weu (browser_authentication)
-  - afw-hub (Premium · 10.0.0.68 · SNAT out)
+  - ergw-hub-weu (ExpressRoute gateway · GatewaySubnet)
+  - pep-dbw-lakehouse-prod-ui (databricks_ui_api · snet-pep)
+  - pep-dbw-webauth-weu (browser_authentication · snet-pep)
+  - dnspr-hub-weu (Resolver inbound · 10.0.1.100)
 - Databricks control plane (West Europe)
   - dbw-lakehouse-prod (Web app · REST API · SCC relay)
   - dbw-webauth-weu (Browser sign-in only): Holds the region's browser_authentication endpoint; delete lock
-- vnet-lakehouse-prod (10.1.16.0/21 · sub-lakehouse-prod)
-  - Cluster VMs (SCC · no public IP)
-  - pep-dbw-lakehouse-prod (back-end · snet-pep)
-  - pep-stordersprod-dfs (dfs · snet-pep)
-- stordersprod (ADLS Gen2 · one per domain)
-- Serverless compute plane (Run by Databricks)
-  - ncc-lakehouse-prod (Private endpoint rules)
+- Private DNS zones (Linked to vnet-hub-weu)
+  - privatelink.azuredatabricks.net (Workspace and pl-auth records)
+  - privatelink.dfs.core.windows.net (dfs endpoints)
+  - privatelink.blob.core.windows.net (blob endpoints)
 
 Connections
-- Data engineer connects to pep-dbw-lakehouse-prod-ui (Private network: HTTPS) and connects to pep-dbw-webauth-weu (Private network: SSO).
+- Data engineer connects to ergw-hub-weu (Private network: HTTPS).
+- ergw-hub-weu connects to pep-dbw-lakehouse-prod-ui (Private network) and connects to pep-dbw-webauth-weu (Private network: SSO).
 - pep-dbw-lakehouse-prod-ui connects to dbw-lakehouse-prod (Private network: front-end).
 - pep-dbw-webauth-weu connects to dbw-webauth-weu (Private network: browser sign-in).
-- Cluster VMs connects to pep-dbw-lakehouse-prod (Private network), connects to pep-stordersprod-dfs (Private network) and connects to afw-hub (Private network: 0.0.0.0/0).
-- pep-dbw-lakehouse-prod connects to dbw-lakehouse-prod (Private network: back-end).
-- pep-stordersprod-dfs connects to stordersprod (Private network).
-- ncc-lakehouse-prod connects to stordersprod (Private network: serverless).
+- Office DNS connects to dnspr-hub-weu (Private network: DNS · over ExpressRoute).
+- dnspr-hub-weu connects to privatelink.azuredatabricks.net (Resolves).
 
 Walkthrough
-1. Production: A VNet-injected workspace with no public access; the hub holds the front-end endpoints and the firewall.
-2. A user's browser: The workspace URL resolves in privatelink.azuredatabricks.net to the front-end endpoint in the hub.
-3. Signing in: After Entra ID the browser returns through the region's one browser_authentication endpoint.
-4. A cluster: Clusters dial out to the SCC relay and the REST API through the back-end endpoint; no inbound ports.
-5. Reading data: Clusters reach each domain's account through its own dfs endpoint, named in privatelink.dfs.core.windows.net.
-6. Serverless: SQL warehouses and serverless jobs reach the same accounts through the NCC's private endpoints.
-7. Everything else: rt-lakehouse-prod sends 0.0.0.0/0 to afw-hub, so package mirrors and the rest leave through the firewall.
+1. Offices and the hub: ExpressRoute ends in the hub, which holds the DNS resolver and each workspace's front-end endpoint.
+2. Finding the workspace: Office DNS forwards *.azuredatabricks.net to the resolver, which answers from the zones linked to the hub.
+3. A user's browser: The workspace URL resolves to the front-end endpoint; test and dev have one each in snet-pep.
+4. Signing in: After Entra ID the browser returns through the region's one browser_authentication endpoint.
 
 Key
+- Solid line: Connection
 - Dashed teal line: Private network

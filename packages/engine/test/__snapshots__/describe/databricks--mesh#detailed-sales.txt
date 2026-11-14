@@ -6,7 +6,7 @@ Groups and elements
 - Salesforce (Sales Cloud)
 - Sales (Domain · Sales analytics team)
   - Sell-through (Gold · v1.0.0)
-  - sell_through (Data contract · v1.0.0)
+  - sell_through (Data contract · v1.0.0 · confidential)
 - Power BI (Reports)
 - Customer 360 (Databricks App)
 - Contoso Retail (OpenSharing)

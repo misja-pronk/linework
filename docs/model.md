@@ -72,6 +72,44 @@ nodes:
 - **Relations are drawn for you** between whatever the diagram shows. A relation to a part of something shown closed ends on that thing: `customer → shop.web` becomes `customer → shop` in a context diagram (C4's implied relations). An edge you write between the same two wins, so a deployment can say `api -> db: { style: private }`.
 - The model's relation `style` is kept when the type knows it (`sync`, `async`, `data` in the architecture type).
 
+## each: a pattern for a list of values
+
+A platform of twenty domains through dev, test and prod has sixty catalogs, sixty storage accounts and hundreds of relations that all look alike. `each:` names lists at the top of a file, and `<name>` in what the file says stands for one value of a list:
+
+```yaml
+type: model
+each:
+  domain:                                   # values with fields: <domain.team>
+    orders: { team: Order management }
+    webshop: { team: Web shop }
+  env: [dev, test, prod]                    # or just the values
+elements:
+  <domain>-team: { kind: users, label: <domain.team> team }
+  dbw-lakehouse-<env>: { kind: databricks, tags: [<env>] }
+  uc-weu:
+    kind: metastore
+    elements:
+      <domain>_<env>: { kind: catalog, owner: <domain>-team, tags: [<env>] }   # six catalogs
+relations:
+  - uc-weu.<domain>_<env> -> dbw-lakehouse-<env>: Bound                       # six relations
+  - <domain>-team -> uc-weu.<domain>_dev: Owns                                  # two
+views:
+  <env>:                                                                      # a view per environment
+    title: Catalogs in <env>
+    include: [uc-weu.<domain>_<env>, dbw-lakehouse-<env>]                     # both domains' catalogs
+```
+
+- **What repeats.** An entry whose name (the key) says `<domain>` is written once per domain; one that says `<domain>_<env>` once per domain and environment, the first list named outermost. So is a list item that names a list: a relation, an assignment, an id in a view's `include:`. The written-out entries take the place of the pattern, in order, so ids and edge order are the same every time.
+- **What is filled in.** Inside an entry, `<domain>` is the entry's own domain: in its label, caption, technology, tags, owner, `in:`, `of:`, parts, and the relations and grants written inside it. `<domain.team>` is a field of the value. A list item names what the entry around it does not, so `include: [uc-weu.<domain>_<env>]` in the view `<env>` is every domain's catalog in that environment.
+- **One way to write many.** Relations whose ends follow a pattern are written with the same placeholders (`uc-weu.<domain>_prod -> dbw-lakehouse-prod`), not with wildcards: every end is a name the file writes, checked like any other, and nothing is picked up by accident (`*_prod` would match a credential named `cred_x_prod` as readily as a catalog).
+- **Everywhere.** In models and in diagrams of every type: nodes, groups, edges, an access diagram's principals, resources and assignments, layers, views and steps. `each:` belongs to the file it is written in, like its title: a diagram that includes a model writes the lists it uses itself (one line each).
+- **Problems are said where the pattern is written.** A placeholder no list has is an error on its line, with the lists there are (`<domian> is not a list of each: did you mean <domain>?`); so is a name two patterns (or a pattern and an entry) both write, and a placeholder in a value the entry around it does not name (`label: In <env>` on an entry written once). A problem in a written-out entry (an unknown kind, a missing group) is said once, at the pattern, with the values it is about: `There is no group "nowhere" (for domain orders, and 19 more)`.
+- **`<` as text.** A file without `each:` is read exactly as before, `List<Order>` and all. In a file with it, `\<id>` is the text `<id>`.
+- **Why `<domain>`.** `{domain}` starts a map in YAML: `label: {domain}_{env}` would not even parse, and the flow maps this idiom is written in (`{ kind: catalog, label: … }`) take no braces in their values. `<domain>` needs no quotes as a key or a value, and is how architecture notes already write it (`<domain>_<env>`).
+- **In the editor.** ⌘K and describe list the written-out names (`orders_prod`). Selecting one shows the pattern in the YAML; it is changed there, for every value at once (renaming or deleting one value on its own would leave the others behind).
+
+[examples/databricks-at-scale](../examples/databricks-at-scale) writes twenty domains through three environments in about 150 lines of model (621 elements, 592 relations) and 100 of grants (171); [types.md](types.md#roles-groups-and-access-packages) lays the access matrix out by the same lists (`rows: domain`, `columns: env`).
+
 ## Deployments: `of:` what a resource runs
 
 `ref:` says a node **is** the element: one node per element. A deployment needs something else: this Container App **runs** the Orders API, and in production two of them do. That is `of:`, on a node or group of an `azure`, `cloud` or `kubernetes` diagram:

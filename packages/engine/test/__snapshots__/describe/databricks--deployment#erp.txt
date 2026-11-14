@@ -1,0 +1,31 @@
+Ingesting the ERP
+
+Azure infrastructure diagram: Northwind lakehouse · Lakeflow Connect's gateway reaches SQL Server on-premises through the hub. 7 elements in 4 groups, with 6 connections.
+
+Groups and elements
+- vnet-lakehouse-prod (10.1.16.0/21 · peered to the hub)
+  - Ingestion gateway (erp-ingest · classic compute): Runs erp-ingest (lakehouse.erp-ingest)
+  - pep-dbw-lakehouse-prod (databricks_ui_api · back-end)
+  - rt-lakehouse-prod (On both cluster subnets)
+- vnet-hub-weu (10.0.0.0/22 · sub-connectivity)
+  - afw-hub (Premium · 10.0.0.68 · SNAT out)
+  - ergw-hub-weu (ExpressRoute gateway · GatewaySubnet)
+- Databricks control plane (West Europe)
+  - dbw-lakehouse-prod (Web app · REST API · SCC relay)
+- Northwind on-premises (10.10.0.0/16)
+  - ERP (SQL Server · on-premises): Orders and invoices and stock
+
+Connections
+- Ingestion gateway connects to afw-hub (Private network: SQL 1433) and connects to pep-dbw-lakehouse-prod (Private network).
+- afw-hub connects to ergw-hub-weu (Private network: 10.10.0.0/16).
+- pep-dbw-lakehouse-prod connects to dbw-lakehouse-prod (Private network: back-end).
+- ergw-hub-weu connects to ERP (Private network: ExpressRoute).
+- rt-lakehouse-prod connects to afw-hub (Private network: 0.0.0.0/0).
+
+Walkthrough
+1. Ingesting the ERP: erp-ingest pairs one ingestion pipeline (serverless) with one gateway, which must run on classic compute.
+2. To SQL Server: rt-lakehouse-prod sends the gateway to afw-hub, which allows 1433 to the ERP over ExpressRoute only.
+3. To the workspace: Like a cluster, the gateway reports to the control plane through the back-end endpoint.
+
+Key
+- Dashed teal line: Private network

@@ -1,0 +1,22 @@
+Who × where in development
+
+Roles, groups and access packages diagram: Northwind lakehouse · each team owns its dev catalog; the bundle's pipelines write there as sp-lakehouse-dev. A table of 7 rows by 6 columns.
+
+By row (Who by where)
+Columns: orders_dev, webshop_dev, finance_dev, sales_dev, customers_dev and supply_dev.
+- orders-team (Account group): orders_dev: Owner
+- webshop-team (Account group): webshop_dev: Owner
+- finance-team (Account group): finance_dev: Owner
+- sales-team (Account group): sales_dev: Owner
+- customers-team (Account group): customers_dev: Owner
+- supply-team (Account group): supply_dev: Owner
+- sp-lakehouse-dev (Deploys and runs dev): orders_dev: Pipeline; webshop_dev: Pipeline; finance_dev: Pipeline; sales_dev: Pipeline; customers_dev: Pipeline; supply_dev: Pipeline
+
+Layers
+Ways to look at this drawing by tag.
+- Development (tags dev; 0 elements).
+- Test (tags test; 0 elements).
+- Production (tags prod; 0 elements).
+
+Key
+- Indigo filled pill: Assigned directly

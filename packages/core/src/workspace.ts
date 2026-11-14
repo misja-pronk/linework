@@ -6,6 +6,7 @@
 // the view as written, the way the engine picks it, without laying anything out: close, not drawn.
 import { parseSource } from './source.ts';
 import { includesOf, joinPath } from './include.ts';
+import { withEach } from './each.ts';
 import { viewKinds, type ViewKind } from './catalogue.ts';
 import type { Path } from './model.ts';
 
@@ -107,7 +108,8 @@ const dirOf = (file: string) => file.split('/').slice(0, -1).join('/');
 /** Reads one file. */
 export function indexFile(file: string, text: string): WsFile {
   const out: WsFile = { file, text, includes: [], elements: [], relations: [], views: [], entries: [], names: [] };
-  const src = parseSource(text);
+  // Patterns (each:) are read written out: the ids a folder knows are the ones drawn.
+  const src = withEach(parseSource(text)).source;
   const line = (p: Path) => src.locate(p)?.line;
   if (src.data === undefined || !isMap(src.data)) {
     const d = src.diagnostics.find((x) => x.severity === 'error');

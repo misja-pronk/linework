@@ -12,6 +12,7 @@ export * from './badges.ts';
 export * from './match-types.ts';
 export * from './catalogue.ts';
 export * from './include.ts';
+export * from './each.ts';
 export * from './views.ts';
 export * from './c4-views.ts';
 export * from './memory.ts';

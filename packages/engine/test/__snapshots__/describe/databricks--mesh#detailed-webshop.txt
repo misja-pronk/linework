@@ -1,15 +1,17 @@
 Data products
 
-Data products, web shop in detail: Web shop in detail. 3 elements in 1 group, with 2 connections.
+Data products, web shop in detail: Web shop in detail. 4 elements in 1 group, with 3 connections.
 
 Groups and elements
 - Web shop (Azure SQL · CDC)
 - Web shop (Domain · Web shop team)
   - Web sessions (Gold · v1.2.0)
+- Power BI (Reports)
 - Clickstream (Event Hubs)
 
 Connections
 - Web shop (Azure SQL) connects to Web sessions.
+- Web sessions.webshop_prod.gold.sessions connects to Power BI.
 - Clickstream connects to Web sessions.
 
 Key

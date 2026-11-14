@@ -32,6 +32,10 @@ import {
   withBadgeIcons,
   withoutBadges,
   badgePairs,
+  eachSchema,
+  once,
+  patternPath,
+  withEach,
   type Diagnostic,
   type DiagramType,
   type Faded,
@@ -117,7 +121,7 @@ export function findType(id: unknown): DiagramType | undefined {
 /** A type's schema with what every diagram takes on top of its own keys: `steps:` for presenting, `focus:` for a neighbourhood. Editors complete from this. */
 export function schemaOf(type: DiagramType): Record<string, unknown> {
   const schema = type.schema as { properties?: Record<string, unknown> };
-  const shared = { steps: stepsSchema, focus: focusSchema, layers: layersSchema, lang: langSchema };
+  const shared = { each: eachSchema, steps: stepsSchema, focus: focusSchema, layers: layersSchema, lang: langSchema };
   return { ...schema, properties: { ...shared, ...schema.properties } };
 }
 
@@ -314,9 +318,11 @@ export function validatedSchemas(): object[] {
 }
 
 export async function render(text: string, opts: RenderOptions = {}): Promise<RenderResult> {
-  const source = parseSource(text);
-  const diagnostics = [...source.diagnostics];
+  // Patterns written once for a list of values (`each:`) are written out first: everything after sees plain entries.
+  const { source, problems: eachProblems, each, expansion } = withEach(parseSource(text));
+  const diagnostics = [...source.diagnostics, ...eachProblems];
   if (source.data === undefined) return { diagnostics };
+  if (eachProblems.some((d) => d.severity === 'error')) return { diagnostics };
 
   const data = source.data as Record<string, unknown> | null;
   if (!data || typeof data !== 'object' || Array.isArray(data)) return { diagnostics: [...diagnostics, source.at([], 'A diagram starts with "type:"')] };
@@ -362,7 +368,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   if (stepsRef !== undefined) invalid.push(...validate({ ...source, data: { steps: stepsRef } }, stepsOnly));
   if (focusRef !== undefined) invalid.push(...validate({ ...source, data: { focus: focusRef } }, focusOnly));
   if (layersRef !== undefined) invalid.push(...validate({ ...source, data: { layers: layersRef } }, layersOnly));
-  if (invalid.length) return { type, diagnostics: [...diagnostics, ...invalid] };
+  if (invalid.length) return { type, diagnostics: once([...diagnostics, ...invalid]) };
 
   const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error') => diagnostics.push(source.at(path, message, severity));
   let model: ModelContext | undefined;
@@ -424,8 +430,12 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     model,
     lang,
     word,
+    ...(each ? { each } : {}),
   });
   if (model?.view && !model.used) graph = filterGraph(graph, model.view, (path, message) => report(path, message, 'warning'));
+  // rows: and columns: lay out a who × where matrix by the lists of each:; the access type reads them itself.
+  const pivotKey = model?.view?.rows != null ? 'rows' : model?.view?.columns != null ? 'columns' : undefined;
+  if (pivotKey && type.id !== 'access' && model!.view!.at[0] === 'views') report([...model!.view!.at, pivotKey], `${pivotKey}: lays out the who × where matrix of an access diagram (show: access); a ${type.id} diagram has none`, 'warning');
   graph = translateGraph(graph, lang, built);
   // Another of the type's own views than the one the file is written for: its subtitle is about that
   // one, so the view's name says what this drawing is (a heatmap of fit, not "run cost per capability").
@@ -462,6 +472,13 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
       const o = origin!(x.path);
       if (o) x.path = [...o.at, o.file];
     };
+    graph.nodes.forEach(fix);
+    graph.groups.forEach(fix);
+    graph.edges.forEach(fix);
+  }
+  if (expansion) {
+    // What a pattern wrote out is shown and changed where the pattern is written (each.ts).
+    const fix = <T extends { path: Path }>(x: T) => void (x.path = patternPath(expansion, x.path));
     graph.nodes.forEach(fix);
     graph.groups.forEach(fix);
     graph.edges.forEach(fix);
@@ -578,7 +595,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     height: out.height,
     origin: out.origin,
     ...(pageFor(aspect) ? { page: pageFor(aspect) } : {}),
-    diagnostics,
+    diagnostics: once(diagnostics),
     type,
     ...(typeName && typeName !== type.name ? { typeName } : {}),
     graph,

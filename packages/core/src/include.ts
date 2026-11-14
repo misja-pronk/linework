@@ -4,6 +4,7 @@
 // ids and paths stay what the editor knows. Problems in an included file point at its include entry.
 import { emptyCatalogue, modelKeys, readModel, type Catalogue } from './catalogue.ts';
 import { parseSource, validate } from './source.ts';
+import { withEach } from './each.ts';
 import type { Path } from './model.ts';
 
 export interface Composed {
@@ -85,12 +86,16 @@ export function compose(main: Record<string, unknown>, o: ComposeOptions): Compo
     }
     if (o.text != null && text === o.text) return o.report(at, `Include cycle: ${file} is this diagram`);
     files.push(file);
-    const src = parseSource(text);
+    // Its own each: is written out in it, as when it is drawn itself.
+    const { source: src, problems: eachProblems } = withEach(parseSource(text));
     const where = (line?: number) => (line ? `${file}:${line}` : file);
     if (src.data === undefined) {
       const d = src.diagnostics.find((x) => x.severity === 'error');
       return o.report(at, `${where(d?.line)}: ${d?.message ?? 'cannot be read'}`);
     }
+    const wrong = eachProblems.filter((d) => d.severity === 'error');
+    for (const d of wrong.slice(0, 3)) o.report(at, `${where(d.line)}: ${d.message}`);
+    if (wrong.length) return;
     if (!isMap(src.data)) return o.report(at, `${file} is not a diagram or model`);
     const part = Object.fromEntries(Object.entries(src.data).filter(([k]) => !LOOK.includes(k)));
     const type = part.type == null ? mainType : String(part.type);

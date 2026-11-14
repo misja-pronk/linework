@@ -1,0 +1,25 @@
+Every domain, every environment (2 of 2)
+
+Roles, groups and access packages diagram: A row per domain; per environment what its team holds on its catalog, and what the jobs hold. A table of 10 rows by 6 columns.
+
+By row (domain by env)
+Columns: dev (<domain>-team, sp-lakehouse-dev); test (<domain>-team, sp-lakehouse-test); prod (<domain>-team, sp-lakehouse-prod).
+- payroll: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
+- pricing: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
+- inventory: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
+- returns: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
+- loyalty: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
+- fraud: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
+- support: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
+- products: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
+- partners: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
+- risk: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
+
+Layers
+Ways to look at this drawing by tag.
+- dev (tags dev; 0 elements).
+- test (tags test; 0 elements).
+- prod (tags prod; 0 elements).
+
+Key
+- Indigo filled pill: Assigned directly

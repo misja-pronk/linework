@@ -1,22 +1,20 @@
 Personal data
 
-Roles, groups and access packages diagram: mask_pii masks the columns tagged pii for everyone but customers-team and the prod jobs. 6 elements in 1 group, with 8 connections.
+Roles, groups and access packages diagram: Northwind lakehouse · mask_pii masks the columns tagged pii for all but customers-team and the prod jobs. 5 elements in 1 group, with 7 connections.
 
 Groups and elements
 - mask_pii (Masks columns tagged pii)
 - customers_prod (Bound to dbw-lakehouse-prod)
-  - customers_prod.gold (pii tagged columns)
+  - customers_prod.gold (Schema)
 - customers-team (Account group)
-- sp-lakehouse-prod (Runs the jobs in prod)
-- engineers (Every domain team)
+- sp-lakehouse-prod (Deploys and runs prod)
 - analysts (Power BI and Genie)
 
 Connections
 - mask_pii connects to customers_prod (Policy on: pii), excludes customers-team and excludes sp-lakehouse-prod.
-- customers-team is MANAGE on customers_prod and is a member of engineers.
-- sp-lakehouse-prod is Write on customers_prod.
-- engineers is BROWSE on customers_prod.
-- analysts is Read on customers_prod.gold.
+- customers-team is Read catalog on customers_prod.
+- sp-lakehouse-prod is Owner on customers_prod.
+- analysts is Use catalog on customers_prod and is Read schema on customers_prod.gold.
 
 Layers
 Ways to look at this drawing by tag.
@@ -25,7 +23,6 @@ Ways to look at this drawing by tag.
 - Production (tags prod; 2 elements).
 
 Key
-- Dotted line: Member of
 - Solid sky line: Role assignment
 - Dotted rose line with ticks: Excluded from the policy
 - Solid amber line, double: Data policy on

@@ -1,6 +1,7 @@
-# Open Data Contract Standard v3.1 — https://bitol-io.github.io/open-data-contract-standard/
+# Open Data Contract Standard v3.2.0 — https://bitol-io.github.io/open-data-contract-standard/
+# host: the workspace URL of dbw-lakehouse-prod (adb-<workspace id>.<n>.azuredatabricks.net), reached over Private Link
 # The Orders product's output port: orders_prod.gold.orders in Unity Catalog.
-apiVersion: v3.1.0
+apiVersion: v3.2.0
 kind: DataContract
 id: northwind-orders
 name: orders
@@ -13,7 +14,7 @@ description:
 servers:
   - server: prod
     type: databricks
-    host: dbw-lakehouse-prod
+    host: adb-2718281828459045.5.azuredatabricks.net
     catalog: orders_prod
     schema: gold
 schema:
