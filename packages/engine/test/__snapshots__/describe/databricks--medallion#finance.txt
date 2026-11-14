@@ -1,0 +1,30 @@
+Finance domain
+
+Azure infrastructure diagram: Northwind lakehouse · invoices from the ERP into finance_prod, reported in Power BI. 9 elements in 2 groups, with 8 connections.
+
+Groups and elements
+- ERP (SQL Server · on-premises): Orders and invoices and stock
+- erp-ingest (SQL Server connector · ingestion gateway)
+- finance_prod (Catalog)
+  - bronze (Schema)
+  - silver (Schema)
+  - gold (Schema)
+    - revenue (Table)
+- bi-warehouse (Serverless SQL warehouse)
+- Power BI (Fabric capacity F64): Reports on gold through the SQL warehouse
+- Business analysts (Users): Read gold data in Power BI and Genie
+- finance-pipeline (Lakeflow pipeline)
+
+Connections
+- ERP sends data to erp-ingest (CDC [SQL Server]).
+- erp-ingest sends data to bronze.
+- bronze sends data to silver (clean).
+- silver sends data to gold (aggregate).
+- gold sends data to bi-warehouse.
+- bi-warehouse sends data to Power BI (DirectQuery).
+- Power BI sends data to Business analysts (Reports).
+- finance-pipeline connects to finance_prod (Management: refreshes).
+
+Key
+- Solid violet line with ticks: Data flow
+- Dotted line with ticks: Management

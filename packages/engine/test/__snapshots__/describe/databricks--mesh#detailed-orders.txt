@@ -1,0 +1,20 @@
+Data products
+
+Data products, orders in detail: Orders in detail. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- ERP (SQL Server · CDC)
+- Orders (Domain · Order management team)
+  - Orders (Gold · v2.3.0)
+  - orders (Data contract · v2.3.0)
+- Sell-through (Sales · Gold)
+- Demand forecast (Supply chain · Gold)
+
+Connections
+- ERP connects to Orders.
+- Orders.orders_prod.gold.orders connects to Sell-through, connects to Demand forecast and is linked with orders.
+
+Key
+- Amber icon: Gold
+- Solid line: Data flow
+- Dashed violet line: Data contract
