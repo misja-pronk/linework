@@ -1,32 +1,28 @@
 # Northwind's lakehouse on Azure Databricks, described once (West Europe). Diagrams in this folder include it.
-#   teams         who owns what (owner: on the rest; on a catalog, its Unity Catalog owner: the domain team in dev,
-#                 sp-lakehouse-test and sp-lakehouse-prod in test and prod, see governance.yaml)
-#   sources       ERP (on-premises), web shop (Azure SQL, Event Hubs), Salesforce, the suppliers' SFTP server
-#   lakehouse     what the bundle deploys to every workspace: Lakeflow Connect, pipelines, jobs, warehouse, serving, app
-#   uc            the Unity Catalog metastore: <domain>_<env> catalogs (bronze, silver, gold schemas),
-#                 cred_<domain>_<env> storage credentials, <domain>_<env>_catalog and _landing external locations,
-#                 shares and recipients
-#   per env       sub-, rg-, vnet- (host, container, pep subnets), nsg-, rt- (0.0.0.0/0 to afw-hub), dbw-, dbac-,
-#                 kv-, ncc-, pep- (back-end, front-end), st<domain><env> (containers: catalog, landing) with pep-…-dfs
-#   hub           vnet-hub-weu with afw-hub, the front-end and browser-auth endpoints, dbw-webauth-weu, DNS zones and
-#                 the DNS Private Resolver, the OpenSharing (metastore) NCC
-#   consumers     Power BI, analysts, sales reps, replenishment, Contoso Retail (OpenSharing)
-# One classic, VNet-injected workspace per environment, shared by the domains (catalogs and groups keep them apart,
-# as Databricks advises); dbw-webauth-weu only serves browser sign-in over Private Link. Each <domain>_<env> catalog
-# is ISOLATED and bound to dbw-lakehouse-<env> only. Storage is per domain and environment; no shared lake account.
+# One VNet-injected workspace per environment, shared by the domains; one Unity Catalog metastore. Per domain and
+# environment an ISOLATED catalog bound to its workspace, a storage account, a credential and two external locations.
+# A name with <domain> or <env> is written once per value of that list under each:, so a domain is one line there.
 # Data-flow relations describe production; storage, binding and network relations are given for every environment.
 type: model
 title: Northwind lakehouse
 
+each:
+  domain:
+    orders: { team: Order management team }
+    webshop: { team: Web shop team }
+    finance: { team: Finance data team }
+    sales: { team: Sales analytics team }
+    customers: { team: CRM team }
+    supply: { team: Supply chain data team }
+  env:
+    dev: { cidr: 10.1.8.0/22, host: 10.1.8.0/24, container: 10.1.9.0/24, pep: 10.1.10.0/27 }
+    test: { cidr: 10.1.12.0/22, host: 10.1.12.0/24, container: 10.1.13.0/24, pep: 10.1.14.0/27 }
+    prod: { cidr: 10.1.16.0/21, host: 10.1.16.0/23, container: 10.1.18.0/23, pep: 10.1.20.0/27 }
+
 elements:
   # Teams
   platform-team: { kind: users, label: Data platform team, description: Runs the workspaces and Unity Catalog, tags: [team] }
-  orders-team: { kind: users, label: Order management team, tags: [team] }
-  webshop-team: { kind: users, label: Web shop team, tags: [team] }
-  finance-team: { kind: users, label: Finance data team, tags: [team] }
-  sales-team: { kind: users, label: Sales analytics team, tags: [team] }
-  customers-team: { kind: users, label: CRM team, tags: [team] }
-  supply-team: { kind: users, label: Supply chain data team, tags: [team] }
+  <domain>-team: { kind: users, label: <domain.team>, tags: [team] }
   analysts: { kind: users, label: Business analysts, technology: Power BI · Genie, description: Read gold data in Power BI and Genie }
   sales-reps: { kind: users, label: Sales reps, technology: Customer 360 app, description: Look up customers in the Customer 360 app }
 
@@ -77,18 +73,10 @@ elements:
     owner: platform-team
     elements:
       system: { kind: catalog, label: system, description: System tables for billing and audit and lineage }
-      orders_dev: { kind: catalog, label: orders_dev, owner: orders-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      webshop_dev: { kind: catalog, label: webshop_dev, owner: webshop-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      finance_dev: { kind: catalog, label: finance_dev, owner: finance-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      sales_dev: { kind: catalog, label: sales_dev, owner: sales-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      customers_dev: { kind: catalog, label: customers_dev, owner: customers-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      supply_dev: { kind: catalog, label: supply_dev, owner: supply-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      orders_test: { kind: catalog, label: orders_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      webshop_test: { kind: catalog, label: webshop_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      finance_test: { kind: catalog, label: finance_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      sales_test: { kind: catalog, label: sales_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      customers_test: { kind: catalog, label: customers_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      supply_test: { kind: catalog, label: supply_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      # A catalog's Unity Catalog owner: the domain team in dev, the environment's service principal in test and
+      # prod (governance.yaml). Production's gold holds the tables the diagrams name.
+      <domain>_dev: { kind: catalog, label: <domain>_dev, owner: <domain>-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      <domain>_test: { kind: catalog, label: <domain>_test, owner: sp-lakehouse-test, tags: [test], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
       orders_prod:
         kind: catalog
         label: orders_prod
@@ -148,68 +136,13 @@ elements:
             elements:
               stock_levels: { kind: table, label: stock_levels }
               demand_forecast: { kind: registered-model, label: demand_forecast }
-      # Storage credentials: one per domain and environment, cred_<domain>_<env>. The Unity Catalog deployment guide
-      # (docs/research/databricks-2026.md §5) advises separate storage accounts, storage credentials and access
-      # connectors per environment and per domain. Each credential and each external location is ISOLATED and bound to
-      # dbw-lakehouse-<env> only, as the catalogs are (governance.yaml). Access connectors stay per environment
-      # (Northwind's choice): the six credentials of an environment all use dbac-lakehouse-<env>, so domains are kept
-      # apart in Unity Catalog, not in Azure RBAC.
-      # External locations: <domain>_<env>_catalog (the catalog's managed location) and <domain>_<env>_landing
-      # (files the domain ingests), on the containers catalog and landing of st<domain><env>.
-      cred_orders_dev: { kind: storage-credential, label: cred_orders_dev, tags: [dev] }
-      cred_webshop_dev: { kind: storage-credential, label: cred_webshop_dev, tags: [dev] }
-      cred_finance_dev: { kind: storage-credential, label: cred_finance_dev, tags: [dev] }
-      cred_sales_dev: { kind: storage-credential, label: cred_sales_dev, tags: [dev] }
-      cred_customers_dev: { kind: storage-credential, label: cred_customers_dev, tags: [dev] }
-      cred_supply_dev: { kind: storage-credential, label: cred_supply_dev, tags: [dev] }
-      cred_orders_test: { kind: storage-credential, label: cred_orders_test, tags: [test] }
-      cred_webshop_test: { kind: storage-credential, label: cred_webshop_test, tags: [test] }
-      cred_finance_test: { kind: storage-credential, label: cred_finance_test, tags: [test] }
-      cred_sales_test: { kind: storage-credential, label: cred_sales_test, tags: [test] }
-      cred_customers_test: { kind: storage-credential, label: cred_customers_test, tags: [test] }
-      cred_supply_test: { kind: storage-credential, label: cred_supply_test, tags: [test] }
-      cred_orders_prod: { kind: storage-credential, label: cred_orders_prod, tags: [prod] }
-      cred_webshop_prod: { kind: storage-credential, label: cred_webshop_prod, tags: [prod] }
-      cred_finance_prod: { kind: storage-credential, label: cred_finance_prod, tags: [prod] }
-      cred_sales_prod: { kind: storage-credential, label: cred_sales_prod, tags: [prod] }
-      cred_customers_prod: { kind: storage-credential, label: cred_customers_prod, tags: [prod] }
-      cred_supply_prod: { kind: storage-credential, label: cred_supply_prod, tags: [prod] }
-      orders_dev_catalog: { kind: external-location, label: orders_dev_catalog, technology: catalog@stordersdev, tags: [dev] }
-      orders_dev_landing: { kind: external-location, label: orders_dev_landing, technology: landing@stordersdev, tags: [dev] }
-      webshop_dev_catalog: { kind: external-location, label: webshop_dev_catalog, technology: catalog@stwebshopdev, tags: [dev] }
-      webshop_dev_landing: { kind: external-location, label: webshop_dev_landing, technology: landing@stwebshopdev, tags: [dev] }
-      finance_dev_catalog: { kind: external-location, label: finance_dev_catalog, technology: catalog@stfinancedev, tags: [dev] }
-      finance_dev_landing: { kind: external-location, label: finance_dev_landing, technology: landing@stfinancedev, tags: [dev] }
-      sales_dev_catalog: { kind: external-location, label: sales_dev_catalog, technology: catalog@stsalesdev, tags: [dev] }
-      sales_dev_landing: { kind: external-location, label: sales_dev_landing, technology: landing@stsalesdev, tags: [dev] }
-      customers_dev_catalog: { kind: external-location, label: customers_dev_catalog, technology: catalog@stcustomersdev, tags: [dev] }
-      customers_dev_landing: { kind: external-location, label: customers_dev_landing, technology: landing@stcustomersdev, tags: [dev] }
-      supply_dev_catalog: { kind: external-location, label: supply_dev_catalog, technology: catalog@stsupplydev, tags: [dev] }
-      supply_dev_landing: { kind: external-location, label: supply_dev_landing, technology: landing@stsupplydev, tags: [dev] }
-      orders_test_catalog: { kind: external-location, label: orders_test_catalog, technology: catalog@storderstest, tags: [test] }
-      orders_test_landing: { kind: external-location, label: orders_test_landing, technology: landing@storderstest, tags: [test] }
-      webshop_test_catalog: { kind: external-location, label: webshop_test_catalog, technology: catalog@stwebshoptest, tags: [test] }
-      webshop_test_landing: { kind: external-location, label: webshop_test_landing, technology: landing@stwebshoptest, tags: [test] }
-      finance_test_catalog: { kind: external-location, label: finance_test_catalog, technology: catalog@stfinancetest, tags: [test] }
-      finance_test_landing: { kind: external-location, label: finance_test_landing, technology: landing@stfinancetest, tags: [test] }
-      sales_test_catalog: { kind: external-location, label: sales_test_catalog, technology: catalog@stsalestest, tags: [test] }
-      sales_test_landing: { kind: external-location, label: sales_test_landing, technology: landing@stsalestest, tags: [test] }
-      customers_test_catalog: { kind: external-location, label: customers_test_catalog, technology: catalog@stcustomerstest, tags: [test] }
-      customers_test_landing: { kind: external-location, label: customers_test_landing, technology: landing@stcustomerstest, tags: [test] }
-      supply_test_catalog: { kind: external-location, label: supply_test_catalog, technology: catalog@stsupplytest, tags: [test] }
-      supply_test_landing: { kind: external-location, label: supply_test_landing, technology: landing@stsupplytest, tags: [test] }
-      orders_prod_catalog: { kind: external-location, label: orders_prod_catalog, technology: catalog@stordersprod, tags: [prod] }
-      orders_prod_landing: { kind: external-location, label: orders_prod_landing, technology: landing@stordersprod, tags: [prod] }
-      webshop_prod_catalog: { kind: external-location, label: webshop_prod_catalog, technology: catalog@stwebshopprod, tags: [prod] }
-      webshop_prod_landing: { kind: external-location, label: webshop_prod_landing, technology: landing@stwebshopprod, tags: [prod] }
-      finance_prod_catalog: { kind: external-location, label: finance_prod_catalog, technology: catalog@stfinanceprod, tags: [prod] }
-      finance_prod_landing: { kind: external-location, label: finance_prod_landing, technology: landing@stfinanceprod, tags: [prod] }
-      sales_prod_catalog: { kind: external-location, label: sales_prod_catalog, technology: catalog@stsalesprod, tags: [prod] }
-      sales_prod_landing: { kind: external-location, label: sales_prod_landing, technology: landing@stsalesprod, tags: [prod] }
-      customers_prod_catalog: { kind: external-location, label: customers_prod_catalog, technology: catalog@stcustomersprod, tags: [prod] }
-      customers_prod_landing: { kind: external-location, label: customers_prod_landing, technology: landing@stcustomersprod, tags: [prod] }
-      supply_prod_catalog: { kind: external-location, label: supply_prod_catalog, technology: catalog@stsupplyprod, tags: [prod] }
-      supply_prod_landing: { kind: external-location, label: supply_prod_landing, technology: landing@stsupplyprod, tags: [prod] }
+      # Storage credentials and external locations, per domain and environment and ISOLATED like the catalogs, as the
+      # Unity Catalog deployment guide advises (docs/research/databricks-2026.md §5). A credential uses its environment's
+      # access connector, so domains are kept apart in Unity Catalog, not in Azure RBAC. <domain>_<env>_catalog is the
+      # catalog's managed location, <domain>_<env>_landing the files the domain ingests.
+      cred_<domain>_<env>: { kind: storage-credential, label: cred_<domain>_<env>, tags: [<env>] }
+      <domain>_<env>_catalog: { kind: external-location, label: <domain>_<env>_catalog, technology: catalog@st<domain><env>, tags: [<env>] }
+      <domain>_<env>_landing: { kind: external-location, label: <domain>_<env>_landing, technology: landing@st<domain><env>, tags: [<env>] }
       contoso_sell_through: { kind: share, label: contoso_sell_through, technology: OpenSharing, owner: sales-team }
       contoso: { kind: recipient, label: contoso, technology: Databricks-to-Databricks }
 
@@ -230,9 +163,7 @@ elements:
   afw-hub: { kind: firewall, label: afw-hub, technology: Premium · 10.0.0.68 }
   dbw-webauth-weu: { kind: databricks, label: dbw-webauth-weu, technology: Private web auth · no workloads, description: Holds the region's browser_authentication endpoint; delete lock, owner: platform-team }
   pep-dbw-webauth-weu: { kind: private-endpoint, label: pep-dbw-webauth-weu, technology: browser_authentication }
-  pep-dbw-lakehouse-dev-ui: { kind: private-endpoint, label: pep-dbw-lakehouse-dev-ui, technology: databricks_ui_api · front-end, tags: [dev] }
-  pep-dbw-lakehouse-test-ui: { kind: private-endpoint, label: pep-dbw-lakehouse-test-ui, technology: databricks_ui_api · front-end, tags: [test] }
-  pep-dbw-lakehouse-prod-ui: { kind: private-endpoint, label: pep-dbw-lakehouse-prod-ui, technology: databricks_ui_api · front-end, tags: [prod] }
+  pep-dbw-lakehouse-<env>-ui: { kind: private-endpoint, label: pep-dbw-lakehouse-<env>-ui, technology: databricks_ui_api · front-end, tags: [<env>] }
   privatelink-azuredatabricks-net: { kind: dns, label: privatelink.azuredatabricks.net, technology: Private DNS zone }
   privatelink-dfs-core-windows-net: { kind: dns, label: privatelink.dfs.core.windows.net, technology: Private DNS zone }
   privatelink-blob-core-windows-net: { kind: dns, label: privatelink.blob.core.windows.net, technology: Private DNS zone }
@@ -243,107 +174,29 @@ elements:
   # storage behind what is shared, https://learn.microsoft.com/azure/databricks/opensharing/secureconnect-provider
   ncc-opensharing-weu: { kind: ncc, label: ncc-opensharing-weu, technology: Metastore NCC · SecureConnect, owner: platform-team }
 
-  # Development
-  sub-lakehouse-dev: { kind: subscription, label: sub-lakehouse-dev, tags: [dev] }
-  rg-lakehouse-dev: { kind: resource-group, label: rg-lakehouse-dev, tags: [dev] }
-  vnet-lakehouse-dev:
+  # Per environment: a spoke subscription with the workspace, one access connector (its managed identity has Storage
+  # Blob Data Contributor on the environment's domain accounts) and a storage account per domain (containers:
+  # catalog, landing), each with a dfs private endpoint in snet-pep
+  sub-lakehouse-<env>: { kind: subscription, label: sub-lakehouse-<env>, tags: [<env>] }
+  rg-lakehouse-<env>: { kind: resource-group, label: rg-lakehouse-<env>, tags: [<env>] }
+  vnet-lakehouse-<env>:
     kind: vnet
-    label: vnet-lakehouse-dev
-    technology: 10.1.8.0/22
-    tags: [dev]
+    label: vnet-lakehouse-<env>
+    technology: <env.cidr>
+    tags: [<env>]
     elements:
-      snet-dbw-host: { kind: subnet, label: snet-dbw-host, technology: 10.1.8.0/24 }
-      snet-dbw-container: { kind: subnet, label: snet-dbw-container, technology: 10.1.9.0/24 }
-      snet-pep: { kind: subnet, label: snet-pep, technology: 10.1.10.0/27 }
-  nsg-dbw-lakehouse-dev: { kind: nsg, label: nsg-dbw-lakehouse-dev, technology: Rules managed by Databricks, tags: [dev] }
-  rt-lakehouse-dev: { kind: route-table, label: rt-lakehouse-dev, technology: 0.0.0.0/0 → 10.0.0.68, tags: [dev] }
-  dbw-lakehouse-dev: { kind: databricks, label: dbw-lakehouse-dev, technology: Premium · VNet-injected · no public access, owner: platform-team, tags: [dev] }
-  # One access connector per environment; its managed identity has Storage Blob Data Contributor on the six dev domain accounts
-  dbac-lakehouse-dev: { kind: access-connector, label: dbac-lakehouse-dev, technology: System-assigned identity, tags: [dev] }
-  kv-lakehouse-dev: { kind: secrets, label: kv-lakehouse-dev, technology: Key Vault · secret scope, tags: [dev] }
-  ncc-lakehouse-dev: { kind: ncc, label: ncc-lakehouse-dev, technology: Private endpoints to the dev accounts, tags: [dev] }
-  pep-dbw-lakehouse-dev: { kind: private-endpoint, label: pep-dbw-lakehouse-dev, technology: databricks_ui_api · back-end, tags: [dev] }
-  # A storage account per domain (containers: catalog, landing), each with a dfs private endpoint in snet-pep
-  stordersdev: { kind: storage, label: stordersdev, technology: ADLS Gen2 · catalog · landing, owner: orders-team, tags: [dev] }
-  stwebshopdev: { kind: storage, label: stwebshopdev, technology: ADLS Gen2 · catalog · landing, owner: webshop-team, tags: [dev] }
-  stfinancedev: { kind: storage, label: stfinancedev, technology: ADLS Gen2 · catalog · landing, owner: finance-team, tags: [dev] }
-  stsalesdev: { kind: storage, label: stsalesdev, technology: ADLS Gen2 · catalog · landing, owner: sales-team, tags: [dev] }
-  stcustomersdev: { kind: storage, label: stcustomersdev, technology: ADLS Gen2 · catalog · landing, owner: customers-team, tags: [dev] }
-  stsupplydev: { kind: storage, label: stsupplydev, technology: ADLS Gen2 · catalog · landing, owner: supply-team, tags: [dev] }
-  pep-stordersdev-dfs: { kind: private-endpoint, label: pep-stordersdev-dfs, technology: dfs, tags: [dev] }
-  pep-stwebshopdev-dfs: { kind: private-endpoint, label: pep-stwebshopdev-dfs, technology: dfs, tags: [dev] }
-  pep-stfinancedev-dfs: { kind: private-endpoint, label: pep-stfinancedev-dfs, technology: dfs, tags: [dev] }
-  pep-stsalesdev-dfs: { kind: private-endpoint, label: pep-stsalesdev-dfs, technology: dfs, tags: [dev] }
-  pep-stcustomersdev-dfs: { kind: private-endpoint, label: pep-stcustomersdev-dfs, technology: dfs, tags: [dev] }
-  pep-stsupplydev-dfs: { kind: private-endpoint, label: pep-stsupplydev-dfs, technology: dfs, tags: [dev] }
-
-  # Test
-  sub-lakehouse-test: { kind: subscription, label: sub-lakehouse-test, tags: [test] }
-  rg-lakehouse-test: { kind: resource-group, label: rg-lakehouse-test, tags: [test] }
-  vnet-lakehouse-test:
-    kind: vnet
-    label: vnet-lakehouse-test
-    technology: 10.1.12.0/22
-    tags: [test]
-    elements:
-      snet-dbw-host: { kind: subnet, label: snet-dbw-host, technology: 10.1.12.0/24 }
-      snet-dbw-container: { kind: subnet, label: snet-dbw-container, technology: 10.1.13.0/24 }
-      snet-pep: { kind: subnet, label: snet-pep, technology: 10.1.14.0/27 }
-  nsg-dbw-lakehouse-test: { kind: nsg, label: nsg-dbw-lakehouse-test, technology: Rules managed by Databricks, tags: [test] }
-  rt-lakehouse-test: { kind: route-table, label: rt-lakehouse-test, technology: 0.0.0.0/0 → 10.0.0.68, tags: [test] }
-  dbw-lakehouse-test: { kind: databricks, label: dbw-lakehouse-test, technology: Premium · VNet-injected · no public access, owner: platform-team, tags: [test] }
-  # One access connector per environment; its managed identity has Storage Blob Data Contributor on the six test domain accounts
-  dbac-lakehouse-test: { kind: access-connector, label: dbac-lakehouse-test, technology: System-assigned identity, tags: [test] }
-  kv-lakehouse-test: { kind: secrets, label: kv-lakehouse-test, technology: Key Vault · secret scope, tags: [test] }
-  ncc-lakehouse-test: { kind: ncc, label: ncc-lakehouse-test, technology: Private endpoints to the test accounts, tags: [test] }
-  pep-dbw-lakehouse-test: { kind: private-endpoint, label: pep-dbw-lakehouse-test, technology: databricks_ui_api · back-end, tags: [test] }
-  # A storage account per domain (containers: catalog, landing), each with a dfs private endpoint in snet-pep
-  storderstest: { kind: storage, label: storderstest, technology: ADLS Gen2 · catalog · landing, owner: orders-team, tags: [test] }
-  stwebshoptest: { kind: storage, label: stwebshoptest, technology: ADLS Gen2 · catalog · landing, owner: webshop-team, tags: [test] }
-  stfinancetest: { kind: storage, label: stfinancetest, technology: ADLS Gen2 · catalog · landing, owner: finance-team, tags: [test] }
-  stsalestest: { kind: storage, label: stsalestest, technology: ADLS Gen2 · catalog · landing, owner: sales-team, tags: [test] }
-  stcustomerstest: { kind: storage, label: stcustomerstest, technology: ADLS Gen2 · catalog · landing, owner: customers-team, tags: [test] }
-  stsupplytest: { kind: storage, label: stsupplytest, technology: ADLS Gen2 · catalog · landing, owner: supply-team, tags: [test] }
-  pep-storderstest-dfs: { kind: private-endpoint, label: pep-storderstest-dfs, technology: dfs, tags: [test] }
-  pep-stwebshoptest-dfs: { kind: private-endpoint, label: pep-stwebshoptest-dfs, technology: dfs, tags: [test] }
-  pep-stfinancetest-dfs: { kind: private-endpoint, label: pep-stfinancetest-dfs, technology: dfs, tags: [test] }
-  pep-stsalestest-dfs: { kind: private-endpoint, label: pep-stsalestest-dfs, technology: dfs, tags: [test] }
-  pep-stcustomerstest-dfs: { kind: private-endpoint, label: pep-stcustomerstest-dfs, technology: dfs, tags: [test] }
-  pep-stsupplytest-dfs: { kind: private-endpoint, label: pep-stsupplytest-dfs, technology: dfs, tags: [test] }
-
-  # Production
-  sub-lakehouse-prod: { kind: subscription, label: sub-lakehouse-prod, tags: [prod] }
-  rg-lakehouse-prod: { kind: resource-group, label: rg-lakehouse-prod, tags: [prod] }
-  vnet-lakehouse-prod:
-    kind: vnet
-    label: vnet-lakehouse-prod
-    technology: 10.1.16.0/21
-    tags: [prod]
-    elements:
-      snet-dbw-host: { kind: subnet, label: snet-dbw-host, technology: 10.1.16.0/23 }
-      snet-dbw-container: { kind: subnet, label: snet-dbw-container, technology: 10.1.18.0/23 }
-      snet-pep: { kind: subnet, label: snet-pep, technology: 10.1.20.0/27 }
-  nsg-dbw-lakehouse-prod: { kind: nsg, label: nsg-dbw-lakehouse-prod, technology: Rules managed by Databricks, tags: [prod] }
-  rt-lakehouse-prod: { kind: route-table, label: rt-lakehouse-prod, technology: 0.0.0.0/0 → 10.0.0.68, tags: [prod] }
-  dbw-lakehouse-prod: { kind: databricks, label: dbw-lakehouse-prod, technology: Premium · VNet-injected · no public access, owner: platform-team, tags: [prod] }
-  # One access connector per environment; its managed identity has Storage Blob Data Contributor on the six prod domain accounts
-  dbac-lakehouse-prod: { kind: access-connector, label: dbac-lakehouse-prod, technology: System-assigned identity, tags: [prod] }
-  kv-lakehouse-prod: { kind: secrets, label: kv-lakehouse-prod, technology: Key Vault · secret scope, tags: [prod] }
-  ncc-lakehouse-prod: { kind: ncc, label: ncc-lakehouse-prod, technology: Private endpoints to the prod accounts, tags: [prod] }
-  pep-dbw-lakehouse-prod: { kind: private-endpoint, label: pep-dbw-lakehouse-prod, technology: databricks_ui_api · back-end, tags: [prod] }
-  # A storage account per domain (containers: catalog, landing), each with a dfs private endpoint in snet-pep
-  stordersprod: { kind: storage, label: stordersprod, technology: ADLS Gen2 · catalog · landing, owner: orders-team, tags: [prod] }
-  stwebshopprod: { kind: storage, label: stwebshopprod, technology: ADLS Gen2 · catalog · landing, owner: webshop-team, tags: [prod] }
-  stfinanceprod: { kind: storage, label: stfinanceprod, technology: ADLS Gen2 · catalog · landing, owner: finance-team, tags: [prod] }
-  stsalesprod: { kind: storage, label: stsalesprod, technology: ADLS Gen2 · catalog · landing, owner: sales-team, tags: [prod] }
-  stcustomersprod: { kind: storage, label: stcustomersprod, technology: ADLS Gen2 · catalog · landing, owner: customers-team, tags: [prod] }
-  stsupplyprod: { kind: storage, label: stsupplyprod, technology: ADLS Gen2 · catalog · landing, owner: supply-team, tags: [prod] }
-  pep-stordersprod-dfs: { kind: private-endpoint, label: pep-stordersprod-dfs, technology: dfs, tags: [prod] }
-  pep-stwebshopprod-dfs: { kind: private-endpoint, label: pep-stwebshopprod-dfs, technology: dfs, tags: [prod] }
-  pep-stfinanceprod-dfs: { kind: private-endpoint, label: pep-stfinanceprod-dfs, technology: dfs, tags: [prod] }
-  pep-stsalesprod-dfs: { kind: private-endpoint, label: pep-stsalesprod-dfs, technology: dfs, tags: [prod] }
-  pep-stcustomersprod-dfs: { kind: private-endpoint, label: pep-stcustomersprod-dfs, technology: dfs, tags: [prod] }
-  pep-stsupplyprod-dfs: { kind: private-endpoint, label: pep-stsupplyprod-dfs, technology: dfs, tags: [prod] }
+      snet-dbw-host: { kind: subnet, label: snet-dbw-host, technology: <env.host> }
+      snet-dbw-container: { kind: subnet, label: snet-dbw-container, technology: <env.container> }
+      snet-pep: { kind: subnet, label: snet-pep, technology: <env.pep> }
+  nsg-dbw-lakehouse-<env>: { kind: nsg, label: nsg-dbw-lakehouse-<env>, technology: Rules managed by Databricks, tags: [<env>] }
+  rt-lakehouse-<env>: { kind: route-table, label: rt-lakehouse-<env>, technology: 0.0.0.0/0 → 10.0.0.68, tags: [<env>] }
+  dbw-lakehouse-<env>: { kind: databricks, label: dbw-lakehouse-<env>, technology: Premium · VNet-injected · no public access, owner: platform-team, tags: [<env>] }
+  dbac-lakehouse-<env>: { kind: access-connector, label: dbac-lakehouse-<env>, technology: System-assigned identity, tags: [<env>] }
+  kv-lakehouse-<env>: { kind: secrets, label: kv-lakehouse-<env>, technology: Key Vault · secret scope, tags: [<env>] }
+  ncc-lakehouse-<env>: { kind: ncc, label: ncc-lakehouse-<env>, technology: Private endpoints to the <env> accounts, tags: [<env>] }
+  pep-dbw-lakehouse-<env>: { kind: private-endpoint, label: pep-dbw-lakehouse-<env>, technology: databricks_ui_api · back-end, tags: [<env>] }
+  st<domain><env>: { kind: storage, label: st<domain><env>, technology: ADLS Gen2 · catalog · landing, owner: <domain>-team, tags: [<env>] }
+  pep-st<domain><env>-dfs: { kind: private-endpoint, label: pep-st<domain><env>-dfs, technology: dfs, tags: [<env>] }
 
   # Consumers
   power-bi: { kind: fabric, label: Power BI, technology: Fabric capacity F64, description: Reports on gold through the SQL warehouse }
@@ -364,21 +217,11 @@ relations:
   - lakehouse.clickstream -> uc-weu.webshop_prod.bronze: { style: data }
   - lakehouse.salesforce-ingest -> uc-weu.customers_prod.bronze: { style: data }
   - lakehouse.salesforce-ingest -> uc-weu.sales_prod.bronze: { style: data }
-  # Bronze → silver → gold, one pipeline per domain
-  - uc-weu.orders_prod.bronze -> lakehouse.orders-pipeline: { style: data }
-  - lakehouse.orders-pipeline -> uc-weu.orders_prod.gold: { style: data }
-  - uc-weu.webshop_prod.bronze -> lakehouse.webshop-pipeline: { style: data }
-  - lakehouse.webshop-pipeline -> uc-weu.webshop_prod.gold: { style: data }
-  - uc-weu.finance_prod.bronze -> lakehouse.finance-pipeline: { style: data }
-  - lakehouse.finance-pipeline -> uc-weu.finance_prod.gold: { style: data }
-  - uc-weu.customers_prod.bronze -> lakehouse.customers-pipeline: { style: data }
-  - lakehouse.customers-pipeline -> uc-weu.customers_prod.gold: { style: data }
-  - uc-weu.supply_prod.bronze -> lakehouse.supply-pipeline: { style: data }
-  - lakehouse.supply-pipeline -> uc-weu.supply_prod.gold: { style: data }
-  - uc-weu.sales_prod.bronze -> lakehouse.sales-pipeline: { style: data }
+  # Bronze → silver → gold, one pipeline per domain; sales also reads orders and customers
+  - uc-weu.<domain>_prod.bronze -> lakehouse.<domain>-pipeline: { style: data }
+  - lakehouse.<domain>-pipeline -> uc-weu.<domain>_prod.gold: { style: data }
   - uc-weu.orders_prod.gold -> lakehouse.sales-pipeline: { label: orders, style: data }
   - uc-weu.customers_prod.gold -> lakehouse.sales-pipeline: { label: customers, style: data }
-  - lakehouse.sales-pipeline -> uc-weu.sales_prod.gold: { style: data }
   - lakehouse.nightly -> lakehouse.orders-pipeline: Runs
   - lakehouse.nightly -> lakehouse.sales-pipeline: Runs
   - lakehouse.nightly -> lakehouse.finance-pipeline: Runs
@@ -407,166 +250,22 @@ relations:
   - entra-id -> databricks-account: { label: Automatic identity management, style: identity }
   - databricks-account -> uc-weu: Owns
   # Catalogs are ISOLATED, each bound read-write to its environment's workspace only
-  - uc-weu.orders_dev -> dbw-lakehouse-dev: Bound
-  - uc-weu.webshop_dev -> dbw-lakehouse-dev: Bound
-  - uc-weu.finance_dev -> dbw-lakehouse-dev: Bound
-  - uc-weu.sales_dev -> dbw-lakehouse-dev: Bound
-  - uc-weu.customers_dev -> dbw-lakehouse-dev: Bound
-  - uc-weu.supply_dev -> dbw-lakehouse-dev: Bound
-  - uc-weu.orders_test -> dbw-lakehouse-test: Bound
-  - uc-weu.webshop_test -> dbw-lakehouse-test: Bound
-  - uc-weu.finance_test -> dbw-lakehouse-test: Bound
-  - uc-weu.sales_test -> dbw-lakehouse-test: Bound
-  - uc-weu.customers_test -> dbw-lakehouse-test: Bound
-  - uc-weu.supply_test -> dbw-lakehouse-test: Bound
-  - uc-weu.orders_prod -> dbw-lakehouse-prod: Bound
-  - uc-weu.webshop_prod -> dbw-lakehouse-prod: Bound
-  - uc-weu.finance_prod -> dbw-lakehouse-prod: Bound
-  - uc-weu.sales_prod -> dbw-lakehouse-prod: Bound
-  - uc-weu.customers_prod -> dbw-lakehouse-prod: Bound
-  - uc-weu.supply_prod -> dbw-lakehouse-prod: Bound
+  - uc-weu.<domain>_<env> -> dbw-lakehouse-<env>: Bound
   # Storage, per domain and environment: catalog → external location → credential → access connector → storage account
-  - uc-weu.orders_dev -> uc-weu.orders_dev_catalog: Managed location
-  - uc-weu.webshop_dev -> uc-weu.webshop_dev_catalog: Managed location
-  - uc-weu.finance_dev -> uc-weu.finance_dev_catalog: Managed location
-  - uc-weu.sales_dev -> uc-weu.sales_dev_catalog: Managed location
-  - uc-weu.customers_dev -> uc-weu.customers_dev_catalog: Managed location
-  - uc-weu.supply_dev -> uc-weu.supply_dev_catalog: Managed location
-  - uc-weu.orders_test -> uc-weu.orders_test_catalog: Managed location
-  - uc-weu.webshop_test -> uc-weu.webshop_test_catalog: Managed location
-  - uc-weu.finance_test -> uc-weu.finance_test_catalog: Managed location
-  - uc-weu.sales_test -> uc-weu.sales_test_catalog: Managed location
-  - uc-weu.customers_test -> uc-weu.customers_test_catalog: Managed location
-  - uc-weu.supply_test -> uc-weu.supply_test_catalog: Managed location
-  - uc-weu.orders_prod -> uc-weu.orders_prod_catalog: Managed location
-  - uc-weu.webshop_prod -> uc-weu.webshop_prod_catalog: Managed location
-  - uc-weu.finance_prod -> uc-weu.finance_prod_catalog: Managed location
-  - uc-weu.sales_prod -> uc-weu.sales_prod_catalog: Managed location
-  - uc-weu.customers_prod -> uc-weu.customers_prod_catalog: Managed location
-  - uc-weu.supply_prod -> uc-weu.supply_prod_catalog: Managed location
-  - uc-weu.orders_dev_catalog -> uc-weu.cred_orders_dev: Uses
-  - uc-weu.orders_dev_landing -> uc-weu.cred_orders_dev: Uses
-  - uc-weu.webshop_dev_catalog -> uc-weu.cred_webshop_dev: Uses
-  - uc-weu.webshop_dev_landing -> uc-weu.cred_webshop_dev: Uses
-  - uc-weu.finance_dev_catalog -> uc-weu.cred_finance_dev: Uses
-  - uc-weu.finance_dev_landing -> uc-weu.cred_finance_dev: Uses
-  - uc-weu.sales_dev_catalog -> uc-weu.cred_sales_dev: Uses
-  - uc-weu.sales_dev_landing -> uc-weu.cred_sales_dev: Uses
-  - uc-weu.customers_dev_catalog -> uc-weu.cred_customers_dev: Uses
-  - uc-weu.customers_dev_landing -> uc-weu.cred_customers_dev: Uses
-  - uc-weu.supply_dev_catalog -> uc-weu.cred_supply_dev: Uses
-  - uc-weu.supply_dev_landing -> uc-weu.cred_supply_dev: Uses
-  - uc-weu.orders_test_catalog -> uc-weu.cred_orders_test: Uses
-  - uc-weu.orders_test_landing -> uc-weu.cred_orders_test: Uses
-  - uc-weu.webshop_test_catalog -> uc-weu.cred_webshop_test: Uses
-  - uc-weu.webshop_test_landing -> uc-weu.cred_webshop_test: Uses
-  - uc-weu.finance_test_catalog -> uc-weu.cred_finance_test: Uses
-  - uc-weu.finance_test_landing -> uc-weu.cred_finance_test: Uses
-  - uc-weu.sales_test_catalog -> uc-weu.cred_sales_test: Uses
-  - uc-weu.sales_test_landing -> uc-weu.cred_sales_test: Uses
-  - uc-weu.customers_test_catalog -> uc-weu.cred_customers_test: Uses
-  - uc-weu.customers_test_landing -> uc-weu.cred_customers_test: Uses
-  - uc-weu.supply_test_catalog -> uc-weu.cred_supply_test: Uses
-  - uc-weu.supply_test_landing -> uc-weu.cred_supply_test: Uses
-  - uc-weu.orders_prod_catalog -> uc-weu.cred_orders_prod: Uses
-  - uc-weu.orders_prod_landing -> uc-weu.cred_orders_prod: Uses
-  - uc-weu.webshop_prod_catalog -> uc-weu.cred_webshop_prod: Uses
-  - uc-weu.webshop_prod_landing -> uc-weu.cred_webshop_prod: Uses
-  - uc-weu.finance_prod_catalog -> uc-weu.cred_finance_prod: Uses
-  - uc-weu.finance_prod_landing -> uc-weu.cred_finance_prod: Uses
-  - uc-weu.sales_prod_catalog -> uc-weu.cred_sales_prod: Uses
-  - uc-weu.sales_prod_landing -> uc-weu.cred_sales_prod: Uses
-  - uc-weu.customers_prod_catalog -> uc-weu.cred_customers_prod: Uses
-  - uc-weu.customers_prod_landing -> uc-weu.cred_customers_prod: Uses
-  - uc-weu.supply_prod_catalog -> uc-weu.cred_supply_prod: Uses
-  - uc-weu.supply_prod_landing -> uc-weu.cred_supply_prod: Uses
-  - uc-weu.cred_orders_dev -> dbac-lakehouse-dev: { label: Managed identity, style: identity }
-  - uc-weu.cred_webshop_dev -> dbac-lakehouse-dev: { label: Managed identity, style: identity }
-  - uc-weu.cred_finance_dev -> dbac-lakehouse-dev: { label: Managed identity, style: identity }
-  - uc-weu.cred_sales_dev -> dbac-lakehouse-dev: { label: Managed identity, style: identity }
-  - uc-weu.cred_customers_dev -> dbac-lakehouse-dev: { label: Managed identity, style: identity }
-  - uc-weu.cred_supply_dev -> dbac-lakehouse-dev: { label: Managed identity, style: identity }
-  - uc-weu.cred_orders_test -> dbac-lakehouse-test: { label: Managed identity, style: identity }
-  - uc-weu.cred_webshop_test -> dbac-lakehouse-test: { label: Managed identity, style: identity }
-  - uc-weu.cred_finance_test -> dbac-lakehouse-test: { label: Managed identity, style: identity }
-  - uc-weu.cred_sales_test -> dbac-lakehouse-test: { label: Managed identity, style: identity }
-  - uc-weu.cred_customers_test -> dbac-lakehouse-test: { label: Managed identity, style: identity }
-  - uc-weu.cred_supply_test -> dbac-lakehouse-test: { label: Managed identity, style: identity }
-  - uc-weu.cred_orders_prod -> dbac-lakehouse-prod: { label: Managed identity, style: identity }
-  - uc-weu.cred_webshop_prod -> dbac-lakehouse-prod: { label: Managed identity, style: identity }
-  - uc-weu.cred_finance_prod -> dbac-lakehouse-prod: { label: Managed identity, style: identity }
-  - uc-weu.cred_sales_prod -> dbac-lakehouse-prod: { label: Managed identity, style: identity }
-  - uc-weu.cred_customers_prod -> dbac-lakehouse-prod: { label: Managed identity, style: identity }
-  - uc-weu.cred_supply_prod -> dbac-lakehouse-prod: { label: Managed identity, style: identity }
-  - dbac-lakehouse-dev -> stordersdev: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-dev -> stwebshopdev: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-dev -> stfinancedev: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-dev -> stsalesdev: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-dev -> stcustomersdev: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-dev -> stsupplydev: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-test -> storderstest: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-test -> stwebshoptest: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-test -> stfinancetest: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-test -> stsalestest: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-test -> stcustomerstest: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-test -> stsupplytest: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-prod -> stordersprod: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-prod -> stwebshopprod: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-prod -> stfinanceprod: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-prod -> stsalesprod: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-prod -> stcustomersprod: { label: Storage Blob Data Contributor, style: role }
-  - dbac-lakehouse-prod -> stsupplyprod: { label: Storage Blob Data Contributor, style: role }
+  - uc-weu.<domain>_<env> -> uc-weu.<domain>_<env>_catalog: Managed location
+  - uc-weu.<domain>_<env>_catalog -> uc-weu.cred_<domain>_<env>: Uses
+  - uc-weu.<domain>_<env>_landing -> uc-weu.cred_<domain>_<env>: Uses
+  - uc-weu.cred_<domain>_<env> -> dbac-lakehouse-<env>: { label: Managed identity, style: identity }
+  - dbac-lakehouse-<env> -> st<domain><env>: { label: Storage Blob Data Contributor, style: role }
   # Storage over Private Link: a dfs endpoint per account for the classic plane, the NCC's for serverless
-  - pep-stordersdev-dfs -> stordersdev: { style: private }
-  - pep-stwebshopdev-dfs -> stwebshopdev: { style: private }
-  - pep-stfinancedev-dfs -> stfinancedev: { style: private }
-  - pep-stsalesdev-dfs -> stsalesdev: { style: private }
-  - pep-stcustomersdev-dfs -> stcustomersdev: { style: private }
-  - pep-stsupplydev-dfs -> stsupplydev: { style: private }
-  - pep-storderstest-dfs -> storderstest: { style: private }
-  - pep-stwebshoptest-dfs -> stwebshoptest: { style: private }
-  - pep-stfinancetest-dfs -> stfinancetest: { style: private }
-  - pep-stsalestest-dfs -> stsalestest: { style: private }
-  - pep-stcustomerstest-dfs -> stcustomerstest: { style: private }
-  - pep-stsupplytest-dfs -> stsupplytest: { style: private }
-  - pep-stordersprod-dfs -> stordersprod: { style: private }
-  - pep-stwebshopprod-dfs -> stwebshopprod: { style: private }
-  - pep-stfinanceprod-dfs -> stfinanceprod: { style: private }
-  - pep-stsalesprod-dfs -> stsalesprod: { style: private }
-  - pep-stcustomersprod-dfs -> stcustomersprod: { style: private }
-  - pep-stsupplyprod-dfs -> stsupplyprod: { style: private }
-  - ncc-lakehouse-dev -> stordersdev: { label: serverless, style: private }
-  - ncc-lakehouse-dev -> stwebshopdev: { label: serverless, style: private }
-  - ncc-lakehouse-dev -> stfinancedev: { label: serverless, style: private }
-  - ncc-lakehouse-dev -> stsalesdev: { label: serverless, style: private }
-  - ncc-lakehouse-dev -> stcustomersdev: { label: serverless, style: private }
-  - ncc-lakehouse-dev -> stsupplydev: { label: serverless, style: private }
-  - ncc-lakehouse-test -> storderstest: { label: serverless, style: private }
-  - ncc-lakehouse-test -> stwebshoptest: { label: serverless, style: private }
-  - ncc-lakehouse-test -> stfinancetest: { label: serverless, style: private }
-  - ncc-lakehouse-test -> stsalestest: { label: serverless, style: private }
-  - ncc-lakehouse-test -> stcustomerstest: { label: serverless, style: private }
-  - ncc-lakehouse-test -> stsupplytest: { label: serverless, style: private }
-  - ncc-lakehouse-prod -> stordersprod: { label: serverless, style: private }
-  - ncc-lakehouse-prod -> stwebshopprod: { label: serverless, style: private }
-  - ncc-lakehouse-prod -> stfinanceprod: { label: serverless, style: private }
-  - ncc-lakehouse-prod -> stsalesprod: { label: serverless, style: private }
-  - ncc-lakehouse-prod -> stcustomersprod: { label: serverless, style: private }
-  - ncc-lakehouse-prod -> stsupplyprod: { label: serverless, style: private }
+  - pep-st<domain><env>-dfs -> st<domain><env>: { style: private }
+  - ncc-lakehouse-<env> -> st<domain><env>: { label: serverless, style: private }
   # Workspaces: attached to the metastore, reached over Private Link, egress through the hub firewall
-  - dbw-lakehouse-dev -> uc-weu: Attached
-  - dbw-lakehouse-test -> uc-weu: Attached
-  - dbw-lakehouse-prod -> uc-weu: Attached
-  - pep-dbw-lakehouse-dev-ui -> dbw-lakehouse-dev: { label: front-end, style: private }
-  - pep-dbw-lakehouse-test-ui -> dbw-lakehouse-test: { label: front-end, style: private }
-  - pep-dbw-lakehouse-prod-ui -> dbw-lakehouse-prod: { label: front-end, style: private }
-  - pep-dbw-lakehouse-dev -> dbw-lakehouse-dev: { label: back-end, style: private }
-  - pep-dbw-lakehouse-test -> dbw-lakehouse-test: { label: back-end, style: private }
-  - pep-dbw-lakehouse-prod -> dbw-lakehouse-prod: { label: back-end, style: private }
+  - dbw-lakehouse-<env> -> uc-weu: Attached
+  - pep-dbw-lakehouse-<env>-ui -> dbw-lakehouse-<env>: { label: front-end, style: private }
+  - pep-dbw-lakehouse-<env> -> dbw-lakehouse-<env>: { label: back-end, style: private }
   - pep-dbw-webauth-weu -> dbw-webauth-weu: { label: browser sign-in, style: private }
-  - rt-lakehouse-dev -> afw-hub: { label: 0.0.0.0/0, style: private }
-  - rt-lakehouse-test -> afw-hub: { label: 0.0.0.0/0, style: private }
-  - rt-lakehouse-prod -> afw-hub: { label: 0.0.0.0/0, style: private }
+  - rt-lakehouse-<env> -> afw-hub: { label: 0.0.0.0/0, style: private }
 
 views:
   # The model drawn on its own, for a slide: sources on the left, the lakehouse and Unity Catalog in the middle,

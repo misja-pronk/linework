@@ -1,5 +1,5 @@
-# Who may do what in Unity Catalog, for all twenty domains through dev, test and prod: 171 grants, written as
-# eleven lines. The rules are those of examples/databricks:
+# Who may do what in Unity Catalog, for all twenty domains through dev, test and prod: 191 grants, written as
+# twelve lines. The rules are those of examples/databricks:
 #   a domain team owns its dev catalog, reads test, and in prod reads and MANAGEs but does not write;
 #   only the environment's service principal MODIFYs; every engineer may BROWSE production;
 #   analysts read the gold schemas, where mask_pii hides the columns tagged pii.
@@ -37,15 +37,17 @@ resources:
   <domain>_prod_gold: { kind: schema, label: <domain>_prod.gold, in: <domain>_prod, tags: [prod] }
 
 roles:
-  metastore-admin: { label: Metastore admin, tone: rose, permissions: [CREATE CATALOG, take ownership] }
+  # on: says where a privilege can be granted in Unity Catalog, so carto validate warns about a misplaced grant
+  metastore-admin: { label: Metastore admin, tone: rose, permissions: [{ CREATE CATALOG: { on: metastore } }, take ownership] }
   workspace-admin: { label: Workspace admin, tone: rose, permissions: [manage workspace] }
   workspace-user: { label: Workspace user, tone: slate, permissions: [sign in] }
-  browse: { label: BROWSE, tone: slate, permissions: [BROWSE] }
-  read: { label: Read, tone: teal, inherits: browse, permissions: [USE CATALOG, USE SCHEMA, SELECT] }
-  write: { label: Write, tone: indigo, inherits: read, permissions: [MODIFY, CREATE TABLE] }
+  browse: { label: BROWSE, tone: slate, permissions: [{ BROWSE: { on: [catalog, external-location] } }] }
+  use-catalog: { label: Use catalog, tone: teal, permissions: [{ USE CATALOG: { on: catalog } }] }
+  read-schema: { label: Read schema, tone: teal, permissions: [{ USE SCHEMA: { on: [schema, catalog] } }, { SELECT: { on: [table, schema, catalog] } }] }
+  read: { label: Read, tone: teal, inherits: [browse, use-catalog, read-schema] }
+  write: { label: Write, tone: indigo, inherits: read, permissions: [{ MODIFY: { on: [table, schema, catalog] } }, { CREATE TABLE: { on: [schema, catalog] } }] }
   manage: { label: MANAGE, tone: amber, inherits: read, permissions: [MANAGE] }
   owner: { label: Owner, tone: violet, inherits: [write, manage], permissions: [transfer and drop] }
-
 policies:
   # ABAC: set on the catalog, it masks every column tagged pii for everyone but the CRM team and the jobs
   mask-pii: { kind: column-mask, label: mask_pii, tag: pii, on: customers_prod, excludes: [customers-team, sp-lakehouse-prod] }
@@ -62,9 +64,10 @@ assignments:
   - <domain>-team is manage on <domain>_prod
   # Only the environment's service principal writes
   - sp-lakehouse-<env> is write on <domain>_<env>
-  # Every engineer may find production data; analysts read gold
+  # Every engineer may find production data; analysts read gold: USE CATALOG on the catalog, SELECT on its gold
   - engineers is browse on <domain>_prod
-  - analysts is read on <domain>_prod_gold
+  - analysts is use-catalog on <domain>_prod
+  - analysts is read-schema on <domain>_prod_gold
 
 views:
   admins:

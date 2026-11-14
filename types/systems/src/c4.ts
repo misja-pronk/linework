@@ -77,7 +77,7 @@ export const c4Config: GraphTypeConfig = {
   edgeStyles: {
     sync: { label: 'Synchronous', line: 'solid' },
     async: { label: 'Asynchronous', line: 'dashed' },
-    data: { label: 'Data flow', line: 'solid', tone: 'teal' },
+    data: { label: 'Data flow', line: 'solid', tone: 'violet' },
     dotted: { label: 'Supporting', line: 'dotted' },
   },
   plainEdge: 'Relationship',
