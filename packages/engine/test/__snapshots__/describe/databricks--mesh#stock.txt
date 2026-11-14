@@ -1,6 +1,6 @@
-Data products
+Stock levels
 
-Data products, stock levels in detail: Stock levels in detail. 5 elements in 1 group, with 4 connections.
+Data products diagram: Northwind lakehouse · stock from the ERP and the suppliers, hourly, under a contract. 5 elements in 1 group, with 4 connections.
 
 Groups and elements
 - ERP (SQL Server · CDC)

@@ -1,6 +1,6 @@
 Who administers
 
-Unity Catalog access diagram: The platform team runs the metastore and the three workspaces, and holds no grants on domain data. 5 elements, with 4 connections.
+Unity Catalog access diagram: Northwind lakehouse · the platform team runs the metastore and the workspaces, and holds no grants on domain data. 5 elements, with 4 connections.
 
 Elements
 - platform-team (Metastore and workspace admins)

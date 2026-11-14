@@ -1,0 +1,24 @@
+Credentials and connections
+
+Unity Catalog access diagram: Northwind lakehouse · a credential per domain and environment, bound to its workspace alone (orders shown). 6 elements, with 5 connections.
+
+Elements
+- platform-team (Metastore and workspace admins)
+- cred_orders_dev (Storage credential · dbw-lakehouse-dev only)
+- cred_orders_test (Storage credential · dbw-lakehouse-test only)
+- cred_orders_prod (Storage credential · dbw-lakehouse-prod only)
+- sftp_suppliers (Connection · SFTP)
+- sp-lakehouse-prod (Deploys and runs prod)
+
+Connections
+- platform-team is Owner on cred_orders_dev, is Owner on cred_orders_test, is Owner on cred_orders_prod and is Owner on sftp_suppliers.
+- sp-lakehouse-prod is USE CONNECTION on sftp_suppliers.
+
+Layers
+Ways to look at this drawing by tag.
+- dev (tags dev; 1 element).
+- test (tags test; 1 element).
+- prod (tags prod; 3 elements).
+
+Key
+- Solid sky line: Role assignment

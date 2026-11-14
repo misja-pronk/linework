@@ -1,6 +1,6 @@
-Data products
+Revenue
 
-Data products, finance in detail: Finance in detail. 4 elements in 1 group, with 3 connections.
+Data products diagram: Northwind lakehouse · revenue per month and country, reconciled with the ledger. 4 elements in 1 group, with 3 connections.
 
 Groups and elements
 - ERP (SQL Server · CDC)

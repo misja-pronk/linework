@@ -1,19 +1,19 @@
 Every domain, every environment (1 of 2)
 
-Unity Catalog access diagram: A row per domain; per environment what its team holds on its catalog, and what the jobs hold. A table of 10 rows by 6 columns.
+Unity Catalog access diagram: Northwind lakehouse · a row per domain; per environment what its team and the service principal hold. A table of 10 rows by 6 columns.
 
 By row (domain by env)
 Columns: dev (<domain>-team, sp-lakehouse-dev); test (<domain>-team, sp-lakehouse-test); prod (<domain>-team, sp-lakehouse-prod).
-- orders: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- webshop: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- finance: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- sales: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- customers: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- supply: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- marketing: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- logistics: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- procurement: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
-- hr: dev <domain>-team: Owner; sp-lakehouse-dev: Write; test <domain>-team: Read; sp-lakehouse-test: Write; prod <domain>-team: MANAGE; sp-lakehouse-prod: Write
+- orders: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- webshop: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- finance: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- sales: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- customers: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- supply: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- marketing: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- logistics: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- procurement: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+- hr: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
 
 Layers
 Ways to look at this drawing by tag.

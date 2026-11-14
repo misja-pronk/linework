@@ -30,7 +30,7 @@ Connections
 Walkthrough
 1. Offices and the hub: ExpressRoute ends in the hub, which holds the DNS resolver and each workspace's front-end endpoint.
 2. Finding the workspace: Office DNS forwards *.azuredatabricks.net to the resolver, which answers from the zones linked to the hub.
-3. A user's browser: The workspace URL resolves to the front-end endpoint; test and dev have one each in snet-pep.
+3. A user's browser: The workspace URL resolves to the front-end endpoint; the other environments have one each.
 4. Signing in: After Entra ID the browser returns through the region's one browser_authentication endpoint.
 
 Key

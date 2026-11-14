@@ -1,6 +1,6 @@
-Data products
+Web sessions
 
-Data products, web shop in detail: Web shop in detail. 4 elements in 1 group, with 3 connections.
+Data products diagram: Northwind lakehouse · web shop orders and the clickstream, sessionised for Power BI. 4 elements in 1 group, with 3 connections.
 
 Groups and elements
 - Web shop (Azure SQL · CDC)

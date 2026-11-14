@@ -44,11 +44,11 @@ Connections
 
 Walkthrough
 1. Domains publish products: Each domain publishes from its own prod catalog; one platform team runs the lakehouse.
-2. Read once from the source: Lakeflow Connect reads the ERP, web shop and Salesforce; Auto Loader reads supplier files.
+2. Read once from the source: Lakeflow Connect reads the ERP, web shop, Salesforce and the suppliers' SFTP server.
 3. Products built on products: Sell-through and the forecast read other domains' gold tables, never their sources.
 4. Used inside Northwind: Power BI and Customer 360 query gold via a SQL warehouse; replenishment calls an endpoint.
 5. Shared with Contoso: Sell-through is in an OpenSharing share too; Contoso reads it in its own Databricks account.
-6. Under a contract: Five products publish under an ODCS data contract; the detailed views show each one.
+6. Under a contract: Most products publish under an ODCS data contract; the detailed views show each one.
 
 Key
 - Orange icon: Bronze

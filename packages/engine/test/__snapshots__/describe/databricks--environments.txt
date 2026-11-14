@@ -1,28 +1,29 @@
 Dev, test and production
 
-Process diagram: Northwind lakehouse · one bundle goes from Git through dev and test, and a person opens the gate to production. 12 elements in 3 lanes, with 11 connections.
+Process diagram: Northwind lakehouse · one bundle goes from Git through dev and test, and a person opens the gate to production. 12 elements in 4 lanes, with 11 connections.
 
 Lanes and steps
 - GitHub (lane)
   - Pull request (start event, a change to the bundle)
   - Reviewed and merged (into main)
-- Reviewer (lane)
-  - Release approved? (decision)
+  - Release approved? (decision, a required reviewer)
   - Release stopped (end event)
-- Azure Databricks (lane)
-  - Deploy to dev (OIDC as sp-lakehouse-dev)
-  - Deploy to test (OIDC as sp-lakehouse-test)
+- Dev workspace (lane)
+  - Deploy a copy (dbw-lakehouse-dev · [pr-<number>])
+- Test workspace (lane)
+  - Deploy to test (dbw-lakehouse-test)
   - Run pipelines (a red run stops it)
-  - Deploy to prod (OIDC as sp-lakehouse-prod)
+- Production workspace (lane)
+  - Deploy to prod (dbw-lakehouse-prod)
   - Smoke test green? (decision)
   - Live in prod (end event)
-  - Deploy the last tag (OIDC as sp-lakehouse-prod)
+  - Deploy the last tag (the previous release)
   - Rolled back (end event)
 
 Main path
 1. Pull request
-2. Deploy to dev
-3. Reviewed and merged
+2. Deploy a copy
+3. Reviewed and merged (Deploy a copy: checks green)
 4. Deploy to test
 5. Run pipelines
 6. Release approved?
@@ -31,8 +32,8 @@ Main path
 9. Live in prod (Smoke test green?: yes)
 
 Connections
-- Pull request leads to Deploy to dev.
-- Deploy to dev leads to Reviewed and merged.
+- Pull request leads to Deploy a copy.
+- Deploy a copy leads to Reviewed and merged (checks green).
 - Reviewed and merged leads to Deploy to test.
 - Deploy to test leads to Run pipelines.
 - Run pipelines leads to Release approved?
@@ -42,12 +43,12 @@ Connections
 - Deploy the last tag leads to Rolled back.
 
 Walkthrough
-1. One bundle, three workspaces: The same bundle goes to dbw-lakehouse-dev, -test and -prod, each with its own service principal. Each catalog is bound to one workspace only.
-2. Every pull request: Actions signs in with OIDC as sp-lakehouse-dev, whose federation policy trusts this repository, so GitHub holds no secret, and deploys the bundle to dev.
-3. Test: Once reviewed and merged into main, sp-lakehouse-test deploys the bundle and runs the pipelines end to end on the _test catalogs. A red run stops the release.
-4. The gate: The prod environment in GitHub has required reviewers. Only a job in it gets a token for sp-lakehouse-prod, and it waits until one of them approves.
-5. Production: sp-lakehouse-prod, owner of the _prod catalogs, deploys the same bundle and a smoke test checks it. People read production; only this principal writes.
-6. Roll back: A red smoke test? Actions deploys the previous release tag again. Tables the release wrote wrongly go back with RESTORE or a full refresh.
+1. One bundle, three workspaces: One bundle goes to each workspace as that environment's service principal; each catalog is bound to one workspace.
+2. Every pull request: Actions signs in with OIDC as sp-lakehouse-dev and deploys a copy named [pr-<number>], so no PR overwrites another.
+3. Test: Green and reviewed, the change is merged; sp-lakehouse-test deploys it and runs the pipelines on the _test catalogs.
+4. The gate: The prod environment in GitHub has required reviewers; only its jobs get a token for sp-lakehouse-prod.
+5. Production: sp-lakehouse-prod, owner of the _prod catalogs, deploys the same bundle; a smoke test checks it.
+6. Roll back: A red smoke test? Actions deploys the previous tag; tables written wrongly go back with RESTORE.
 
 Key
 - Solid line, thick: Happy path

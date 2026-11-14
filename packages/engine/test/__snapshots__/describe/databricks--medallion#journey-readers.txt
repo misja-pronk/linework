@@ -3,7 +3,7 @@ One order, reported
 Azure infrastructure diagram: Northwind lakehouse · the order joined into sell-through and read in Power BI. 7 elements in 4 groups, with 6 connections.
 
 Groups and elements
-- sales-pipeline (Lakeflow pipeline)
+- sales-pipeline (Nightly)
 - sales_prod (Catalog)
   - gold (Schema)
     - sell_through (Table)

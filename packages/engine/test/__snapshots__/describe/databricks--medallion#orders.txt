@@ -11,7 +11,7 @@ Groups and elements
   - gold (Schema)
     - orders (Table)
 - sales_prod (Catalog)
-- orders-pipeline (Lakeflow pipeline)
+- orders-pipeline (Nightly)
 
 Connections
 - ERP sends data to erp-ingest (CDC [SQL Server]).

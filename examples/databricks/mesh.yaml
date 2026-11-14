@@ -1,18 +1,22 @@
 # The Northwind lakehouse as a data mesh: each domain publishes data products from its own Unity Catalog catalog.
 #   domains     a domain per <domain>_prod catalog, owned by its team; the platform team runs the lakehouse itself
-#   sources     the operational systems, read by Lakeflow Connect (ERP, web shop, Salesforce) and Auto Loader (files)
+#   sources     the operational systems, read by Lakeflow Connect: SQL Server and Salesforce connectors, the SFTP
+#               connector for the suppliers' files; the clickstream is read as a Kafka stream
 #   products    class: the medallion layer of the output port (bronze, silver, gold); owner: only where a team
 #               other than the domain's answers for it
-#               outputs: catalog.schema.table ports (kind table, volume, model), an endpoint, or an OpenSharing share
+#               outputs: catalog.schema.table ports (kind table, model), an endpoint, or an OpenSharing share
 #   contracts   ODCS v3.2.0 files in contracts/ (orders, customers, sell-through); revenue and stock inline
-#   consumers   Power BI, the Customer 360 app, replenishment and Contoso Retail
+#   consumers   Power BI, the Customer 360 app, replenishment and Contoso Retail: Power BI reads what analysts may
+#               read, the app what its service principal may read (governance.yaml, each: bi and app)
+# The whole is a working canvas (present: views); the views are the slides: the overview with its steps, then each
+# domain or product in detail (show: picks the type's own drawing, so it gets a title and subtitle of its own).
 # Products and versions shared with examples/data-products/northwind-mesh.yaml are the same; there Orders and
 # Customers sit in one Sales domain, here each has its own catalog. Owners here are the teams of model.yaml, the
 # account groups that hold the grants (governance.yaml): the supply chain data team answers for all three of its products.
 type: data-products
 title: Data products
 subtitle: Northwind lakehouse · products per domain, published from Unity Catalog under a data contract
-view: overview   # overview, or detailed-<domain> or detailed-<product>: ports and contracts (the view picker lists them)
+present: views
 
 domains:
   # In the order the overview stands them, top to bottom
@@ -79,7 +83,7 @@ products:
     version: 1.0.0
     inputs: [supplier-sftp]
     outputs:
-      files: { kind: volume, label: supply_prod.bronze.supplier_files }
+      files: { kind: table, label: supply_prod.bronze.supplier_files }
   stock:
     label: Stock levels
     class: gold
@@ -131,21 +135,58 @@ contracts:
     sla: { freshness: 1 hour }
     quality: [on_hand >= 0]
 
-steps:
-  - title: Domains publish products
-    caption: Each domain publishes from its own prod catalog; one platform team runs the lakehouse.
-  - title: Read once from the source
-    caption: Lakeflow Connect reads the ERP, web shop and Salesforce; Auto Loader reads supplier files.
-    path: [erp -> orders, sqldb-webshop-prod -> sessions, evhns-webshop-prod -> sessions, salesforce -> customers, supplier-sftp -> supplier-files -> stock]
-  - title: Products built on products
-    caption: Sell-through and the forecast read other domains' gold tables, never their sources.
-    path: [orders -> sell-through, customers -> sell-through, orders -> forecast, stock -> forecast]
-  - title: Used inside Northwind
-    caption: Power BI and Customer 360 query gold via a SQL warehouse; replenishment calls an endpoint.
-    path: [sell-through -> power-bi, revenue -> power-bi, sessions -> power-bi, customers -> customer-360, forecast -> replenishment]
-  - title: Shared with Contoso
-    caption: Sell-through is in an OpenSharing share too; Contoso reads it in its own Databricks account.
-    path: sell-through -> contoso-retail
-  - title: Under a contract
-    caption: Five products publish under an ODCS data contract; the detailed views show each one.
-    focus: [orders, customers, sell-through, revenue, stock]
+views:
+  products:
+    show: overview
+    title: Data products
+    subtitle: Northwind lakehouse · products per domain, published from Unity Catalog under a data contract
+    steps:
+      - title: Domains publish products
+        caption: Each domain publishes from its own prod catalog; one platform team runs the lakehouse.
+      - title: Read once from the source
+        caption: Lakeflow Connect reads the ERP, web shop, Salesforce and the suppliers' SFTP server.
+        path: [erp -> orders, sqldb-webshop-prod -> sessions, evhns-webshop-prod -> sessions, salesforce -> customers, supplier-sftp -> supplier-files -> stock]
+      - title: Products built on products
+        caption: Sell-through and the forecast read other domains' gold tables, never their sources.
+        path: [orders -> sell-through, customers -> sell-through, orders -> forecast, stock -> forecast]
+      - title: Used inside Northwind
+        caption: Power BI and Customer 360 query gold via a SQL warehouse; replenishment calls an endpoint.
+        path: [sell-through -> power-bi, revenue -> power-bi, sessions -> power-bi, customers -> customer-360, forecast -> replenishment]
+      - title: Shared with Contoso
+        caption: Sell-through is in an OpenSharing share too; Contoso reads it in its own Databricks account.
+        path: sell-through -> contoso-retail
+      - title: Under a contract
+        caption: Most products publish under an ODCS data contract; the detailed views show each one.
+        focus: [orders, customers, sell-through, revenue, stock]
+  webshop:
+    show: detailed-webshop
+    title: Web sessions
+    subtitle: Northwind lakehouse · web shop orders and the clickstream, sessionised for Power BI
+  supplier-files:
+    show: detailed-supplier-files
+    title: Supplier files
+    subtitle: Northwind lakehouse · the suppliers' CSV files, read over SFTP into a bronze table
+  stock:
+    show: detailed-stock
+    title: Stock levels
+    subtitle: Northwind lakehouse · stock from the ERP and the suppliers, hourly, under a contract
+  forecast:
+    show: detailed-forecast
+    title: Demand forecast
+    subtitle: Northwind lakehouse · a model trained on orders and stock, served to replenishment
+  orders:
+    show: detailed-orders
+    title: Orders
+    subtitle: Northwind lakehouse · orders from the ERP, under a contract, read by sales and the forecast
+  finance:
+    show: detailed-finance
+    title: Revenue
+    subtitle: Northwind lakehouse · revenue per month and country, reconciled with the ledger
+  sales:
+    show: detailed-sales
+    title: Sell-through
+    subtitle: Northwind lakehouse · built on orders and customers, read in Power BI and shared with Contoso
+  customers:
+    show: detailed-customers
+    title: Customers
+    subtitle: Northwind lakehouse · accounts from Salesforce, pii masked for all but the CRM team and the app

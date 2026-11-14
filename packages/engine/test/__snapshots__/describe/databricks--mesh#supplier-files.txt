@@ -1,6 +1,6 @@
-Data products
+Supplier files
 
-Data products, supplier files in detail: Supplier files in detail. 3 elements in 1 group, with 2 connections.
+Data products diagram: Northwind lakehouse · the suppliers' CSV files, read over SFTP into a bronze table. 3 elements in 1 group, with 2 connections.
 
 Groups and elements
 - Suppliers (CSV files over SFTP)

@@ -137,7 +137,7 @@ views:
 - **Why `<domain>`.** `{domain}` starts a map in YAML: `label: {domain}_{env}` would not even parse, and the flow maps this idiom is written in (`{ kind: catalog, label: … }`) take no braces in their values. `<domain>` needs no quotes as a key or a value, and is how architecture notes already write it (`<domain>_<env>`).
 - **In the editor.** ⌘K and describe list the written-out names (`orders_prod`). Selecting one shows the pattern in the YAML; it is changed there, for every value at once (renaming or deleting one value on its own would leave the others behind).
 
-[examples/databricks-at-scale](../examples/databricks-at-scale) writes twenty domains through three environments in about 150 lines of model (621 elements, 592 relations) and 100 of grants (191); [types.md](types.md#roles-groups-and-access-packages) lays the access matrix out by the same lists (`rows: domain`, `columns: env`).
+[examples/databricks-at-scale](../examples/databricks-at-scale) writes twenty domains through three environments in about 150 lines of model (561 elements, 532 relations) and 100 of grants (191); [types.md](types.md#roles-groups-and-access-packages) lays the access matrix out by the same lists (`rows: domain`, `columns: env`).
 
 ## Deployments: `of:` what a resource runs
 

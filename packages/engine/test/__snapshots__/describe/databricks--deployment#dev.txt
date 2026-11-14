@@ -12,7 +12,7 @@ Groups and elements
   - Cluster VMs (Host and container subnets · SCC)
   - pep-dbw-lakehouse-dev (databricks_ui_api · back-end)
   - pep-stordersdev-dfs (dfs · snet-pep)
-- stordersdev (ADLS Gen2 · one of six)
+- stordersdev (ADLS Gen2 · one per domain)
 - Serverless compute plane (Run by Databricks)
   - ncc-lakehouse-dev (Attached to dbw-lakehouse-dev)
 

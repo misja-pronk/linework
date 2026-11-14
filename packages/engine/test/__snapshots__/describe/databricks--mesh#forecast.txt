@@ -1,6 +1,6 @@
-Data products
+Demand forecast
 
-Data products, demand forecast in detail: Demand forecast in detail. 4 elements in 1 group, with 3 connections.
+Data products diagram: Northwind lakehouse · a model trained on orders and stock, served to replenishment. 4 elements in 1 group, with 3 connections.
 
 Groups and elements
 - Orders (Orders · Gold)

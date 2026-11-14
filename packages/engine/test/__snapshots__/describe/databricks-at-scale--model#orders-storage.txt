@@ -1,23 +1,23 @@
 What a catalog stands on
 
-Architecture diagram: orders through dev, test and prod; the other nineteen domains are written the same way, once. 15 elements, with 12 connections.
+Architecture diagram: Northwind lakehouse · orders through every environment; every other domain is written the same way, once. 15 elements, with 12 connections.
 
 Elements
 - orders_dev (Database)
 - orders_dev_catalog (catalog@stordersdev)
 - cred_orders_dev (Secrets)
 - dbac-lakehouse-dev (System-assigned identity)
-- stordersdev (ADLS Gen2 · catalog · landing)
+- stordersdev (ADLS Gen2 · catalog)
 - orders_test (Database)
 - orders_test_catalog (catalog@storderstest)
 - cred_orders_test (Secrets)
 - dbac-lakehouse-test (System-assigned identity)
-- storderstest (ADLS Gen2 · catalog · landing)
+- storderstest (ADLS Gen2 · catalog)
 - orders_prod (Database)
 - orders_prod_catalog (catalog@stordersprod)
 - cred_orders_prod (Secrets)
 - dbac-lakehouse-prod (System-assigned identity)
-- stordersprod (ADLS Gen2 · catalog · landing)
+- stordersprod (ADLS Gen2 · catalog)
 
 Connections
 - orders_dev connects to orders_dev_catalog (Managed location).

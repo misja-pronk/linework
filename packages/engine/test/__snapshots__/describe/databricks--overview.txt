@@ -1,25 +1,25 @@
 Northwind lakehouse
 
-Architecture diagram: Azure Databricks in West Europe · six domains, three environments, one Unity Catalog metastore. 12 elements in 2 groups, with 11 connections.
+Architecture diagram: Northwind lakehouse · Azure Databricks in West Europe, a catalog per domain and environment, one metastore. 12 elements in 2 groups, with 11 connections.
 
 Groups and elements
 - Sources (ERP · web shop · Salesforce · SFTP)
 - Data platform (Run by the data platform team)
   - Northwind lakehouse (Lakeflow · jobs · serving · app): Pipelines, jobs and serving, deployed from Git to dev, test and prod
-  - uc-weu (Unity Catalog · 18 catalogs): No metastore storage; every catalog has its own managed location
-  - GitHub Actions (Declarative Automation Bundles)
+  - uc-weu (Unity Catalog metastore): No metastore storage; every catalog has its own managed location
   - Workspaces (dbw-lakehouse-dev · test · prod)
 - Who uses the data (Production)
   - Replenishment (Orders stock from suppliers): Orders stock from suppliers on the demand forecast
   - Power BI (Fabric capacity F64): Reports on gold through the SQL warehouse
   - Sales reps (Look up customers): Look up customers in the Customer 360 app
   - Contoso Retail (Retail partner): Retail partner; reads sell-through in its own Databricks account
+- GitHub Actions (Declarative Automation Bundles)
 - Entra ID (Users and groups): Users and groups; synced to the Databricks account by automatic identity management
 - Account groups (Automatic identity management)
 - Domain teams (A catalog per environment each)
 
 Connections
-- Sources sends data to Northwind lakehouse (CDC · Kafka · API · files).
+- Sources sends data to Northwind lakehouse (Ingested).
 - Northwind lakehouse sends data to uc-weu (bronze to gold), sends data to Replenishment (Forecast [REST]), sends data to Power BI (DirectQuery) and sends data to Sales reps (Customer 360).
 - uc-weu sends data to Contoso Retail (OpenSharing).
 - GitHub Actions connects to Workspaces (Deploys).

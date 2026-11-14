@@ -11,7 +11,7 @@ include: [model.yaml]
 
 elements:
   # The ABAC column mask of governance.yaml, drawn where the customers' data lives
-  mask-pii: { kind: policy, label: mask_pii, technology: ABAC column mask · governed tag pii, icon: eye-off, description: Masks every column tagged pii for everyone but the CRM team and the jobs }
+  mask-pii: { kind: policy, label: mask_pii, technology: ABAC column mask · governed tag pii, icon: eye-off, description: "Masks every column tagged pii for everyone but the CRM team, the prod jobs and the Customer 360 app" }
 
 relations:
   # Inside each catalog: bronze is cleaned into silver, silver modelled into gold, by the domain's pipeline
@@ -102,20 +102,27 @@ views:
     exclude: ['uc-weu.finance_prod.bronze -> lakehouse.finance-pipeline', 'lakehouse.finance-pipeline -> uc-weu.finance_prod.gold']
   sales:
     title: Sales domain
-    subtitle: Northwind lakehouse · Salesforce, orders and customers into sell_through, for Power BI and Contoso
+    subtitle: Northwind lakehouse · Salesforce, orders and customers into sell_through, read in Power BI and shared with Contoso
     direction: down
-    include: [salesforce, lakehouse.salesforce-ingest, uc-weu.orders_prod, uc-weu.customers_prod, uc-weu.sales_prod, lakehouse.sales-pipeline, uc-weu.contoso_sell_through, uc-weu.contoso, contoso-retail, lakehouse.bi-warehouse, power-bi, analysts]
+    include: [salesforce, lakehouse.salesforce-ingest, uc-weu.orders_prod, uc-weu.customers_prod, uc-weu.sales_prod, lakehouse.sales-pipeline, uc-weu.contoso_sell_through, lakehouse.bi-warehouse, power-bi]
     expand: [uc-weu.sales_prod, uc-weu.sales_prod.gold]
     exclude: ['uc-weu.sales_prod.bronze -> lakehouse.sales-pipeline', 'uc-weu.orders_prod.gold -> lakehouse.sales-pipeline', 'uc-weu.customers_prod.gold -> lakehouse.sales-pipeline', 'lakehouse.sales-pipeline -> uc-weu.sales_prod.gold', 'lakehouse.salesforce-ingest -> uc-weu.customers_prod.bronze', 'uc-weu.customers_prod.gold -> lakehouse.bi-warehouse']
   customers:
     title: Customers domain
-    subtitle: Northwind lakehouse · accounts from Salesforce into customers_prod, pii columns masked, read by Sales and Customer 360
+    subtitle: Northwind lakehouse · accounts from Salesforce into customers_prod; the Customer 360 app reads them unmasked
     include: [salesforce, lakehouse.salesforce-ingest, uc-weu.customers_prod, lakehouse.customers-pipeline, mask-pii, uc-weu.sales_prod, lakehouse.bi-warehouse, lakehouse.customer-360, sales-reps]
     expand: [uc-weu.customers_prod, uc-weu.customers_prod.gold]
     exclude: ['uc-weu.customers_prod.bronze -> lakehouse.customers-pipeline', 'lakehouse.customers-pipeline -> uc-weu.customers_prod.gold', 'lakehouse.salesforce-ingest -> uc-weu.sales_prod.bronze', 'uc-weu.sales_prod.gold -> lakehouse.bi-warehouse']
   supply:
     title: Supply chain domain
-    subtitle: Northwind lakehouse · stock and supplier files into supply_prod, a demand forecast served to replenishment
-    include: [erp, supplier-sftp, lakehouse.erp-ingest, uc-weu.supply_prod, lakehouse.supply-pipeline, lakehouse.forecast-training, lakehouse.demand-forecast, replenishment]
+    subtitle: Northwind lakehouse · stock from the ERP and the suppliers' files over SFTP into supply_prod
+    include: [erp, supplier-sftp, lakehouse.erp-ingest, uc-weu.supply_prod, lakehouse.supply-pipeline]
     expand: [uc-weu.supply_prod, uc-weu.supply_prod.bronze, uc-weu.supply_prod.gold]
-    exclude: ['uc-weu.supply_prod.bronze -> lakehouse.supply-pipeline', 'lakehouse.supply-pipeline -> uc-weu.supply_prod.gold']
+    exclude: ['uc-weu.supply_prod.bronze -> lakehouse.supply-pipeline', 'lakehouse.supply-pipeline -> uc-weu.supply_prod.gold', uc-weu.supply_prod.gold.demand_forecast]
+  forecast:
+    title: Demand forecast
+    subtitle: Northwind lakehouse · trained weekly on orders and stock, served to replenishment
+    direction: down
+    include: [uc-weu.orders_prod, uc-weu.supply_prod, lakehouse.forecast-training, lakehouse.demand-forecast, replenishment]
+    expand: [uc-weu.orders_prod, uc-weu.supply_prod, uc-weu.supply_prod.gold]
+    exclude: [uc-weu.orders_prod.bronze, uc-weu.orders_prod.silver, uc-weu.supply_prod.bronze, uc-weu.supply_prod.silver]

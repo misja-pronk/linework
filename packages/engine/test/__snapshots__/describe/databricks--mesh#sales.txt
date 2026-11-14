@@ -1,6 +1,6 @@
-Data products
+Sell-through
 
-Data products, sales in detail: Sales in detail. 8 elements in 1 group, with 7 connections.
+Data products diagram: Northwind lakehouse · built on orders and customers, read in Power BI and shared with Contoso. 8 elements in 1 group, with 7 connections.
 
 Groups and elements
 - Salesforce (Sales Cloud)

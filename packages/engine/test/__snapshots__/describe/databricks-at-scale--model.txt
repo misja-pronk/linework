@@ -1,6 +1,6 @@
 Northwind lakehouse at scale
 
-Architecture diagram: Twenty domains, each a pipeline in the bundle and a catalog per environment in uc-weu. 6 elements, with 5 connections.
+Architecture diagram: Northwind lakehouse · every domain a pipeline in the bundle and a catalog per environment in uc-weu. 6 elements, with 5 connections.
 
 Elements
 - ERP (SQL Server · on-premises)

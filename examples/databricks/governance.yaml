@@ -1,23 +1,22 @@
-# Who may do what in the Northwind lakehouse, in Unity Catalog: all six domains through dev, test and prod.
+# Who may do what in the Northwind lakehouse, in Unity Catalog: every domain through dev, test and prod.
 #   principals   account groups, synced from Entra ID by automatic identity management (nested groups too);
-#                a service principal per environment deploys the bundle and runs every job; Contoso is an OpenSharing recipient
-#   resources    the uc-weu metastore, a workspace per environment, <domain>_<env> catalogs and the <domain>_<env>_landing
-#                external locations (each ISOLATED and bound to its environment's workspace only; the cred_<domain>_<env>
-#                storage credentials are bound the same way), the gold schemas analysts read, and the share
-#   roles        Unity Catalog privileges, each with on: the securables it can be granted on: BROWSE and USE CATALOG on
-#                a catalog; USE SCHEMA and SELECT on a schema (or a catalog, for all its schemas); READ FILES on an
-#                external location
-#   ownership    a domain team owns its dev catalog. sp-lakehouse-test and sp-lakehouse-prod own the test and prod
-#                catalogs: an owner has every privilege implied and can grant, so in test and prod only a reviewed,
-#                approved release changes data or grants (environments.yaml). Teams read their own test and prod catalog
+#                a service principal per environment deploys the bundle and runs every job; the Customer 360 app
+#                reads as its own service principal; Contoso is an OpenSharing recipient
+#   resources    the uc-weu metastore, a workspace per environment, the <domain>_<env> catalogs and the
+#                cred_<domain>_<env> storage credentials (each ISOLATED and bound to its environment's workspace only),
+#                the gold schemas, the SFTP connection the supply pipeline reads through, and the share
+#   roles        Unity Catalog privileges, each with on: the securables it can be granted on
+#   ownership    a domain team owns its dev catalog; the environment's service principal owns the test and prod
+#                catalogs: an owner has every privilege and can grant, so in test and prod only a reviewed, approved
+#                release changes data or grants (environments.yaml). Teams read their own test and prod catalog
 #   MANAGE       held by no one: whoever holds it can grant itself SELECT or MODIFY. The platform team is metastore
 #                admin, which can take ownership of anything: a small group, its use audited
 #   policies     an ABAC column mask on customers_prod masks every column with the governed tag pii,
-#                except for customers-team and sp-lakehouse-prod
+#                except for customers-team, the prod jobs and the Customer 360 app
 # The whole file is a working canvas (present: views); its views are the slides, one concern each.
-# tags put each environment on a layer (Layers menu, or carto render --layer prod).
-# Ids are the model's (model.yaml) where the thing is the same; catalogs and locations drop the uc-weu. prefix.
-# A name with <domain> or <env> is written once per value of that list under each: (this file's own lists).
+# A name with <domain>, <env> or another list is written once per value of that list under each: (this file's own
+# lists), so a domain or an environment is one more value there. tags put each environment on a layer.
+# Ids are the model's (model.yaml) where the thing is the same; catalogs and credentials drop the uc-weu. prefix.
 type: access
 title: Unity Catalog access
 subtitle: Northwind lakehouse · account groups from Entra ID, grants per domain and environment
@@ -27,13 +26,15 @@ present: views
 each:
   domain: [orders, webshop, finance, sales, customers, supply]
   env:
-    dev: { title: Development }
-    test: { title: Test }
-    prod: { title: Production }
-  bi: [orders, finance, sales, customers]   # the domains whose gold analysts read
+    dev: { title: development, access: each team owns its dev catalog; the bundle's pipelines write there as sp-lakehouse-dev }
+    test: { title: test, access: sp-lakehouse-test owns the test catalogs; each team reads its own }
+    prod: { title: production, access: sp-lakehouse-prod owns the prod catalogs; each team reads its own; no one holds MANAGE }
+  staging: [test]                    # between dev and prod: there the environment's service principal owns the catalogs
+  bi: [webshop, finance, sales]      # the domains whose gold analysts read in Power BI
+  app: [customers, sales]            # the domains whose gold the Customer 360 app reads
 
 layers:
-  <env>: { tags: [<env>], title: <env.title> }
+  <env>: { tags: [<env>], title: <env> }
 
 principals:
   # Account groups: made and filled in Entra ID, synced by automatic identity management
@@ -43,38 +44,30 @@ principals:
   analysts: { kind: account-group, label: analysts, caption: Power BI and Genie }
   # Service principals: one per environment; GitHub Actions signs in as it with OIDC, and every job there runs as it
   sp-lakehouse-<env>: { kind: service-principal, label: sp-lakehouse-<env>, caption: Deploys and runs <env>, tags: [<env>] }
+  # A Databricks App reads as its own service principal (app authorization), made with the app
+  customer-360-app: { kind: service-principal, label: customer-360, caption: The app's own service principal, tags: [prod] }
   # OpenSharing recipient: Contoso's own Databricks account (Databricks-to-Databricks)
-  contoso: { kind: recipient, label: contoso, caption: Databricks-to-Databricks, tags: [prod] }
+  contoso: { kind: recipient, label: contoso, caption: Databricks-to-Databricks · SecureConnect on, tags: [prod] }
 
 resources:
   uc-weu: { kind: metastore, label: uc-weu, caption: Metastore }
   dbw-lakehouse-<env>: { kind: databricks, label: dbw-lakehouse-<env>, tags: [<env>] }
   # Catalogs: ISOLATED, each bound to its environment's workspace only (the caption says which); customers_prod holds
   # personal data
-  <domain>_dev: { kind: catalog, label: <domain>_dev, bound: dbw-lakehouse-dev, tags: [dev] }
-  <domain>_test: { kind: catalog, label: <domain>_test, bound: dbw-lakehouse-test, tags: [test] }
-  orders_prod: { kind: catalog, label: orders_prod, bound: dbw-lakehouse-prod, tags: [prod] }
-  webshop_prod: { kind: catalog, label: webshop_prod, bound: dbw-lakehouse-prod, tags: [prod] }
-  finance_prod: { kind: catalog, label: finance_prod, bound: dbw-lakehouse-prod, tags: [prod] }
-  sales_prod: { kind: catalog, label: sales_prod, bound: dbw-lakehouse-prod, tags: [prod] }
-  customers_prod: { kind: catalog, label: customers_prod, bound: dbw-lakehouse-prod, tags: [prod, pii] }
-  supply_prod: { kind: catalog, label: supply_prod, bound: dbw-lakehouse-prod, tags: [prod] }
-  # The gold schemas analysts read
-  orders_prod_gold: { kind: schema, label: orders_prod.gold, in: orders_prod, tags: [prod] }
-  finance_prod_gold: { kind: schema, label: finance_prod.gold, in: finance_prod, tags: [prod] }
-  sales_prod_gold: { kind: schema, label: sales_prod.gold, in: sales_prod, tags: [prod] }
-  customers_prod_gold: { kind: schema, label: customers_prod.gold, in: customers_prod, tags: [prod, pii] }
-  # Landing containers that Auto Loader reads: external locations, ISOLATED and bound like the catalogs
-  <domain>_dev_landing: { kind: external-location, label: <domain>_dev_landing, bound: dbw-lakehouse-dev, tags: [dev] }
-  <domain>_test_landing: { kind: external-location, label: <domain>_test_landing, bound: dbw-lakehouse-test, tags: [test] }
-  <domain>_prod_landing: { kind: external-location, label: <domain>_prod_landing, bound: dbw-lakehouse-prod, tags: [prod] }
+  <domain>_<env>: { kind: catalog, label: <domain>_<env>, bound: dbw-lakehouse-<env>, tags: [<env>] }
+  <domain>_prod_gold: { kind: schema, label: <domain>_prod.gold, in: <domain>_prod, tags: [prod] }
+  # Storage credentials: ISOLATED and bound like the catalogs (workspace binding), so no workspace can use another
+  # environment's credential, https://learn.microsoft.com/azure/databricks/connect/unity-catalog/cloud-storage/manage-storage-credentials
+  cred_<domain>_<env>: { kind: resource, label: cred_<domain>_<env>, caption: Storage credential · dbw-lakehouse-<env> only, bound: dbw-lakehouse-<env>, tags: [<env>] }
+  # The Unity Catalog connection through which supply-pipeline's SFTP connector reads the suppliers' files
+  sftp_suppliers: { kind: resource, label: sftp_suppliers, caption: Connection · SFTP, tags: [prod] }
   # OpenSharing share, under the metastore
   contoso_sell_through: { kind: share, label: contoso_sell_through, caption: sales_prod.gold.sell_through, tags: [prod] }
 
 roles:
   # Privileges as Unity Catalog names them; on: says on which securables each can be granted, so carto validate
   # warns about a grant on the wrong level
-  metastore-admin: { label: Metastore admin, tone: rose, permissions: [{ CREATE CATALOG: { on: metastore } }, { CREATE EXTERNAL LOCATION: { on: metastore } }, take ownership] }
+  metastore-admin: { label: Metastore admin, tone: rose, permissions: [{ CREATE CATALOG: { on: metastore } }, { CREATE CONNECTION: { on: metastore } }, take ownership] }
   workspace-admin: { label: Workspace admin, tone: rose, permissions: [manage workspace] }
   workspace-user: { label: Workspace user, tone: slate, permissions: [sign in] }
   browse: { label: BROWSE, tone: slate, permissions: [{ BROWSE: { on: [catalog, external-location] } }] }   # names and comments, no rows
@@ -93,19 +86,22 @@ roles:
       - CREATE TABLE: { on: [schema, catalog] }
       - CREATE MATERIALIZED VIEW: { on: [schema, catalog] }
       - CREATE MODEL: { on: [schema, catalog] }
-  read-files: { label: READ FILES, tone: teal, permissions: [{ READ FILES: { on: external-location } }] }
-  # Ownership is not a grant: the owner has every privilege implied, and MANAGE (grant, transfer, drop) on what is in it
+  use-connection: { label: USE CONNECTION, tone: teal, permissions: [USE CONNECTION] }
+  # Ownership is not a grant: the owner has every privilege and, like MANAGE, grants, transfers and drops
   owner: { label: Owner, tone: violet, permissions: [ALL PRIVILEGES, MANAGE] }
   share-read: { label: SELECT on share, tone: teal, permissions: [SELECT on share] }
 
 policies:
-  # ABAC: set on the catalog, it masks every column tagged pii for everyone but the CRM team and the prod jobs
-  mask-pii: { kind: column-mask, label: mask_pii, tag: pii, on: customers_prod, excludes: [customers-team, sp-lakehouse-prod] }
+  # ABAC: set on the catalog, it masks every column tagged pii for everyone but the CRM team, the prod jobs and the app
+  mask-pii: { kind: column-mask, label: mask_pii, tag: pii, on: customers_prod, excludes: [customers-team, sp-lakehouse-prod, customer-360-app] }
 
 assignments:
-  # The platform team runs the metastore and the workspaces; it holds no grants on domain data
+  # The platform team runs the metastore and the workspaces, owns the credentials and the connection; it holds no
+  # grants on domain data
   - platform-team is metastore-admin on uc-weu
   - platform-team is workspace-admin on dbw-lakehouse-<env>
+  - platform-team is owner on cred_<domain>_<env>
+  - platform-team is owner on sftp_suppliers
   # Who may sign in where: engineers everywhere, analysts in prod, each service principal in its environment
   - engineers is workspace-user on dbw-lakehouse-<env>
   - analysts is workspace-user on dbw-lakehouse-prod
@@ -114,17 +110,20 @@ assignments:
   - <domain>-team is owner on <domain>_dev
   - sp-lakehouse-dev is pipeline on <domain>_dev
   # Test and prod: the environment's service principal owns the catalogs; each team reads its own
-  - sp-lakehouse-test is owner on <domain>_test
-  - <domain>-team is read-catalog on <domain>_test
+  - sp-lakehouse-<staging> is owner on <domain>_<staging>
+  - <domain>-team is read-catalog on <domain>_<staging>
   - sp-lakehouse-prod is owner on <domain>_prod
   - <domain>-team is read-catalog on <domain>_prod
-  # Auto Loader reads the landing containers as the environment's service principal; nobody else reads files there
-  - sp-lakehouse-<env> is read-files on <domain>_<env>_landing
+  # supply-pipeline reads the suppliers' SFTP server through the connection (serverless: USE CONNECTION)
+  - sp-lakehouse-prod is use-connection on sftp_suppliers
   # Every engineer may find production data: BROWSE shows names and comments, no rows
   - engineers is browse on <domain>_prod
-  # Analysts: USE CATALOG on four prod catalogs, and USE SCHEMA and SELECT on their gold schemas only
+  # Analysts: USE CATALOG on the catalogs they report on, and USE SCHEMA and SELECT on their gold schemas only
   - analysts is use-catalog on <bi>_prod
   - analysts is read-schema on <bi>_prod_gold
+  # The Customer 360 app reads customers and sell-through from gold, unmasked
+  - customer-360-app is use-catalog on <app>_prod
+  - customer-360-app is read-schema on <app>_prod_gold
   # sell_through is shared with Contoso, who reads it in its own account; sales-team owns the share and the recipient
   - sales-team is owner on contoso_sell_through
   - contoso is share-read on contoso_sell_through
@@ -134,58 +133,46 @@ views:
     title: Who administers
     subtitle: Northwind lakehouse · the platform team runs the metastore and workspaces; no data grants, yet it can take ownership
     include: [platform-team]
+    exclude: [kind:resource]
   orders:
     title: One domain through its environments
     subtitle: Northwind lakehouse · orders-team owns dev and reads test and prod; there the service principal owns and writes
-    include: [orders-team, engineers, kind:service-principal, orders_dev, orders_test, orders_prod]
+    include: [orders-team, engineers, sp-lakehouse-<env>, orders_<env>]
   production:
     title: Who reads production
-    subtitle: Northwind lakehouse · analysts read four gold schemas, pii masked; Contoso reads its share
+    subtitle: Northwind lakehouse · analysts read the gold schemas they report on; Contoso reads its share
     include: [analysts, contoso]
     environment: prod
     exclude: [kind:databricks, mask-pii]
   pii:
     title: Personal data
-    subtitle: Northwind lakehouse · mask_pii masks the columns tagged pii for all but customers-team and the prod jobs
+    subtitle: Northwind lakehouse · mask_pii masks the columns tagged pii for all but customers-team, the prod jobs and the app
     include: [customers_prod.*]
-    exclude: [engineers]
+    exclude: [engineers, sales_prod]
   sharing:
     title: Shared with Contoso
     subtitle: Northwind lakehouse · sales-team owns the share; Contoso reads sell_through in its own Databricks account
     include: [contoso_sell_through, sales_prod.*]
-    exclude: [engineers, sp-lakehouse-prod, analysts]
-  landing:
-    title: Landing files in production
-    subtitle: Northwind lakehouse · only sp-lakehouse-prod reads the landing containers, and only from dbw-lakehouse-prod
-    include: [kind:external-location]
-    environment: prod
-  prod-access:
-    title: Who × where in production
-    subtitle: Northwind lakehouse · each team reads its own catalog, sp-lakehouse-prod owns all six; no one holds MANAGE
+    exclude: [engineers, sp-lakehouse-prod, analysts, customer-360-app]
+  storage:
+    title: Credentials and connections
+    subtitle: Northwind lakehouse · a credential per domain and environment, bound to its workspace alone (orders shown)
+    include: [cred_orders_<env>, sftp_suppliers]
+  <env>-access:
+    title: Who × where in <env.title>
+    subtitle: Northwind lakehouse · <env.access>
     show: access
-    environment: prod
-    exclude: [uc-weu, kind:databricks, engineers, analysts, kind:schema, contoso_sell_through, kind:external-location]
-  dev-access:
-    title: Who × where in development
-    subtitle: Northwind lakehouse · each team owns its dev catalog; the bundle's pipelines write there as sp-lakehouse-dev
-    show: access
-    environment: dev
-    exclude: [uc-weu, kind:databricks, platform-team, engineers, kind:external-location]
-  test-access:
-    title: Who × where in test
-    subtitle: Northwind lakehouse · sp-lakehouse-test owns the test catalogs; each team reads its own
-    show: access
-    environment: test
-    exclude: [uc-weu, kind:databricks, platform-team, engineers, kind:external-location]
+    environment: <env>
+    exclude: [uc-weu, kind:databricks, engineers, analysts, customer-360-app, kind:schema, kind:share, kind:resource]
   reading-roles:
     title: What the reading roles hold
     subtitle: Northwind lakehouse · BROWSE and USE CATALOG on a catalog, USE SCHEMA and SELECT on a schema or catalog
     show: roles
     include: [kind:account-group]
-    exclude: [uc-weu, kind:databricks, kind:share]
+    exclude: [uc-weu, kind:databricks, kind:share, kind:resource]
   pipeline-role:
     title: What a pipeline needs
     subtitle: Northwind lakehouse · granted on each dev catalog to sp-lakehouse-dev; in test and prod the principal owns them
     show: roles
     include: [sp-lakehouse-dev]
-    exclude: [kind:databricks, kind:external-location]
+    exclude: [kind:databricks, kind:resource]

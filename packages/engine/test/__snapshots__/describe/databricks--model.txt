@@ -24,7 +24,7 @@ Connections
 - sqldb-webshop-prod sends data to Northwind lakehouse (CDC).
 - evhns-webshop-prod sends data to Northwind lakehouse (Kafka).
 - Salesforce sends data to Northwind lakehouse (API).
-- Supplier SFTP sends data to uc-weu over SFTP · Auto Loader.
+- Supplier SFTP sends data to uc-weu over SFTP connector · CSV.
 
 Key
 - Solid violet line with ticks: Data flow

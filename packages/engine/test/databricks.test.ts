@@ -145,7 +145,7 @@ describe('examples/databricks/model.yaml', () => {
         expect(uc[`${domain}_${env}`]?.kind, `${domain}_${env}`).toBe('catalog');
         expect(uc[`cred_${domain}_${env}`]?.kind).toBe('storage-credential');
         expect(uc[`${domain}_${env}_catalog`]?.technology).toBe(`catalog@${st}`);
-        expect(uc[`${domain}_${env}_landing`]?.technology).toBe(`landing@${st}`);
+        expect(uc[`${domain}_${env}_landing`], 'no landing location: every source is read by a connector or a stream').toBeUndefined();
         expect(m.elements[st]?.kind, st).toBe('storage');
         expect(st).toMatch(/^[a-z0-9]{3,24}$/);
         expect(m.elements[`pep-${st}-dfs`]?.kind).toBe('private-endpoint');

@@ -1,8 +1,13 @@
 # The lakehouse on Azure the way the network sees it: a slide per part, the drawing as written is the canvas.
-#   hub         vnet-hub-weu: ExpressRoute gateway, DNS Private Resolver, afw-hub, the front-end and
-#               browser_authentication endpoints, the Power BI VNet data gateway; private DNS zones linked to it
+#   hub         vnet-hub-weu: ExpressRoute gateway (rt-hub-gateway on its subnet sends the spokes' replies through
+#               the firewall), DNS Private Resolver, afw-hub, the front-end and browser_authentication endpoints, the
+#               Power BI VNet data gateway with its own dfs and blob endpoints to workspace storage (Cloud Fetch);
+#               private DNS zones linked to it
 #   spokes      vnet-lakehouse-<env>: clusters and the ERP ingestion gateway (host, container), snet-pep (back-end,
-#               dfs, workspace storage); nsg-dbw-lakehouse-<env> and rt-lakehouse-<env> on the cluster subnets
+#               dfs, workspace storage); nsg-dbw-lakehouse-<env> and rt-lakehouse-<env> (0.0.0.0/0 to afw-hub,
+#               gateway route propagation off) on the cluster subnets
+#   storage     no public network access; private endpoints, the access connector's resource instance rule and the
+#               region's control plane get in. Contoso is a SecureConnect recipient (switched on per recipient)
 #   planes      Databricks' control plane (workspaces) and serverless plane (an NCC per environment, and the
 #               metastore's NCC for OpenSharing SecureConnect)
 # One domain account is drawn per environment; every st<domain><env> has its own pep-st<domain><env>-dfs and an NCC
@@ -10,13 +15,20 @@
 # serverless never has an endpoint to a prod account. Ranges and names come from model.yaml.
 # Facts: learn.microsoft.com/azure/databricks/security/network/ (front-end/front-end-private-connect,
 # serverless-network-security/serverless-private-link, storage/firewall-support), .../ingestion/lakeflow-connect/
-# sql-server-limits, .../opensharing/secureconnect-provider, learn.microsoft.com/data-integration/vnet/
+# sql-server-limits, .../opensharing/secureconnect-provider, learn.microsoft.com/data-integration/vnet/,
+# learn.microsoft.com/azure/virtual-network/virtual-networks-udr-overview, .../azure/firewall/tutorial-hybrid-portal
 type: azure
 title: Secure deployment
 subtitle: Northwind lakehouse · no public access, every hop over Private Link or through the hub firewall
 direction: right
 include: [model.yaml]
 present: views
+# The environments before production are built alike, a spoke each, so they are written once: one more value under
+# built: (and in model.yaml's each:) is one more environment, with its view.
+each:
+  built:
+    test: { title: Test, cidr: 10.1.12.0/22 }
+    dev: { title: Development, cidr: 10.1.8.0/22 }
 # The ERP's line runs through the hub here (gateway → firewall → ExpressRoute), not straight to erp-ingest.
 exclude: ['erp -> lakehouse.erp-ingest']
 
@@ -25,8 +37,7 @@ groups:
   vnet-hub-weu: { ref: vnet-hub-weu, caption: 10.0.0.0/22 · sub-connectivity }
   zones: { kind: boundary, label: Private DNS zones, caption: Linked to vnet-hub-weu }
   vnet-lakehouse-prod: { ref: vnet-lakehouse-prod, caption: 10.1.16.0/21 · peered to the hub, env: prod }
-  vnet-lakehouse-test: { ref: vnet-lakehouse-test, caption: 10.1.12.0/22 · peered to the hub, env: test }
-  vnet-lakehouse-dev: { ref: vnet-lakehouse-dev, caption: 10.1.8.0/22 · peered to the hub, env: dev }
+  vnet-lakehouse-<built>: { ref: vnet-lakehouse-<built>, caption: <built.cidr> · peered to the hub, env: <built> }
   managed-prod: { kind: resource-group, label: databricks-rg-dbw-lakehouse-prod, caption: Managed by Databricks, env: prod }
   control: { kind: control-plane, label: Databricks control plane, caption: West Europe }
   serverless: { kind: serverless-plane, label: Serverless compute plane, caption: Run by Databricks }
@@ -41,32 +52,34 @@ nodes:
   ergw-hub-weu: { kind: expressroute, label: ergw-hub-weu, caption: ExpressRoute gateway · GatewaySubnet, in: vnet-hub-weu }
   dnspr-hub-weu: { ref: dnspr-hub-weu, caption: Resolver inbound · 10.0.1.100, in: vnet-hub-weu }
   afw-hub: { ref: afw-hub, caption: Premium · 10.0.0.68 · SNAT out, in: vnet-hub-weu }
+  rt-hub-gateway: { ref: rt-hub-gateway, caption: On GatewaySubnet, in: vnet-hub-weu }
   pep-dbw-lakehouse-prod-ui: { ref: pep-dbw-lakehouse-prod-ui, caption: databricks_ui_api · snet-pep, in: vnet-hub-weu, env: prod }
-  pep-dbw-lakehouse-test-ui: { ref: pep-dbw-lakehouse-test-ui, caption: databricks_ui_api · snet-pep, in: vnet-hub-weu, env: test }
-  pep-dbw-lakehouse-dev-ui: { ref: pep-dbw-lakehouse-dev-ui, caption: databricks_ui_api · snet-pep, in: vnet-hub-weu, env: dev }
+  pep-dbw-lakehouse-<built>-ui: { ref: pep-dbw-lakehouse-<built>-ui, caption: databricks_ui_api · snet-pep, in: vnet-hub-weu, env: <built> }
   pep-dbw-webauth-weu: { ref: pep-dbw-webauth-weu, caption: browser_authentication · snet-pep, in: vnet-hub-weu }
   pbi-gateway: { kind: fabric, label: VNet data gateway, caption: Power BI · snet-pbi-gateway, in: vnet-hub-weu, env: prod }
+  # Cloud Fetch clients need their own dfs and blob endpoints to workspace storage, in their own network
+  pep-dbstorage-prod-hub-dfs: { kind: private-endpoint, label: pep-dbstorage-prod-hub-dfs, caption: dfs · snet-pep, in: vnet-hub-weu, env: prod }
+  pep-dbstorage-prod-hub-blob: { kind: private-endpoint, label: pep-dbstorage-prod-hub-blob, caption: blob · snet-pep, in: vnet-hub-weu, env: prod }
   privatelink-azuredatabricks-net: { ref: privatelink-azuredatabricks-net, caption: Workspace and pl-auth records, in: zones }
   privatelink-dfs-core-windows-net: { ref: privatelink-dfs-core-windows-net, caption: dfs endpoints, in: zones }
   privatelink-blob-core-windows-net: { ref: privatelink-blob-core-windows-net, caption: blob endpoints, in: zones }
 
   # Control plane
   dbw-lakehouse-prod: { ref: dbw-lakehouse-prod, caption: Web app · REST API · SCC relay, in: control, env: prod }
-  dbw-lakehouse-test: { ref: dbw-lakehouse-test, caption: Web app · REST API · SCC relay, in: control, env: test }
-  dbw-lakehouse-dev: { ref: dbw-lakehouse-dev, caption: Web app · REST API · SCC relay, in: control, env: dev }
+  dbw-lakehouse-<built>: { ref: dbw-lakehouse-<built>, caption: Web app · REST API · SCC relay, in: control, env: <built> }
   dbw-webauth-weu: { ref: dbw-webauth-weu, caption: Browser sign-in only, in: control }
 
   # Production spoke
   clusters-prod: { kind: compute, label: Cluster VMs, caption: Host and container subnets · SCC, in: vnet-lakehouse-prod }
   gateway-prod: { of: lakehouse.erp-ingest, kind: compute, label: Ingestion gateway, caption: erp-ingest · classic compute, in: vnet-lakehouse-prod }
   nsg-dbw-lakehouse-prod: { ref: nsg-dbw-lakehouse-prod, caption: On both cluster subnets, in: vnet-lakehouse-prod }
-  rt-lakehouse-prod: { ref: rt-lakehouse-prod, caption: On both cluster subnets, in: vnet-lakehouse-prod }
+  rt-lakehouse-prod: { ref: rt-lakehouse-prod, caption: Cluster subnets · gateway routes off, in: vnet-lakehouse-prod }
   pep-dbw-lakehouse-prod: { ref: pep-dbw-lakehouse-prod, caption: databricks_ui_api · back-end, in: vnet-lakehouse-prod }
   pep-stordersprod-dfs: { ref: pep-stordersprod-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-prod }
   pep-dbstorage-prod-dfs: { kind: private-endpoint, label: pep-dbstorage-prod-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-prod }
   pep-dbstorage-prod-blob: { kind: private-endpoint, label: pep-dbstorage-prod-blob, caption: blob · snet-pep, in: vnet-lakehouse-prod }
   dbstorage-prod: { kind: storage, label: dbstorage, caption: Workspace storage · firewall support on, in: managed-prod }
-  stordersprod: { ref: stordersprod, caption: ADLS Gen2 · one of six, env: prod }
+  stordersprod: { ref: stordersprod, caption: ADLS Gen2 · one per domain, env: prod }
   stsupplyprod: { ref: stsupplyprod, caption: ADLS Gen2 · model artifacts, env: prod }
   stsalesprod: { ref: stsalesprod, caption: ADLS Gen2 · sell_through, env: prod }
 
@@ -81,25 +94,18 @@ nodes:
   contoso-retail: { ref: contoso-retail, caption: Recipient · Databricks-to-Databricks, env: prod }
 
   # Test and development: built as production, a spoke each
-  clusters-test: { kind: compute, label: Cluster VMs, caption: Host and container subnets · SCC, in: vnet-lakehouse-test }
-  pep-dbw-lakehouse-test: { ref: pep-dbw-lakehouse-test, caption: databricks_ui_api · back-end, in: vnet-lakehouse-test }
-  pep-storderstest-dfs: { ref: pep-storderstest-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-test }
-  storderstest: { ref: storderstest, caption: ADLS Gen2 · one of six, env: test }
-  ncc-lakehouse-test: { ref: ncc-lakehouse-test, caption: Attached to dbw-lakehouse-test, in: serverless, env: test }
-  clusters-dev: { kind: compute, label: Cluster VMs, caption: Host and container subnets · SCC, in: vnet-lakehouse-dev }
-  pep-dbw-lakehouse-dev: { ref: pep-dbw-lakehouse-dev, caption: databricks_ui_api · back-end, in: vnet-lakehouse-dev }
-  pep-stordersdev-dfs: { ref: pep-stordersdev-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-dev }
-  stordersdev: { ref: stordersdev, caption: ADLS Gen2 · one of six, env: dev }
-  ncc-lakehouse-dev: { ref: ncc-lakehouse-dev, caption: Attached to dbw-lakehouse-dev, in: serverless, env: dev }
+  clusters-<built>: { kind: compute, label: Cluster VMs, caption: Host and container subnets · SCC, in: vnet-lakehouse-<built> }
+  pep-dbw-lakehouse-<built>: { ref: pep-dbw-lakehouse-<built>, caption: databricks_ui_api · back-end, in: vnet-lakehouse-<built> }
+  pep-storders<built>-dfs: { ref: pep-storders<built>-dfs, caption: dfs · snet-pep, in: vnet-lakehouse-<built> }
+  storders<built>: { ref: storders<built>, caption: ADLS Gen2 · one per domain, env: <built> }
+  ncc-lakehouse-<built>: { ref: ncc-lakehouse-<built>, caption: Attached to dbw-lakehouse-<built>, in: serverless, env: <built> }
 
 edges:
   # From the offices, over ExpressRoute
   - browser -> ergw-hub-weu: { label: HTTPS, style: private }
   - ergw-hub-weu -> pep-dbw-lakehouse-prod-ui: { style: private }
-  - ergw-hub-weu -> pep-dbw-lakehouse-test-ui: { style: private }
-  - ergw-hub-weu -> pep-dbw-lakehouse-dev-ui: { style: private }
-  - clusters-test -> afw-hub: { label: 0.0.0.0/0, style: private }
-  - clusters-dev -> afw-hub: { label: 0.0.0.0/0, style: private }
+  - ergw-hub-weu -> pep-dbw-lakehouse-<built>-ui: { style: private }
+  - clusters-<built> -> afw-hub: { label: 0.0.0.0/0, style: private }
   - ergw-hub-weu -> pep-dbw-webauth-weu: { label: SSO, style: private }
   - office-dns -> dnspr-hub-weu: { label: DNS · over ExpressRoute, style: private }
   - dnspr-hub-weu -> privatelink-azuredatabricks-net: Resolves
@@ -123,16 +129,16 @@ edges:
   # Power BI and Contoso
   - power-bi -> pbi-gateway: { label: DirectQuery, style: private }
   - pbi-gateway -> pep-dbw-lakehouse-prod-ui: { label: SQL warehouse, style: private }
-  - pbi-gateway -> pep-dbstorage-prod-blob: { label: Cloud Fetch, style: private }
+  - pbi-gateway -> pep-dbstorage-prod-hub-dfs: { label: Cloud Fetch, style: private }
+  - pbi-gateway -> pep-dbstorage-prod-hub-blob: { label: Cloud Fetch, style: private }
+  - pep-dbstorage-prod-hub-dfs -> dbstorage-prod: { style: private }
+  - pep-dbstorage-prod-hub-blob -> dbstorage-prod: { style: private }
   - contoso-retail -> secureconnect: { label: OpenSharing, style: private }
   - secureconnect -> ncc-opensharing-weu: { style: private }
   # Test and development
-  - clusters-test -> pep-dbw-lakehouse-test: { label: SCC relay · REST, style: private }
-  - clusters-test -> pep-storderstest-dfs: { style: private }
-  - clusters-dev -> pep-dbw-lakehouse-dev: { label: SCC relay · REST, style: private }
-  - clusters-dev -> pep-stordersdev-dfs: { style: private }
-  - ncc-lakehouse-test -> storderstest: { label: dfs, style: private }
-  - ncc-lakehouse-dev -> stordersdev: { label: dfs, style: private }
+  - clusters-<built> -> pep-dbw-lakehouse-<built>: { label: SCC relay · REST, style: private }
+  - clusters-<built> -> pep-storders<built>-dfs: { style: private }
+  - ncc-lakehouse-<built> -> storders<built>: { label: dfs, style: private }
 
 views:
   hub:
@@ -148,7 +154,7 @@ views:
         caption: Office DNS forwards *.azuredatabricks.net to the resolver, which answers from the zones linked to the hub.
         path: office-dns -> dnspr-hub-weu -> privatelink-azuredatabricks-net
       - title: A user's browser
-        caption: The workspace URL resolves to the front-end endpoint; test and dev have one each in snet-pep.
+        caption: The workspace URL resolves to the front-end endpoint; the other environments have one each.
         path: browser -> ergw-hub-weu -> pep-dbw-lakehouse-prod-ui -> dbw-lakehouse-prod
       - title: Signing in
         caption: After Entra ID the browser returns through the region's one browser_authentication endpoint.
@@ -171,19 +177,23 @@ views:
         caption: Firewall support closes dbstorage to public networks; clusters reach it through a dfs and a blob endpoint.
         path: [clusters-prod -> pep-dbstorage-prod-dfs -> dbstorage-prod, clusters-prod -> pep-dbstorage-prod-blob -> dbstorage-prod]
       - title: Everything else
-        caption: rt-lakehouse-prod sends 0.0.0.0/0 to afw-hub, so package mirrors and the rest leave through the firewall.
+        caption: rt-lakehouse-prod sends 0.0.0.0/0 to afw-hub and takes no gateway routes, so all else, on-premises too, passes the firewall.
         path: rt-lakehouse-prod -> afw-hub
   erp:
     title: Ingesting the ERP
     environment: prod
     subtitle: Northwind lakehouse · Lakeflow Connect's gateway reaches SQL Server on-premises through the hub
-    include: [gateway-prod, rt-lakehouse-prod, afw-hub, ergw-hub-weu, erp, pep-dbw-lakehouse-prod, dbw-lakehouse-prod]
+    direction: down
+    include: [gateway-prod, rt-lakehouse-prod, afw-hub, rt-hub-gateway, ergw-hub-weu, erp, pep-dbw-lakehouse-prod, dbw-lakehouse-prod]
     steps:
       - title: Ingesting the ERP
         caption: erp-ingest pairs one ingestion pipeline (serverless) with one gateway, which must run on classic compute.
       - title: To SQL Server
-        caption: rt-lakehouse-prod sends the gateway to afw-hub, which allows 1433 to the ERP over ExpressRoute only.
+        caption: Gateway routes are off in rt-lakehouse-prod, so 10.10.0.0/16 goes to afw-hub too; it allows 1433 to the ERP only.
         path: gateway-prod -> afw-hub -> ergw-hub-weu -> erp
+      - title: The way back
+        caption: rt-hub-gateway on GatewaySubnet sends what comes back for the spokes through afw-hub as well, so both ways pass it.
+        path: rt-hub-gateway -> afw-hub
       - title: To the workspace
         caption: Like a cluster, the gateway reports to the control plane through the back-end endpoint.
         path: gateway-prod -> pep-dbw-lakehouse-prod -> dbw-lakehouse-prod
@@ -205,7 +215,8 @@ views:
     title: Power BI
     environment: prod
     subtitle: Northwind lakehouse · the Power BI service queries the workspace through a VNet data gateway in the hub
-    include: [power-bi, pbi-gateway, pep-dbw-lakehouse-prod-ui, dbw-lakehouse-prod, pep-dbstorage-prod-blob, dbstorage-prod]
+    direction: down
+    include: [power-bi, pbi-gateway, pep-dbw-lakehouse-prod-ui, dbw-lakehouse-prod, pep-dbstorage-prod-hub-dfs, pep-dbstorage-prod-hub-blob, dbstorage-prod]
     steps:
       - title: Power BI
         caption: The Power BI service has no way into the network; a VNet data gateway in snet-pbi-gateway runs its queries.
@@ -213,8 +224,8 @@ views:
         caption: The gateway reaches the SQL warehouse through the workspace's front-end endpoint, as a browser would.
         path: power-bi -> pbi-gateway -> pep-dbw-lakehouse-prod-ui -> dbw-lakehouse-prod
       - title: Cloud Fetch
-        caption: Large results come from workspace storage; the gateway fetches them through its blob endpoint.
-        path: pbi-gateway -> pep-dbstorage-prod-blob -> dbstorage-prod
+        caption: Large results come from workspace storage, through a dfs and a blob endpoint in the gateway's own network.
+        path: [pbi-gateway -> pep-dbstorage-prod-hub-dfs -> dbstorage-prod, pbi-gateway -> pep-dbstorage-prod-hub-blob -> dbstorage-prod]
   contoso:
     title: Sharing with Contoso
     environment: prod
@@ -223,20 +234,15 @@ views:
     exclude: ['uc-weu.contoso -> contoso-retail']   # the share's own data line; here the network path
     steps:
       - title: Sharing with Contoso
-        caption: stsalesprod accepts private endpoints only, so a recipient cannot read the shared files directly.
+        caption: stsalesprod sits behind private endpoints, so Contoso cannot read its files; it still lets in the control plane.
       - title: SecureConnect
-        caption: Contoso's requests go through Databricks' proxy, which reads through an NCC with a blob and a dfs rule.
+        caption: Switched on for the recipient contoso, Databricks' proxy reads through an NCC with a blob and a dfs rule.
         path: contoso-retail -> secureconnect -> ncc-opensharing-weu -> stsalesprod
       - title: On the metastore
         caption: That NCC is attached to uc-weu, not to a workspace, and serves every share in the metastore.
         path: ncc-opensharing-weu -> uc-weu
-  test:
-    title: Test
-    environment: test
+  <built>:
+    title: <built.title>
+    environment: <built>
     subtitle: Northwind lakehouse · built as production, in its own spoke, workspace and NCC
-    include: [vnet-lakehouse-test, storderstest, dbw-lakehouse-test, ncc-lakehouse-test, pep-dbw-lakehouse-test-ui, afw-hub]
-  dev:
-    title: Development
-    environment: dev
-    subtitle: Northwind lakehouse · built as production, in its own spoke, workspace and NCC
-    include: [vnet-lakehouse-dev, stordersdev, dbw-lakehouse-dev, ncc-lakehouse-dev, pep-dbw-lakehouse-dev-ui, afw-hub]
+    include: [vnet-lakehouse-<built>, storders<built>, dbw-lakehouse-<built>, ncc-lakehouse-<built>, pep-dbw-lakehouse-<built>-ui, afw-hub]

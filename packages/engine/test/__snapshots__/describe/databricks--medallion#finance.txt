@@ -13,7 +13,7 @@ Groups and elements
 - bi-warehouse (Serverless SQL warehouse)
 - Power BI (Fabric capacity F64): Reports on gold through the SQL warehouse
 - Business analysts (Power BI · Genie): Read gold data in Power BI and Genie
-- finance-pipeline (Lakeflow pipeline)
+- finance-pipeline (Nightly)
 
 Connections
 - ERP sends data to erp-ingest (CDC [SQL Server]).

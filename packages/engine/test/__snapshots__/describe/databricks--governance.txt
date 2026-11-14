@@ -14,9 +14,9 @@ Connections
 
 Layers
 Ways to look at this drawing by tag.
-- Development (tags dev; 1 element).
-- Test (tags test; 1 element).
-- Production (tags prod; 1 element).
+- dev (tags dev; 1 element).
+- test (tags test; 1 element).
+- prod (tags prod; 1 element).
 
 Key
 - Solid sky line: Role assignment
