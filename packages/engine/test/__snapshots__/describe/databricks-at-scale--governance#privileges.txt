@@ -1,11 +1,13 @@
 What each role holds
 
-Roles, groups and access packages diagram: Unity Catalog privileges on catalogs and schemas; the admin roles are in Who administers. A table of 5 rows by 8 columns.
+Roles, groups and access packages diagram: Unity Catalog privileges on catalogs and schemas; the admin roles are in Who administers. A table of 7 rows by 8 columns.
 
 By row (Role by permission)
 Columns: BROWSE, USE CATALOG, USE SCHEMA, SELECT, MODIFY, CREATE TABLE, MANAGE and transfer and drop.
 - BROWSE: BROWSE: yes
-- Read (includes BROWSE): BROWSE: yes, inherited; USE CATALOG: yes; USE SCHEMA: yes; SELECT: yes
+- Use catalog: USE CATALOG: yes
+- Read schema: USE SCHEMA: yes; SELECT: yes
+- Read (includes BROWSE, Use catalog, Read schema): BROWSE: yes, inherited; USE CATALOG: yes, inherited; USE SCHEMA: yes, inherited; SELECT: yes, inherited
 - Write (includes Read): BROWSE: yes, inherited; USE CATALOG: yes, inherited; USE SCHEMA: yes, inherited; SELECT: yes, inherited; MODIFY: yes; CREATE TABLE: yes
 - MANAGE (includes Read): BROWSE: yes, inherited; USE CATALOG: yes, inherited; USE SCHEMA: yes, inherited; SELECT: yes, inherited; MANAGE: yes
 - Owner (includes Write, MANAGE): BROWSE: yes, inherited; USE CATALOG: yes, inherited; USE SCHEMA: yes, inherited; SELECT: yes, inherited; MODIFY: yes, inherited; CREATE TABLE: yes, inherited; MANAGE: yes, inherited; transfer and drop: yes

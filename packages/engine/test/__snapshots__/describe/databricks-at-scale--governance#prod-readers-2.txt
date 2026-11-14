@@ -1,19 +1,19 @@
 Who reads production (2 of 2)
 
-Roles, groups and access packages diagram: Each team MANAGEs its catalog, the jobs write, every engineer may BROWSE and analysts read gold. A table of 10 rows by 4 columns.
+Roles, groups and access packages diagram: Each team MANAGEs its catalog, the jobs write, every engineer may BROWSE and analysts read gold. A table of 10 rows by 5 columns.
 
 By row (domain by where)
-Columns: engineers, <domain>-team, sp-lakehouse-prod and analysts.
-- payroll: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
-- pricing: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
-- inventory: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
-- returns: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
-- loyalty: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
-- fraud: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
-- support: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
-- products: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
-- partners: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
-- risk: engineers: BROWSE; <domain>-team: MANAGE; sp-lakehouse-prod: Write; analysts: Read
+Columns: engineers, <domain>-team, analysts, sp-lakehouse-prod and analysts.
+- payroll: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
+- pricing: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
+- inventory: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
+- returns: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
+- loyalty: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
+- fraud: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
+- support: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
+- products: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
+- partners: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
+- risk: engineers: BROWSE; <domain>-team: MANAGE; analysts: Use catalog; sp-lakehouse-prod: Write; analysts: Read schema
 
 Layers
 Ways to look at this drawing by tag.

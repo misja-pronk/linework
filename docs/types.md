@@ -317,7 +317,7 @@ views:
     exclude: [engineers, analysts, kind:databricks, uc-weu]
 ```
 
-What is written for neither list (a workspace, the metastore) has no cell: other views show it. `include:`, `exclude:` and `environment:` cut the pivoted matrix as they cut the plain one. [examples/databricks-at-scale/governance.yaml](../examples/databricks-at-scale/governance.yaml) grants twenty domains in about a hundred lines; its 171 grants are 11 lines.
+What is written for neither list (a workspace, the metastore) has no cell: other views show it. `include:`, `exclude:` and `environment:` cut the pivoted matrix as they cut the plain one. [examples/databricks-at-scale/governance.yaml](../examples/databricks-at-scale/governance.yaml) grants twenty domains in about a hundred lines; its 191 grants are 12 lines.
 
 Not for: where the resources run (use `azure`), GitHub teams and repository permissions (use `github`).
 
