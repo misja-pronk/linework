@@ -27,7 +27,7 @@ nodes:
   github: { kind: service, label: GitHub Actions, caption: Declarative Automation Bundles, icon: rocket, in: platform, links: [environments.yaml] }
 
   entra-id: { ref: entra-id, caption: Users and groups }
-  groups: { kind: users, label: Account groups, caption: In the Databricks account, icon: user-cog, links: [governance.yaml] }
+  groups: { kind: users, label: Account groups, caption: Automatic identity management, icon: user-cog, links: [governance.yaml] }
   domains: { kind: users, label: Domain teams, caption: A catalog per environment each, links: [mesh.yaml] }
 
   power-bi: { ref: power-bi, in: readers }
@@ -41,5 +41,5 @@ edges:
   - workspaces -> uc-weu: Attached
   - lakehouse -> uc-weu: { label: bronze to gold, style: data }
   - domains -> uc-weu: Publish from
-  - entra-id -> groups: Automatic identity management
+  - entra-id -> groups: Synced
   - groups -> uc-weu: Granted
