@@ -4,6 +4,7 @@
 //   access    who × where, the effective role, and where it comes from
 //   packages  access packages × what they grant
 //   roles     roles × permissions, including inherited ones
+// A view of the file (views: at the top) cuts each of them to the principals and scopes it picks.
 import {
   english,
   idPattern,
@@ -1294,6 +1295,7 @@ export const access: DiagramType<AccessSource> = {
     'access', 'permission', 'role', 'rbac', 'group', 'access package', 'entra', 'identity', 'iam', 'who has access', 'who can', 'privilege',
     'governance', 'catalog', 'principal', 'security group', 'matrix', 'least privilege', 'audit',
     'pim', 'conditional access', 'paw', 'app registration', 'service principal', 'workload identity',
+    'unity catalog', 'abac', 'column mask', 'row filter', 'opensharing', 'delta sharing',
   ],
   schema: {
     $schema: 'http://json-schema.org/draft-07/schema#',
@@ -1318,7 +1320,7 @@ export const access: DiagramType<AccessSource> = {
       },
       policies: {
         type: 'object',
-        description: 'Conditional Access policies, and the authentication strengths, named locations and compliance policies they use',
+        description: 'Conditional Access policies, and the authentication strengths, named locations and compliance policies they use; data access policies (column-mask, row-filter) on a governed tag',
         propertyNames: { pattern: idPattern },
         additionalProperties: entry(Object.keys(policyKinds), {
           targets: { ...strings, description: 'Who it applies to: users, groups, directory roles' },
