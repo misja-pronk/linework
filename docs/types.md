@@ -263,7 +263,7 @@ principals:
   fic-github: { kind: federated-credential, label: github-prod, app: app-deploy }
 ```
 
-Unity Catalog has its own: `account-group`, `recipient` (OpenSharing, called Delta Sharing until June 2026) with `share`, `metastore`, `catalog`, `schema`, `table`, `volume`, and `databricks` for a workspace. `bound: dbw-lakehouse-prod` says which workspaces an isolated catalog is bound to; its caption says it, in the graph and over its column. A data access policy (ABAC) is a `column-mask` or `row-filter` policy `on` a catalog, schema or table, matching a governed `tag`, for everyone or its `targets`, `excludes` the ones it leaves alone; in the matrix a cell that reads there says what it does (`columns tagged pii masked`).
+Unity Catalog has its own: `account-group`, `recipient` (OpenSharing, called Delta Sharing until June 2026) with `share`, `metastore`, `catalog`, `schema`, `table`, `volume`, and `databricks` for a workspace. `bound: dbw-lakehouse-prod` says which workspaces an isolated catalog is bound to: its card says so in the graph (a line along the column of scopes would cross every grant). A data access policy (ABAC) is a `column-mask` or `row-filter` policy `on` a catalog, schema or table, matching a governed `tag`, for everyone or its `targets`, `excludes` the ones it leaves alone; in the matrix a cell that reads there says what it does (`columns tagged pii masked`).
 
 ```yaml
 policies:
