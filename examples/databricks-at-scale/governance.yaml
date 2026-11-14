@@ -2,8 +2,8 @@
 # examples/databricks/governance.yaml: a team owns its dev catalog, where the pipelines write as sp-lakehouse-dev;
 # in test and prod the environment's service principal owns the catalogs and each team reads its own; no one holds
 # MANAGE; engineers BROWSE production; analysts read gold, where mask_pii hides the columns tagged pii.
-# <domain>, <env> or <staging> in a name write the entry once per value of that list under each: (this file's own).
-# A domain is one more value under domain:, an environment between dev and prod one more under env: and staging:.
+# <domain> or <env> in a name write the entry once per value of that list under each: (this file's own). A domain
+# is one more value under domain:, an environment one more under env:, with what its team and service principal are.
 # team-access-<part> and prod-readers-<part> lay the who × where matrix out by those lists, half the domains a slide.
 type: access
 title: Unity Catalog access at scale
@@ -13,8 +13,10 @@ present: views
 
 each:
   domain: [orders, webshop, finance, sales, customers, supply, marketing, logistics, procurement, hr, payroll, pricing, inventory, returns, loyalty, fraud, support, products, partners, risk]
-  env: [dev, test, prod]
-  staging: [test]          # between dev and prod: there the environment's service principal owns the catalogs
+  env:                     # what the domain's team and the environment's service principal are on its catalogs
+    dev: { team: owner, jobs: pipeline }
+    test: { team: read-catalog, jobs: owner }
+    prod: { team: read-catalog, jobs: owner }
   part: [1, 2]
 
 layers:
@@ -23,7 +25,7 @@ layers:
 principals:
   platform-team: { kind: account-group, label: platform-team, caption: Metastore and workspace admins }
   engineers: { kind: account-group, label: engineers, caption: Every domain team }
-  <domain>-team: { kind: account-group, label: <domain>-team, member-of: engineers }
+  <domain>-team: { kind: account-group, label: <domain>-team, member-of: engineers, column: Domain team }
   analysts: { kind: account-group, label: analysts, caption: Power BI and Genie }
   sp-lakehouse-<env>: { kind: service-principal, label: sp-lakehouse-<env>, caption: Deploys and runs <env>, tags: [<env>] }
 
@@ -56,14 +58,10 @@ assignments:
   - engineers is workspace-user on dbw-lakehouse-<env>
   - sp-lakehouse-<env> is workspace-user on dbw-lakehouse-<env>
   - analysts is workspace-user on dbw-lakehouse-prod
-  # Dev: each team owns its catalog; the bundle's pipelines write there as sp-lakehouse-dev
-  - <domain>-team is owner on <domain>_dev
-  - sp-lakehouse-dev is pipeline on <domain>_dev
-  # Test and prod: the environment's service principal owns the catalogs; each team reads its own
-  - sp-lakehouse-<staging> is owner on <domain>_<staging>
-  - <domain>-team is read-catalog on <domain>_<staging>
-  - sp-lakehouse-prod is owner on <domain>_prod
-  - <domain>-team is read-catalog on <domain>_prod
+  # In dev each team owns its catalog and the pipelines write as sp-lakehouse-dev; in test and prod the service
+  # principal owns the catalogs and each team reads its own (each: env)
+  - <domain>-team is <env.team> on <domain>_<env>
+  - sp-lakehouse-<env> is <env.jobs> on <domain>_<env>
   # Every engineer may find production data; analysts read gold
   - engineers is browse on <domain>_prod
   - analysts is use-catalog on <domain>_prod

@@ -3,17 +3,17 @@ Every domain, every environment (2 of 2)
 Unity Catalog access diagram: Northwind lakehouse · a row per domain; per environment what its team and the service principal hold. A table of 10 rows by 6 columns.
 
 By row (domain by env)
-Columns: dev (<domain>-team, sp-lakehouse-dev); test (<domain>-team, sp-lakehouse-test); prod (<domain>-team, sp-lakehouse-prod).
-- payroll: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
-- pricing: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
-- inventory: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
-- returns: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
-- loyalty: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
-- fraud: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
-- support: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
-- products: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
-- partners: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
-- risk: dev <domain>-team: Owner; sp-lakehouse-dev: Pipeline; test <domain>-team: Read catalog; sp-lakehouse-test: Owner; prod <domain>-team: Read catalog; sp-lakehouse-prod: Owner
+Columns: dev (Domain team, sp-lakehouse-dev); test (Domain team, sp-lakehouse-test); prod (Domain team, sp-lakehouse-prod).
+- payroll: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- pricing: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- inventory: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- returns: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- loyalty: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- fraud: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- support: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- products: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- partners: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- risk: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
 
 Layers
 Ways to look at this drawing by tag.

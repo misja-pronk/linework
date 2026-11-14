@@ -15,7 +15,8 @@
 #                except for customers-team, the prod jobs and the Customer 360 app
 # The whole file is a working canvas (present: views); its views are the slides, one concern each.
 # A name with <domain>, <env> or another list is written once per value of that list under each: (this file's own
-# lists), so a domain or an environment is one more value there. tags put each environment on a layer.
+# lists), so a domain or an environment is one more value there; an environment says what its team and its service
+# principal are on its catalogs (team:, jobs:). tags put each environment on a layer.
 # Ids are the model's (model.yaml) where the thing is the same; catalogs and credentials drop the uc-weu. prefix.
 type: access
 title: Unity Catalog access
@@ -26,10 +27,9 @@ present: views
 each:
   domain: [orders, webshop, finance, sales, customers, supply]
   env:
-    dev: { title: development, access: each team owns its dev catalog; the bundle's pipelines write there as sp-lakehouse-dev }
-    test: { title: test, access: sp-lakehouse-test owns the test catalogs; each team reads its own }
-    prod: { title: production, access: sp-lakehouse-prod owns the prod catalogs; each team reads its own; no one holds MANAGE }
-  staging: [test]                    # between dev and prod: there the environment's service principal owns the catalogs
+    dev: { title: development, team: owner, jobs: pipeline, access: each team owns its dev catalog; the bundle's pipelines write there as sp-lakehouse-dev }
+    test: { title: test, team: read-catalog, jobs: owner, access: sp-lakehouse-test owns the test catalogs; each team reads its own }
+    prod: { title: production, team: read-catalog, jobs: owner, access: sp-lakehouse-prod owns the prod catalogs; each team reads its own; no one holds MANAGE }
   bi: [webshop, finance, sales]      # the domains whose gold analysts read in Power BI
   app: [customers, sales]            # the domains whose gold the Customer 360 app reads
 
@@ -106,14 +106,10 @@ assignments:
   - engineers is workspace-user on dbw-lakehouse-<env>
   - analysts is workspace-user on dbw-lakehouse-prod
   - sp-lakehouse-<env> is workspace-user on dbw-lakehouse-<env>
-  # Dev: each team owns its catalog; the bundle's pipelines run as sp-lakehouse-dev
-  - <domain>-team is owner on <domain>_dev
-  - sp-lakehouse-dev is pipeline on <domain>_dev
-  # Test and prod: the environment's service principal owns the catalogs; each team reads its own
-  - sp-lakehouse-<staging> is owner on <domain>_<staging>
-  - <domain>-team is read-catalog on <domain>_<staging>
-  - sp-lakehouse-prod is owner on <domain>_prod
-  - <domain>-team is read-catalog on <domain>_prod
+  # Per environment, as each: env says: in dev each team owns its catalog and the bundle's pipelines run as
+  # sp-lakehouse-dev; in test and prod the environment's service principal owns the catalogs and each team reads its own
+  - <domain>-team is <env.team> on <domain>_<env>
+  - sp-lakehouse-<env> is <env.jobs> on <domain>_<env>
   # supply-pipeline reads the suppliers' SFTP server through the connection (serverless: USE CONNECTION)
   - sp-lakehouse-prod is use-connection on sftp_suppliers
   # Every engineer may find production data: BROWSE shows names and comments, no rows
