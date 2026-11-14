@@ -1,0 +1,23 @@
+Who × where in dev and test
+
+Roles, groups and access packages diagram: Each team owns its dev catalog and reads test; the environment's service principal writes. A table of 8 rows by 12 columns.
+
+By row (Who by where)
+Columns: orders_dev, webshop_dev, finance_dev, sales_dev, customers_dev, supply_dev, orders_test, webshop_test, finance_test, sales_test, customers_test and supply_test.
+- orders-team (Account group): orders_dev: Owner; orders_test: Read
+- webshop-team (Account group): webshop_dev: Owner; webshop_test: Read
+- finance-team (Account group): finance_dev: Owner; finance_test: Read
+- sales-team (Account group): sales_dev: Owner; sales_test: Read
+- customers-team (Account group): customers_dev: Owner; customers_test: Read
+- supply-team (Account group): supply_dev: Owner; supply_test: Read
+- sp-lakehouse-dev (Runs the jobs in dev): orders_dev: Write; webshop_dev: Write; finance_dev: Write; sales_dev: Write; customers_dev: Write; supply_dev: Write
+- sp-lakehouse-test (Runs the jobs in test): orders_test: Write; webshop_test: Write; finance_test: Write; sales_test: Write; customers_test: Write; supply_test: Write
+
+Layers
+Ways to look at this drawing by tag.
+- Development (tags dev; 0 elements).
+- Test (tags test; 0 elements).
+- Production (tags prod; 0 elements).
+
+Key
+- Indigo filled pill: Assigned directly

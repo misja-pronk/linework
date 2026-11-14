@@ -1,0 +1,32 @@
+Who reads production
+
+Roles, groups and access packages diagram: Analysts read the gold schemas, pii masked; Contoso reads its share. Each team MANAGEs its own catalog. 8 elements in 4 groups, with 6 connections.
+
+Groups and elements
+- mask_pii (Masks columns tagged pii)
+- customers_prod (Bound to dbw-lakehouse-prod)
+  - customers_prod.gold (pii tagged columns)
+- analysts (Power BI and Genie)
+- orders_prod (Bound to dbw-lakehouse-prod)
+  - orders_prod.gold (Schema)
+- finance_prod (Bound to dbw-lakehouse-prod)
+  - finance_prod.gold (Schema)
+- sales_prod (Bound to dbw-lakehouse-prod)
+  - sales_prod.gold (sell_through)
+- contoso (Databricks-to-Databricks)
+- contoso_sell_through (sales_prod.gold.sell_through)
+
+Connections
+- mask_pii connects to customers_prod (Policy on: pii).
+- analysts is Read on orders_prod.gold, is Read on finance_prod.gold, is Read on sales_prod.gold and is Read on customers_prod.gold.
+- contoso is SELECT on share on contoso_sell_through.
+
+Layers
+Ways to look at this drawing by tag.
+- Development (tags dev; 0 elements).
+- Test (tags test; 0 elements).
+- Production (tags prod; 6 elements).
+
+Key
+- Solid sky line: Role assignment
+- Solid amber line, double: Data policy on
