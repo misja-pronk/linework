@@ -4,7 +4,7 @@
 import { isMap, isScalar, isSeq, parseDocument, YAMLMap, type Document, type Node, type Pair } from 'yaml';
 import type { DiagramType, PaletteItem } from '@cartography/core';
 import { printPreserving } from './yaml-print.ts';
-import { deleteEntryUnsafe, isEntryPath, renameEntryUnsafe } from '@cartography/core';
+import { deleteEntryUnsafe, hasEach, isEntryPath, renameEntryUnsafe } from '@cartography/core';
 import { iconNames } from '@cartography/icons';
 import { schemasAt } from './complete.ts';
 import { say, t } from './i18n/index.ts';
@@ -690,13 +690,15 @@ export const deleteEntries = safe((text: string, type: DiagramType, paths: Path[
 });
 export const setEdgeField = safe(setEdgeFieldUnsafe);
 /** Whether the type writes this drawn line as one arrow of a chain ("a -> b -> c"), which it then changes itself. */
+// A file with patterns (each:) numbers its lines as written out: its chains are changed in the YAML.
 export function isChainLine(text: string, type: DiagramType, edge: string): boolean {
   const doc = type.lines && parse(text);
-  return !!doc && !!type.lines!.remove(doc.toJS() as never, edge);
+  return !!doc && !hasEach(doc.toJS()) && !!type.lines!.remove(doc.toJS() as never, edge);
 }
 /** Labels one arrow of a chain ('' takes the label away), or removes it: the chain is cut in two there. */
 export const editChainLine = safe((text: string, type: DiagramType, edge: string, label?: string): string | undefined => {
   const doc = type.lines && parse(text);
+  if (doc && hasEach(doc.toJS())) return undefined;
   const plan = doc && (label == null ? type.lines!.remove(doc.toJS() as never, edge) : type.lines!.label(doc.toJS() as never, edge, label));
   return plan ? rewriteItemUnsafe(text, plan.path, plan.items) : undefined;
 });
