@@ -149,7 +149,8 @@ Rules, in `include:` and `exclude:`:
 - `include` defaults to `*`. `expand` draws an element as a boundary and adds its parts; `exclude` takes elements out (a group with what is in it), or relations when the rule has an arrow.
 - What sits in a group keeps the group. An element drawn together with parts of it is their boundary, as if expanded, with only those parts in it: `include: [sub-prod, sub-prod.vnet, sub-prod.vnet.snet-pep]` draws the subnet inside its VNet inside its subscription. `title`, `subtitle` and `direction` override the diagram's.
 - Without a view a diagram draws what it says. A diagram that only has views (like `containers.yaml`) draws its first.
-- Diagrams of other types (ERD, access, GitHub, data products) take views too, by id, `id.*` and relation rules.
+- Diagrams of other types (ERD, GitHub, data products) take views too, by id, `id.*` and relation rules. An access diagram applies a view itself, to its graph and its tables alike (see [types.md](types.md#roles-groups-and-access-packages)).
+- `show:` picks one of the type's own drawings for the view, cut to it: `show: access` is an access diagram's who × where matrix of only what the view keeps. A view named like one of those drawings gets a warning: asked for by that name, the type's drawing is drawn.
 - Views of an included model stay the model's: `carto render model.yaml --view landscape` draws them.
 - `exclude:` at the top of a diagram leaves relations of the model out of the drawing as written and of every view, by the same arrow rules: `exclude: ['uc-weu -> lakehouse']`. Lines written in the diagram stay. A node is left out by not writing it, so a rule without an arrow there gets a warning.
 - A view can be told in parts: `steps:` inside the view, see [steps.md](steps.md). When presenting, the views come in the order written.
@@ -187,11 +188,12 @@ views:
 
 - Without a view the first view is drawn, as for a file of only views. The whole drawing is drawn when asked for by the empty view name: "Whole diagram" in the editor's view picker, `--view ''` on the command line.
 - `carto validate` measures the views (and their steps) on their slides, never the whole.
+- The type's own drawings of the whole (an access diagram's who × where of everything) are part of the canvas too: a view with `show:` presents one, cut.
 - `carto render x.yaml -o x.pptx` (or `.pdf`), `--all-views` and `carto deck` write the views, a slide (page, picture) each; `carto describe` describes each view; the HTML export and presenting in the editor show the views. A PowerPoint or PDF exported in the editor while the whole is on screen holds the views.
 - The editor opens the file on its first view; V goes round the views.
 - Steps belong in the views: steps written at the top get a warning, since the whole is not presented. `present: whole` is the default. Without views, `present: views` gets a warning and the drawing is the slide.
 
-Example: [examples/databricks/deployment.yaml](../examples/databricks/deployment.yaml), dev, test and production of one lakehouse, a spoke each.
+Examples: [examples/databricks/deployment.yaml](../examples/databricks/deployment.yaml), dev, test and production of one lakehouse, a spoke each; [examples/databricks/governance.yaml](../examples/databricks/governance.yaml), its Unity Catalog grants, a view per concern.
 
 ## links: drill-down
 
