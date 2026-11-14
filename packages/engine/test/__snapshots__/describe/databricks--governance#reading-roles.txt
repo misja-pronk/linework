@@ -1,0 +1,21 @@
+What the reading roles hold
+
+Unity Catalog access diagram: Northwind lakehouse · BROWSE and USE CATALOG on a catalog, USE SCHEMA and SELECT on a schema or catalog. A table of 5 rows by 8 columns.
+
+By row (Role by permission)
+Columns: BROWSE, USE CATALOG, USE SCHEMA, SELECT, READ VOLUME, EXECUTE, ALL PRIVILEGES and MANAGE.
+- BROWSE: BROWSE: yes
+- Use catalog: USE CATALOG: yes
+- Read schema: USE SCHEMA: yes; SELECT: yes
+- Read catalog (includes Use catalog, Read schema): USE CATALOG: yes, inherited; USE SCHEMA: yes, inherited; SELECT: yes, inherited; READ VOLUME: yes; EXECUTE: yes
+- Owner: ALL PRIVILEGES: yes; MANAGE: yes
+
+Layers
+Ways to look at this drawing by tag.
+- dev (tags dev; 0 elements).
+- test (tags test; 0 elements).
+- prod (tags prod; 0 elements).
+
+Key
+- Indigo check mark: Granted by the role
+- Indigo outlined check mark: Included from another role

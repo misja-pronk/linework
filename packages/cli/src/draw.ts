@@ -2,7 +2,7 @@
 // --focus, the deck or PDF of drawings (and its PowerPoint template), and the --stable layout note.
 import fs from 'node:fs';
 import path from 'node:path';
-import { layerKey, SLIDE_MIN_PT, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { BIG_CANVAS, layerKey, SLIDE_MIN_PT, type RenderOptions, type RenderResult } from '@cartography/engine';
 import { readTemplate, toPdf, toPptx, type Drawing, type PptxOptions, type SlideText } from '@cartography/export';
 import { isThemeFile, resolveTheme, themes, type Theme } from '@cartography/theme';
 import { packLayout, sameLayoutNote, viewPins, withViewPins } from '@cartography/core';
@@ -63,6 +63,10 @@ export function optionsFor(ctx: Ctx, o: DrawOptions, file: string, fonts: Render
     ...(o.layer?.length ? { layers: o.layer.flatMap((l) => l.split(',')).map((l) => l.trim()).filter(Boolean) } : {}),
     ...(o.dim ? { layerMode: 'dim' as const } : {}),
     ...langOption(ctx),
+    // The whole of a big working canvas can take minutes to lay out: said before, not after a silent wait.
+    onLayout: (a) => {
+      if (a.whole && a.nodes > BIG_CANVAS) ctx.error(ctx.dim(t("{file}: laying out the whole canvas, {nodes} elements and {edges} lines; this can take minutes (Ctrl-C stops it). Its views draw in seconds: leave out --view '', or --all-views", { file: path.basename(file), nodes: a.nodes, edges: a.edges })));
+    },
   };
 }
 

@@ -32,6 +32,10 @@ import {
   withBadgeIcons,
   withoutBadges,
   badgePairs,
+  eachSchema,
+  once,
+  patternPath,
+  withEach,
   type Diagnostic,
   type DiagramType,
   type Faded,
@@ -117,7 +121,7 @@ export function findType(id: unknown): DiagramType | undefined {
 /** A type's schema with what every diagram takes on top of its own keys: `steps:` for presenting, `focus:` for a neighbourhood. Editors complete from this. */
 export function schemaOf(type: DiagramType): Record<string, unknown> {
   const schema = type.schema as { properties?: Record<string, unknown> };
-  const shared = { steps: stepsSchema, focus: focusSchema, layers: layersSchema, lang: langSchema };
+  const shared = { each: eachSchema, steps: stepsSchema, focus: focusSchema, layers: layersSchema, lang: langSchema };
   return { ...schema, properties: { ...shared, ...schema.properties } };
 }
 
@@ -155,7 +159,10 @@ export interface RenderOptions extends SvgOptions {
   previous?: LayoutMemory | null;
   /** Reads files the diagram refers to, relative to the diagram (contracts, includes). Leave out where there are no files. */
   load?: (file: string) => string;
-  /** One of the diagram's `views:`; without it the diagram as written (or its first view when it only has views). */
+  /**
+   * One of the diagram's `views:`; without it the diagram as written (or its first view when it only has
+   * views, or says `present: views`). '' is the diagram as written even then: a canvas's whole drawing.
+   */
   view?: string;
   /** Draw the diagram at this step (1-based) of its `steps:`; without it, the whole diagram at full strength. */
   step?: number;
@@ -175,7 +182,23 @@ export interface RenderOptions extends SvgOptions {
   layers?: string | string[] | null;
   /** Only the layers (laid out on their own) or everything with the rest faded; by default as the layers say. */
   layerMode?: LayerMode;
+  /**
+   * Called once the drawing is built and before it is laid out (most of what it costs): how many
+   * elements and lines it has, and whether it is the whole of a working canvas (view '' of a
+   * diagram that says present: views). The CLI and the editor say so when that will take long.
+   */
+  onLayout?(about: LayoutAbout): void;
 }
+
+/** What is about to be laid out (RenderOptions.onLayout). */
+export interface LayoutAbout {
+  nodes: number;
+  edges: number;
+  whole: boolean;
+}
+
+/** Elements past which laying out the whole of a working canvas is said to take long. */
+export const BIG_CANVAS = 40;
 
 /** The layers of a diagram, and which are drawn: what the editor's Layers control and exports read. */
 export interface LayersInfo {
@@ -209,6 +232,8 @@ export interface RenderResult {
   origin?: { x: number; y: number };
   /** The page the drawing is meant for (aspect: in the YAML, a 16:9 slide by default); none with aspect: auto. */
   page?: Page;
+  /** The type's name for what this diagram holds (DiagramType.nameFor), where it is not the type's name. */
+  typeName?: string;
   /** The views the diagram (and what it includes) defines, and the one drawn. */
   views?: { name: string; title?: string }[];
   view?: string;
@@ -225,6 +250,12 @@ export interface RenderResult {
   viewTitles?: (lang: Lang) => Record<string, string>;
   /** The diagram has nothing drawn as written, only views: without a view it draws its first. */
   onlyViews?: boolean;
+  /**
+   * The diagram says `present: views`: as written it is a working canvas, not a slide. Without a view
+   * its first view is drawn; its views are what decks, PDFs, checks and descriptions take, and the
+   * whole is drawn only when asked for with view ''.
+   */
+  canvas?: boolean;
   /**
    * This drawing is read scrolling, not shown on one slide (a long sequence as a whole): it is
    * presented by the type's other views (its phases), so the slide check is theirs.
@@ -303,9 +334,11 @@ export function validatedSchemas(): object[] {
 }
 
 export async function render(text: string, opts: RenderOptions = {}): Promise<RenderResult> {
-  const source = parseSource(text);
-  const diagnostics = [...source.diagnostics];
+  // Patterns written once for a list of values (`each:`) are written out first: everything after sees plain entries.
+  const { source, problems: eachProblems, each, expansion } = withEach(parseSource(text));
+  const diagnostics = [...source.diagnostics, ...eachProblems];
   if (source.data === undefined) return { diagnostics };
+  if (eachProblems.some((d) => d.severity === 'error')) return { diagnostics };
 
   const data = source.data as Record<string, unknown> | null;
   if (!data || typeof data !== 'object' || Array.isArray(data)) return { diagnostics: [...diagnostics, source.at([], 'A diagram starts with "type:"')] };
@@ -351,14 +384,21 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   if (stepsRef !== undefined) invalid.push(...validate({ ...source, data: { steps: stepsRef } }, stepsOnly));
   if (focusRef !== undefined) invalid.push(...validate({ ...source, data: { focus: focusRef } }, focusOnly));
   if (layersRef !== undefined) invalid.push(...validate({ ...source, data: { layers: layersRef } }, layersOnly));
-  if (invalid.length) return { type, diagnostics: [...diagnostics, ...invalid] };
+  if (invalid.length) return { type, diagnostics: once([...diagnostics, ...invalid]) };
 
-  const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error') => diagnostics.push(source.at(path, message, severity));
+  // A problem in an included file (an element of the model is at its include entry and file: ['include', 0, 'model.yaml']) says which file.
+  const report = (path: Path, message: string, severity: Diagnostic['severity'] = 'error', file?: string) => {
+    const d = source.at(path, message, severity);
+    const about = file ?? (path[0] === 'include' && typeof path[2] === 'string' ? path[2] : undefined);
+    if (about) d.file = about;
+    diagnostics.push(d);
+  };
   let model: ModelContext | undefined;
   let built: Record<string, unknown> = rest;
   let origin: ((path: Path) => { at: Path; file: string } | undefined) | undefined;
   let includes: string[] | undefined;
   let onlyViews = false;
+  let canvas = false;
   // A type that draws its source in several ways (a journey as map or storyboard) takes the view asked for itself.
   // The titles the type gives its views, in the drawing's language (a view's title is its subtitle); the
   // editor names them in its own language through viewTitles.
@@ -375,32 +415,49 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     includes = composed.files;
     model = { ...composed.catalogue };
     const names = [...model.views.keys()];
+    // A view named as one of the type's own drawings is never drawn: asked for by name, that drawing is.
+    for (const n of names) if (allViews?.some((v) => v.name === n)) report(['views', n], `"${n}" is also the name of one of this type's own drawings, which is drawn when "${n}" is asked for: give the view another name (show: ${n} draws that drawing cut to the view)`, 'warning');
     onlyViews = names.length > 0 && !Object.entries(built).some(([k, v]) => !META.has(k) && v && typeof v === 'object' && Object.keys(v).length);
+    canvas = model.present === 'views' && names.length > 0 && !onlyViews;
+    if (model.present === 'views' && !names.length) report(['present'], 'present: views needs views: to present; without them the drawing as written is the slide', 'warning');
     if (opts.view) {
       model.view = model.views.get(opts.view);
       if (!model.view) report([], `There is no view "${opts.view}"${names.length ? `; views: ${names.join(', ')}` : ''}`);
-    } else if (onlyViews)
-      // Only views, nothing drawn as written: the first view is the diagram.
+    } else if (onlyViews || (canvas && opts.view === undefined && !ownView)) {
+      // Only views, nothing drawn as written (or the whole is a canvas): the first view is the diagram.
       model.view = model.views.get(names[0]!);
+      // The whole asked for (view ''), where there is no whole: said, not drawn as if it were.
+      if (onlyViews && opts.view === '') report([], `There is no whole drawing here: the diagram only has views (it draws nothing as written), so view '' draws its first view, "${names[0]}"`, 'warning');
+    }
   } else if (opts.view) report([], `There is no view "${opts.view}": ${ownViews?.length ? `views: ${ownViews.map((v) => v.name).join(', ')}` : 'this diagram has no views'}`);
   if (ownView) built = { ...built, view: ownView };
+  // A view of the model that is one of the type's own drawings (`show: access`): that drawing, cut to the view.
+  else if (model?.view?.show) {
+    const show = model.view.show;
+    if (allViews?.some((v) => v.name === show)) built = { ...built, view: show };
+    else report(model.view.at[0] === 'views' ? [...model.view.at, 'show'] : model.view.at, allViews?.length ? `There is no drawing "${show}" here; show: ${allViews.map((v) => v.name).join(', ')}` : 'show: picks one of a type’s own drawings, and this type has only one', 'warning');
+  }
   // A focus asked for is about elements and lines: a diagram that opens as one of its tables (view: access) is focused in the type's first view, its graph.
   else if (opts.focus != null && allViews?.some((v) => v.table && v.name === built.view)) built = { ...built, view: ownViews![0]!.name };
 
   // Problems in entries that came from another file point at its include entry.
-  const where = (path: Path, message: string): [Path, string] => {
+  const where = (path: Path, message: string, severity: Diagnostic['severity']) => {
     const o = origin?.(path);
-    return o ? [o.at, `${o.file}: ${message}`] : [path, message];
+    return o ? report(o.at, `${o.file}: ${message}`, severity, o.file) : report(path, message, severity);
   };
   let graph = type.build(built, {
-    error: (path, message) => report(...where(path, message)),
-    warn: (path, message) => report(...where(path, message), 'warning'),
+    error: (path, message) => where(path, message, 'error'),
+    warn: (path, message) => where(path, message, 'warning'),
     load: opts.load,
     model,
     lang,
     word,
+    ...(each ? { each } : {}),
   });
   if (model?.view && !model.used) graph = filterGraph(graph, model.view, (path, message) => report(path, message, 'warning'));
+  // rows: and columns: lay out a who × where matrix by the lists of each:; the access type reads them itself.
+  const pivotKey = model?.view?.rows != null ? 'rows' : model?.view?.columns != null ? 'columns' : undefined;
+  if (pivotKey && type.id !== 'access' && model!.view!.at[0] === 'views') report([...model!.view!.at, pivotKey], `${pivotKey}: lays out the who × where matrix of an access diagram (show: access); a ${type.id} diagram has none`, 'warning');
   graph = translateGraph(graph, lang, built);
   // Another of the type's own views than the one the file is written for: its subtitle is about that
   // one, so the view's name says what this drawing is (a heatmap of fit, not "run cost per capability").
@@ -441,6 +498,13 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     graph.groups.forEach(fix);
     graph.edges.forEach(fix);
   }
+  if (expansion) {
+    // What a pattern wrote out is shown and changed where the pattern is written (each.ts).
+    const fix = <T extends { path: Path }>(x: T) => void (x.path = patternPath(expansion, x.path));
+    graph.nodes.forEach(fix);
+    graph.groups.forEach(fix);
+    graph.edges.forEach(fix);
+  }
 
   const picked = pickTheme(opts, themeRef, source, diagnostics);
   const theme = lang === 'en' ? picked : { ...picked, lang };
@@ -455,7 +519,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // Each view keeps its own pins; the top level of the sidecar belongs to the diagram without one.
   const pins = viewPins(opts.sidecar, model?.view?.name);
   // A view of the type's own that is drawn one way (one data product, left to right) is not turned for its shape, nor cut into rows.
-  const steady = !!allViews?.find((v) => v.name === (built as { view?: unknown }).view)?.steady;
+  const steady = !!allViews?.find((v) => v.name === ((built as { view?: unknown }).view ?? written))?.steady;
   const autoDirection = !steady && (model?.view?.direction ?? data.direction) == null;
   const aspect = readAspect(aspectRef, (message) => report(['aspect'], message, 'warning'));
   // Views of one diagram are drawn alike where their content allows: a view drawn fresh (nothing
@@ -466,7 +530,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const seedKey = firstView ? `${hashText(text)}|${typeof opts.theme === 'string' ? opts.theme : ''}|${aspect ?? ''}` : '';
   let seed: LayoutMemory | undefined;
   // A table (an access matrix) is not laid out: nothing to share.
-  const table = (name: string | undefined) => !!allViews?.find((v) => v.name === name)?.table;
+  const table = (name: string | undefined) => !!allViews?.find((v) => v.name === (model?.views.get(name ?? '')?.show ?? name))?.table;
   // Views of different kinds (a C4 context and a component view) are different pictures.
   const kindOf = (name: string) => model?.views.get(name)?.kind;
   if (firstView && thisView && thisView !== firstView && !table(thisView) && !table(firstView) && kindOf(thisView) === kindOf(firstView) && opts.previous === undefined && !pins?.layout && !opts.tuning) {
@@ -486,6 +550,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const previous = only ? (opts.previous ?? unpackLayout(viewPins(opts.sidecar, layerKey(model?.view?.name, lens.info!.active))?.layout) ?? null) : before;
   const place = async (at: Sized, previous: LayoutMemory | null | undefined) =>
     type.layout ? await type.layout(at, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(at, spacing, pins, { autoDirection, ...(steady ? { wrap: false as const } : {}), ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
+  // Told before laying out, which is most of what a drawing costs: a big one (a canvas's whole) can take minutes.
+  opts.onLayout?.({ nodes: graph.nodes.length, edges: graph.edges.length, whole: canvas && opts.view === '' });
   let placed = await place(sized, previous);
   // Ports that may stand in any order (a data product's) follow where what feeds them was placed, so
   // their lines do not cross; drawn once more from there, everything else holding where it was.
@@ -512,6 +578,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const asPart = typeof drawnView === 'string' && !!allViews?.find((v) => v.name === drawnView)?.part;
   const told = model?.view ? model.view.present : asTable || asPart ? undefined : (stepsRef as unknown[] | undefined);
   if (stepsRef !== undefined && onlyViews) report(['steps'], 'These steps are for the diagram as written, and this file only has views: put steps inside a view', 'warning');
+  if (stepsRef !== undefined && canvas) report(['steps'], 'These steps are for the drawing as written, which present: views keeps off the slides: put steps inside a view', 'warning');
   if (focusRef !== undefined && onlyViews) report(['focus'], 'This focus is for the diagram as written, and this file only has views: put focus inside a view', 'warning');
   // Without written steps a sequence diagram is told message by message, a dynamic view line by line.
   const steps = told ? resolveSteps(told, lens.info?.active.length && lens.info.mode === 'only' ? { ...whole, legend: graph.legend } : graph, model?.view ? ['views', model.view.name, 'steps'] : ['steps'], report) : impliedSteps(graph);
@@ -530,7 +597,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // read it wherever the file goes. The type's own view the file is written for says what the drawing as
   // written says, so the two stay one picture (the presenter keeps one slide for both). The editor and the viewers draw their own, beside the drawing.
   if (!opts.interactive && !opts.marks) {
-    const said = describe({ lang, graph, type, steps, stepsImplied: !told, layers: lens.info, views: model?.views.size ? [...model.views.values()] : ownViews, view: model?.view?.name ?? (ownView !== written ? ownView : undefined), name: opts.file });
+    const said = describe({ lang, graph, type, ...(type.nameFor?.(built) ? { typeName: type.nameFor(built) } : {}), steps, stepsImplied: !told, layers: lens.info, views: model?.views.size ? [...model.views.values()] : ownViews, view: model?.view?.name ?? (ownView !== written ? ownView : undefined), name: opts.file });
     const at = step ? steps[step - 1] : undefined;
     const title = at ? `${said.title}, ${tr(lang, 'step {n} of {count}', { n: step!, count: steps.length })}${at.title ? `: ${at.title}` : ''}` : said.title;
     const desc = toText(said, { title: false }).trim();
@@ -540,18 +607,21 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // The type's own view this file is written for: model views and includes come first, so not with those.
   const writtenView = !model?.views.size && ownViews?.length ? allViews!.find((v) => v.name === written) : undefined;
   const typeViews = ownViews?.map(({ name, title }) => ({ name, ...(title ? { title } : {}) }));
-  const views = model?.views.size ? [...[...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })), ...(typeViews?.slice(1) ?? [])] : typeViews?.length ? typeViews : undefined;
+  // A canvas (present: views) is presented by its views alone: the type's own drawings of the whole (a who × where of everything) are part of the canvas.
+  const views = model?.views.size ? [...[...model.views.values()].map((v) => ({ name: v.name, ...(v.title ? { title: v.title } : {}) })), ...(canvas ? [] : (typeViews?.slice(1) ?? []))] : typeViews?.length ? typeViews : undefined;
   // The type's views among those, and the one the file is written for: their titles in another language.
   const titled = new Set([...(model?.views.size ? (typeViews?.slice(1) ?? []) : (typeViews ?? [])).map((v) => v.name), ...(!model?.view && writtenView ? [writtenView.name] : [])]);
   const viewTitles = (other: Lang) => Object.fromEntries((type.views?.(rest, wordIn(other)) ?? []).filter((v) => v.title && titled.has(v.name)).map((v) => [v.name, v.title!]));
+  const typeName = type.nameFor?.(built);
   return {
     svg: out.svg,
     width: out.width,
     height: out.height,
     origin: out.origin,
     ...(pageFor(aspect) ? { page: pageFor(aspect) } : {}),
-    diagnostics,
+    diagnostics: once(diagnostics),
     type,
+    ...(typeName && typeName !== type.name ? { typeName } : {}),
     graph,
     placed,
     theme,
@@ -560,6 +630,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(views ? { views } : {}),
     ...(model?.view ? { view: model.view.name } : ownView ? { view: ownView } : {}),
     ...(onlyViews ? { onlyViews } : {}),
+    ...(canvas ? { canvas } : {}),
     ...(!model?.view && writtenView ? { asWritten: { name: writtenView.name, ...(writtenView.title ? { title: writtenView.title } : {}) } } : {}),
     ...(titled.size ? { viewTitles } : {}),
     ...(!model?.view && ownViews?.find((v) => v.name === (ownView ?? written))?.scroll ? { scroll: true } : {}),

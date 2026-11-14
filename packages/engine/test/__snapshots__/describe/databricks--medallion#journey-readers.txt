@@ -1,0 +1,32 @@
+One order, reported
+
+Azure infrastructure diagram: Northwind lakehouse · the order joined into sell-through and read in Power BI. 7 elements in 4 groups, with 6 connections.
+
+Groups and elements
+- sales-pipeline (Nightly)
+- sales_prod (Catalog)
+  - gold (Schema)
+    - sell_through (Table)
+- orders_prod (Catalog)
+  - gold (Schema)
+- bi-warehouse (Serverless SQL warehouse)
+- Power BI (Fabric capacity F64): Reports on gold through the SQL warehouse
+- Business analysts (Power BI · Genie): Read gold data in Power BI and Genie
+- customers_prod (Catalog)
+  - gold (Schema)
+
+Connections
+- sales-pipeline connects to sales_prod (Management: refreshes).
+- gold (Schema) sends data to gold (Schema) (orders).
+- gold (Schema) sends data to bi-warehouse.
+- bi-warehouse sends data to Power BI (DirectQuery).
+- Power BI sends data to Business analysts (Reports).
+- gold (Schema) sends data to gold (Schema) (customers).
+
+Walkthrough
+1. Sell-through: At night sales-pipeline joins the order with its customer into sales_prod.gold.sell_through, another domain's gold.
+2. In Power BI: In the morning the order is in the sales report; Power BI queries gold through bi-warehouse (DirectQuery).
+
+Key
+- Solid violet line with ticks: Data flow
+- Dotted line with ticks: Management

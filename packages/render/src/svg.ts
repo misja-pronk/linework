@@ -14,7 +14,7 @@ import { drawSequence } from './sequence.ts';
 import { drawGitflow } from './gitflow.ts';
 import { drawRoadmap } from './roadmap.ts';
 import { drawJourney } from './journey.ts';
-import { drawFlow, drawMarks, flowOutline, laneHeader, laneMarks } from './flow.ts';
+import { drawFlow, drawMarks, flowOutline, laneHeadDown, laneHeader, laneMarks } from './flow.ts';
 import { drawTags, endsRoom, endStyle, endTagAt, tagsWidth, TAG } from './tags.ts';
 import { blockMarks } from './block.ts';
 import { captionBlock, drawNote, noteMargins, placeNotes, quietTheme, strongTheme, type StepView } from './steps.ts';
@@ -114,7 +114,7 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
   const filled = new Set([...graph.nodes.map((n) => n.parent), ...graph.groups.map((g) => g.parent)].filter(Boolean));
   // Lanes share one header size, so their names line up.
   const across = (placed.direction ?? graph.direction) === 'right';
-  const laneHead = across ? Math.max(0, ...graph.groups.filter((g) => g.lane).map((g) => laneHeader(g.label, theme))) : theme.space.group.header;
+  const laneHead = across ? Math.max(0, ...graph.groups.filter((g) => g.lane).map((g) => laneHeader(g, theme))) : laneHeadDown(graph.groups, theme);
   for (const g of byDepth(graph.groups)) {
     const box = placed.groups.get(g.id);
     if (!box || state?.groups[g.id] === 'hidden') continue;
@@ -165,7 +165,7 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
     const drawn =
       shape.kind === 'card' ? drawCard(shape, box, theme, id, cardChips, (edge) => data('edge', edge), link, nodeImages?.get(n.id))
       : shape.kind === 'table' ? drawTable(shape, box, theme, id, nodeImages?.get(n.id))
-      : shape.kind === 'sequence' ? drawSequence(shape, box, theme, `${id}-shadow`, state?.message ? { message: state.message, quiet } : undefined)
+      : shape.kind === 'sequence' ? drawSequence(shape, box, theme, `${id}-shadow`, state?.message ? { message: state.message, quiet } : undefined, { interactive: opts.interactive, marks: opts.marks, file: opts.file })
       : shape.kind === 'gitflow' ? drawGitflow(shape, box, theme, `${id}-shadow`)
       : shape.kind === 'roadmap' ? drawRoadmap(shape, box, theme)
       : shape.kind === 'journey' ? drawJourney(shape, box, theme, `${id}-shadow`, state?.journey)

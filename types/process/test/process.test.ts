@@ -76,6 +76,40 @@ describe('what is drawn', () => {
     expect([lane('Ask for leave'), lane('Enough days?'), lane('start'), lane('end')]).toEqual(['employee', 'manager', 'employee', 'manager']);
   });
 
+  it("writes a lane's description under its name, the lane tall enough for it, across and down", async () => {
+    const text = 'type: process\nlanes:\n  ops: { label: Operations, description: The night shift runs the batch and answers the pager }\n  dev: Development\nflow:\n  - Start batch -> Check results\n';
+    const across = await render(text, { fonts: 'none' });
+    expect(across.diagnostics).toEqual([]);
+    const said = (svg: string) => [...svg.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]);
+    const lines = said(across.svg!);
+    expect(lines).toContain('OPERATIONS');
+    // Wrapped in the header, every word of it there.
+    const at = lines.indexOf('OPERATIONS');
+    expect(lines.slice(at + 1, at + 6).join(' ')).toContain('The night shift runs the batch and answers the pager');
+    const box = across.placed!.groups.get('ops')!;
+    expect(box.height).toBeGreaterThanOrEqual(16 + 3 + 2 * 14);
+    // Down, one line of it under the name, in a header a line taller.
+    const down = await render(text.replace('type: process\n', 'type: process\ndirection: down\n'), { fonts: 'none' });
+    expect(down.diagnostics).toEqual([]);
+    expect(said(down.svg!).some((l) => l!.startsWith('The night shift'))).toBe(true);
+  });
+
+  it("wraps a lane's name at spaces and after hyphens, the lane tall enough for it", async () => {
+    const text = 'type: process\nlanes:\n  dev: dbw-lakehouse-dev\n  prod: Production workspace dbw-lakehouse-prod\nflow:\n  - Deploy -> Smoke test\nnodes:\n  Deploy: dev\n  Smoke test: prod\n';
+    const r = await render(text, { fonts: 'none' });
+    expect(r.diagnostics).toEqual([]);
+    const lines = [...r.svg!.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]!);
+    // Whole, on lines of their own: the hyphen ends a line, nothing is cut with an ellipsis.
+    expect(lines.slice(0, 2)).toEqual(['DBW-LAKEHOUSE-', 'DEV']);
+    expect(lines.slice(2, 5)).toEqual(['PRODUCTION', 'WORKSPACE DBW-', 'LAKEHOUSE-PROD']);
+    expect(lines.some((l) => l.includes('…'))).toBe(false);
+    // Each line fits the header, in the same size as any lane's name.
+    const size = [...r.svg!.matchAll(/<text[^>]*font-size="([\d.]+)"[^>]*>DBW-LAKEHOUSE-<\/text>/g)].map((m) => +m[1]!);
+    expect(Math.min(...size)).toBeGreaterThanOrEqual(10);
+    const prod = r.placed!.groups.get('prod')!;
+    expect(prod.height).toBeGreaterThanOrEqual(3 * 16 + 16);
+  });
+
   it('labels the ways out of a decision and draws a message dashed', async () => {
     const { edge } = await draw(leave);
     expect(edge('Enough days?', 'Approve')).toMatchObject({ label: 'yes', line: 'solid' });

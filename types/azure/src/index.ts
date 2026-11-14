@@ -1,4 +1,7 @@
 import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
+import { databricksGroups, databricksNodes } from './databricks.ts';
+
+export { databricksGroups, databricksNodes } from './databricks.ts';
 
 // Generic line icons in one style; no Microsoft icons, their terms forbid redistributing them.
 export const config: GraphTypeConfig = {
@@ -15,6 +18,8 @@ export const config: GraphTypeConfig = {
     'virtual-hub': { label: 'Virtual hub', icon: 'router', tone: 'sky', keywords: ['vhub', 'vwan hub'] },
     'on-premises': { label: 'On-premises', icon: 'building', tone: 'slate' },
     boundary: { label: 'Boundary', icon: 'square-dashed', tone: 'slate', border: 'dashed' },
+    // Azure Databricks: a workspace, its planes, and Unity Catalog's containers.
+    ...databricksGroups,
   },
   nodeKinds: {
     'app-service': { label: 'App Service', icon: 'app-window', tone: 'blue', keywords: ['web', 'webapp'] },
@@ -61,9 +66,11 @@ export const config: GraphTypeConfig = {
     policy: { label: 'Azure Policy', icon: 'file-check', tone: 'slate', keywords: ['guardrail', 'deny', 'audit'] },
     initiative: { label: 'Policy initiative', icon: 'list-checks', tone: 'slate', keywords: ['policy set', 'policy initiative'] },
     // Data and analytics.
-    databricks: { label: 'Databricks', icon: 'flame', tone: 'rose', keywords: ['dbx', 'spark', 'unity catalog', 'adb'] },
-    'sql-warehouse': { label: 'SQL warehouse', icon: 'warehouse', tone: 'indigo', keywords: ['dwh', 'synapse', 'warehouse'] },
+    databricks: { label: 'Databricks', icon: 'flame', tone: 'rose', keywords: ['dbx', 'spark', 'unity catalog', 'adb', 'dbw', 'lakehouse'] },
+    'sql-warehouse': { label: 'SQL warehouse', icon: 'warehouse', tone: 'indigo', keywords: ['dwh', 'synapse', 'warehouse', 'databricks sql', 'dbsql'] },
     fabric: { label: 'Microsoft Fabric', icon: 'layers-2', tone: 'teal', keywords: ['onelake', 'lakehouse', 'power bi'] },
+    // What a Databricks platform is made of, in Azure Databricks' own words (databricks.ts).
+    ...databricksNodes,
     // Virtual WAN: Microsoft's managed hub and spoke.
     'virtual-wan': { label: 'Virtual WAN', icon: 'chart-network', tone: 'sky', keywords: ['vwan'] },
     'virtual-hub': { label: 'Virtual hub', icon: 'router', tone: 'sky', keywords: ['vhub', 'vwan hub'] },

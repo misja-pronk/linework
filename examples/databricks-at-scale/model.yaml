@@ -1,0 +1,144 @@
+# Northwind's lakehouse at full scale: every domain of the company through dev, test and prod, written once with each:.
+# The same platform as examples/databricks (one VNet-injected workspace per environment, one Unity Catalog
+# metastore, a catalog and a storage account per domain and environment).
+#   each:      domain (with the team that owns each) and env (with the spoke's address space and who owns its
+#              catalogs: the domain team in dev, the environment's service principal from test on)
+#   <domain>_<env> in a name writes the entry once per domain and environment. A domain is one more line under
+#   domain:; an environment one more under env:.
+# Diagrams in this folder include it; governance.yaml grants Unity Catalog privileges on these catalogs.
+type: model
+title: Northwind lakehouse at scale
+present: views
+
+each:
+  domain:
+    orders: { team: Order management }
+    webshop: { team: Web shop }
+    finance: { team: Finance }
+    sales: { team: Sales analytics }
+    customers: { team: CRM }
+    supply: { team: Supply chain }
+    marketing: { team: Marketing }
+    logistics: { team: Logistics }
+    procurement: { team: Procurement }
+    hr: { team: People }
+    payroll: { team: Payroll }
+    pricing: { team: Pricing }
+    inventory: { team: Inventory }
+    returns: { team: Returns }
+    loyalty: { team: Loyalty }
+    fraud: { team: Fraud }
+    support: { team: Customer support }
+    products: { team: Product information }
+    partners: { team: Partner management }
+    risk: { team: Risk }
+  env:
+    dev: { cidr: 10.1.8.0/22, host: 10.1.8.0/24, container: 10.1.9.0/24, pep: 10.1.10.0/26, owner: <domain>-team }
+    test: { cidr: 10.1.12.0/22, host: 10.1.12.0/24, container: 10.1.13.0/24, pep: 10.1.14.0/26, owner: sp-lakehouse-<env> }
+    prod: { cidr: 10.1.16.0/21, host: 10.1.16.0/23, container: 10.1.18.0/23, pep: 10.1.20.0/26, owner: sp-lakehouse-<env> }
+
+elements:
+  # Teams: a team per domain, and the platform team that runs the workspaces and Unity Catalog
+  platform-team: { kind: users, label: Data platform team, tags: [team] }
+  <domain>-team: { kind: users, label: <domain.team> team, tags: [team] }
+  analysts: { kind: users, label: Business analysts, description: Read gold data in Power BI and Genie }
+
+  # Identity
+  entra-id: { kind: identity, label: Entra ID, technology: northwind.onmicrosoft.com }
+  databricks-account: { kind: control-plane, label: Databricks account, technology: Account console, owner: platform-team }
+
+  # Sources
+  erp: { kind: external, label: ERP, technology: SQL Server · on-premises, tags: [source] }
+  salesforce: { kind: external, label: Salesforce, technology: Sales Cloud, tags: [source, external] }
+
+  # What the bundle deploys to every workspace: a pipeline per domain, the nightly job, the warehouse
+  lakehouse:
+    kind: databricks
+    label: Northwind lakehouse
+    description: Pipelines, jobs and serving, deployed from Git to dev, test and prod
+    owner: platform-team
+    elements:
+      ingest: { kind: lakeflow-connect, label: ingest, technology: SQL Server and Salesforce connectors }
+      <domain>-pipeline: { kind: lakeflow-pipeline, label: <domain>-pipeline, owner: <domain>-team }
+      nightly: { kind: lakeflow-job, label: nightly, technology: 02:00 · serverless }
+      bi-warehouse: { kind: sql-warehouse, label: bi-warehouse, technology: Serverless SQL warehouse }
+
+  # Unity Catalog: one metastore for the region. Per domain and environment a catalog (bronze, silver, gold), its
+  # storage credential and its managed location on the catalog container of st<domain><env>. The owner is the
+  # environment's (governance.yaml).
+  uc-weu:
+    kind: metastore
+    label: uc-weu
+    technology: Unity Catalog · West Europe
+    owner: platform-team
+    elements:
+      <domain>_<env>: { kind: catalog, label: <domain>_<env>, owner: <env.owner>, tags: [<env>], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      cred_<domain>_<env>: { kind: storage-credential, label: cred_<domain>_<env>, tags: [<env>] }
+      <domain>_<env>_catalog: { kind: external-location, label: <domain>_<env>_catalog, technology: catalog@st<domain><env>, tags: [<env>] }
+
+  # Hub (the network team's Connectivity subscription)
+  vnet-hub-weu: { kind: vnet, label: vnet-hub-weu, technology: 10.0.0.0/22 }
+  afw-hub: { kind: firewall, label: afw-hub, technology: Premium · 10.0.0.68 }
+
+  # Per environment: a spoke with the workspace, its access connector and a storage account per domain
+  sub-lakehouse-<env>: { kind: subscription, label: sub-lakehouse-<env>, tags: [<env>] }
+  vnet-lakehouse-<env>:
+    kind: vnet
+    label: vnet-lakehouse-<env>
+    technology: <env.cidr>
+    tags: [<env>]
+    elements:
+      snet-dbw-host: { kind: subnet, label: snet-dbw-host, technology: <env.host> }
+      snet-dbw-container: { kind: subnet, label: snet-dbw-container, technology: <env.container> }
+      snet-pep: { kind: subnet, label: snet-pep, technology: <env.pep> }
+  rt-lakehouse-<env>: { kind: route-table, label: rt-lakehouse-<env>, technology: 0.0.0.0/0 → 10.0.0.68 · gateway routes off, tags: [<env>] }
+  dbw-lakehouse-<env>: { kind: databricks, label: dbw-lakehouse-<env>, technology: Premium · VNet-injected · no public access, owner: platform-team, tags: [<env>] }
+  dbac-lakehouse-<env>: { kind: access-connector, label: dbac-lakehouse-<env>, technology: System-assigned identity, tags: [<env>] }
+  ncc-lakehouse-<env>: { kind: ncc, label: ncc-lakehouse-<env>, technology: Private endpoints to the <env> accounts, tags: [<env>] }
+  st<domain><env>: { kind: storage, label: st<domain><env>, technology: ADLS Gen2 · catalog, owner: <domain>-team, tags: [<env>] }
+  pep-st<domain><env>-dfs: { kind: private-endpoint, label: pep-st<domain><env>-dfs, technology: dfs, tags: [<env>] }
+
+  # Consumers
+  power-bi: { kind: fabric, label: Power BI, technology: Fabric capacity F64 }
+
+relations:
+  # Ingestion and the medallion, in production: each domain's pipeline reads its bronze and writes its gold
+  - erp -> lakehouse.ingest: { label: CDC, style: data }
+  - salesforce -> lakehouse.ingest: { label: API, style: data }
+  - lakehouse.ingest -> uc-weu.<domain>_prod.bronze: { style: data }
+  - uc-weu.<domain>_prod.bronze -> lakehouse.<domain>-pipeline: { style: data }
+  - lakehouse.<domain>-pipeline -> uc-weu.<domain>_prod.gold: { style: data }
+  - lakehouse.nightly -> lakehouse.<domain>-pipeline: Runs
+  - uc-weu.<domain>_prod.gold -> lakehouse.bi-warehouse: { style: data }
+  - lakehouse.bi-warehouse -> power-bi: { label: DirectQuery, style: data }
+  - power-bi -> analysts: { label: Reports, style: data }
+  # Identity
+  - entra-id -> databricks-account: { label: Automatic identity management, style: identity }
+  - databricks-account -> uc-weu: Owns
+  # Every catalog is ISOLATED and bound to its environment's workspace only
+  - uc-weu.<domain>_<env> -> dbw-lakehouse-<env>: Bound
+  # Storage, per domain and environment: catalog → external location → credential → access connector → storage account
+  - uc-weu.<domain>_<env> -> uc-weu.<domain>_<env>_catalog: Managed location
+  - uc-weu.<domain>_<env>_catalog -> uc-weu.cred_<domain>_<env>: Uses
+  - uc-weu.cred_<domain>_<env> -> dbac-lakehouse-<env>: { label: Managed identity, style: identity }
+  - dbac-lakehouse-<env> -> st<domain><env>: { label: Storage Blob Data Contributor, style: role }
+  - pep-st<domain><env>-dfs -> st<domain><env>: { style: private }
+  - ncc-lakehouse-<env> -> st<domain><env>: { label: serverless, style: private }
+  # Workspaces: attached to the metastore, egress through the hub firewall
+  - dbw-lakehouse-<env> -> uc-weu: Attached
+  - rt-lakehouse-<env> -> afw-hub: { label: 0.0.0.0/0, style: private }
+
+views:
+  # Where the data comes from, where it lives and who reads it: the lakehouse and Unity Catalog closed
+  landscape:
+    title: Northwind lakehouse at scale
+    subtitle: Northwind lakehouse · every domain a pipeline in the bundle and a catalog per environment in uc-weu
+    direction: right
+    include: [erp, salesforce, lakehouse, uc-weu, power-bi, analysts]
+    exclude: ['uc-weu -> lakehouse']
+  # One domain's storage, through its environments: what a catalog stands on
+  orders-storage:
+    title: What a catalog stands on
+    subtitle: Northwind lakehouse · orders through every environment; every other domain is written the same way, once
+    direction: down
+    include: [uc-weu.orders_<env>, uc-weu.orders_<env>_catalog, uc-weu.cred_orders_<env>, dbac-lakehouse-<env>, storders<env>]

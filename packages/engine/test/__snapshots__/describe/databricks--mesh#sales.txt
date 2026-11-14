@@ -1,0 +1,25 @@
+Sell-through
+
+Data products diagram: Northwind lakehouse · built on orders and customers, read in Power BI and shared with Contoso. 8 elements in 1 group, with 7 connections.
+
+Groups and elements
+- Salesforce (Sales Cloud)
+- Sales (Domain · Sales analytics team)
+  - Sell-through (Gold · v1.0.0)
+  - sell_through (Data contract · v1.0.0 · confidential)
+- Power BI (Reports)
+- Customer 360 (Databricks App)
+- Contoso Retail (OpenSharing)
+- Orders (Orders · Gold)
+- Customers (Customers · Gold)
+
+Connections
+- Salesforce connects to Sell-through.
+- Sell-through connects to Power BI, connects to Customer 360, connects to Contoso Retail and is linked with sell_through.
+- Orders connects to Sell-through.
+- Customers connects to Sell-through.
+
+Key
+- Amber icon: Gold
+- Solid line: Data flow
+- Dashed violet line: Data contract

@@ -1,6 +1,6 @@
 Privileged access
 
-Roles, groups and access packages, who gets what, as a graph: Northwind tenant · Entra roles by tier, through PIM and Conditional Access, with break-glass accounts. 10 elements in 1 group, with 14 connections.
+Roles and groups, who gets what, as a graph: Northwind tenant · Entra roles by tier, through PIM and Conditional Access, with break-glass accounts. 10 elements in 1 group, with 14 connections.
 
 Groups and elements
 - CA001 Admins (All cloud apps)

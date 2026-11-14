@@ -17,6 +17,8 @@ export interface DescribeInput {
   graph?: Graph;
   /** The diagram type: its name says what kind of drawing it is. */
   type?: { id: string; name: string };
+  /** The type's name for what this file holds ("Unity Catalog access"), where it is not the type's name (render's). */
+  typeName?: string;
   /** The steps as resolved (render's), told as a walkthrough unless nobody wrote them. */
   steps?: StepState[];
   stepsImplied?: boolean;
@@ -63,7 +65,7 @@ export function describe(input: DescribeInput): Description {
 function describeIn(input: DescribeInput): Description {
   const graph = input.graph ?? { direction: 'right', groups: [], nodes: [], edges: [] };
   const view = input.view ? input.views?.find((v) => v.name === input.view) : undefined;
-  const title = clean(graph.title) ?? clean(view?.title) ?? input.name?.replace(/\.ya?ml$/i, '') ?? input.type?.name ?? d('Diagram');
+  const title = clean(graph.title) ?? clean(view?.title) ?? input.name?.replace(/\.ya?ml$/i, '') ?? input.typeName ?? input.type?.name ?? d('Diagram');
   const kind = kindWords(input, graph);
   const s = shapes(graph);
   const told: Told =
@@ -90,7 +92,7 @@ interface Told {
 /** "Architecture diagram", "Sequence diagram", "Org chart": what a reader is looking at. */
 function kindWords(input: DescribeInput, graph: Graph): string {
   const own = input.view ? input.views?.find((v) => v.name === input.view)?.title : undefined;
-  const name = (L === 'nl' && input.type ? words[`type:${input.type.id}`] : undefined) ?? input.type?.name ?? d('Diagram');
+  const name = (L === 'nl' && input.type ? words[`type:${input.type.id}`] : undefined) ?? input.typeName ?? input.type?.name ?? d('Diagram');
   // A type with several drawings (teams: org chart or topology) says which one by its view.
   const blocks = graph.nodes.flatMap((n) => (n.shape.kind === 'block' ? [n.shape.form] : []));
   if (input.type?.id === 'teams') return blocks.includes('person') ? d('Org chart') : d('Team topology');
@@ -548,13 +550,16 @@ function matrixSections(graph: Graph, n: MatrixNode, heading?: string): Section[
   const cols = m.columns.map((c) => `${c.label}${c.change === 'removed' ? ` (${d('removed')})` : c.change === 'added' ? ` (${d('new')})` : ''}`);
   const colGroups = [...new Set(m.columns.map((c) => c.group).filter((g): g is string => !!g))];
   const text = `${d('Columns')}: ${colGroups.length ? colGroups.map((g) => `${g} (${m.columns.filter((c) => c.group === g).map((c) => c.label).join(', ')})`).join('; ') : listWords(cols)}.`;
+  // A name under more than one band (<domain>-team under dev, test and prod) is said with its band.
+  const twice = new Set(m.columns.map((c) => c.label).filter((l, i, all) => all.indexOf(l) !== i));
+  const colName = (c: (typeof m.columns)[number]) => (c.group && twice.has(c.label) ? `${c.group} ${c.label}` : c.label);
   const rowItem = (i: number): Item => {
     const r = m.rows[i]!;
     const cells = m.columns.flatMap((c, j) => {
       const cell = m.cells[i]?.[j];
       if (!cell) return [];
       const said = cellText(cell, tags);
-      return said ? [m.plain ? `${c.label} ${said}` : `${c.label}: ${said}`] : [];
+      return said ? [m.plain ? `${colName(c)} ${said}` : `${colName(c)}: ${said}`] : [];
     });
     const label = r.label || (i ? '…' : '');
     return { text: `${label}${r.caption ? ` (${r.caption})` : ''}${r.change ? `, ${r.change === 'added' ? d('new') : d('removed')}` : ''}: ${cells.length ? cells.join('; ') : d('nothing')}` };

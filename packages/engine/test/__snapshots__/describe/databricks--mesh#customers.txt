@@ -1,0 +1,20 @@
+Customers
+
+Data products diagram: Northwind lakehouse · accounts from Salesforce, pii masked for all but the CRM team and the app. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- Salesforce (Sales Cloud)
+- Customers (Domain · CRM team)
+  - Customers (Gold · v1.6.0)
+  - customers (Data contract · v1.6.0 · confidential)
+- Sell-through (Sales · Gold)
+- Customer 360 (Databricks App)
+
+Connections
+- Salesforce connects to Customers.
+- Customers.customers_prod.gold.customers connects to Sell-through, connects to Customer 360 and is linked with customers.
+
+Key
+- Amber icon: Gold
+- Solid line: Data flow
+- Dashed violet line: Data contract

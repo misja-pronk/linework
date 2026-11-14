@@ -1,0 +1,106 @@
+# Who may do what in Unity Catalog, every domain through every environment, in a dozen lines; the rules of
+# examples/databricks/governance.yaml: a team owns its dev catalog, where the pipelines write as sp-lakehouse-dev;
+# in test and prod the environment's service principal owns the catalogs and each team reads its own; no one holds
+# MANAGE; engineers BROWSE production; analysts read gold, where mask_pii hides the columns tagged pii.
+# <domain> or <env> in a name write the entry once per value of that list under each: (this file's own). A domain
+# is one more value under domain:, an environment one more under env:, with what its team and service principal are.
+# team-access-<part> and prod-readers-<part> lay the who × where matrix out by those lists, half the domains a slide.
+type: access
+title: Unity Catalog access at scale
+subtitle: Northwind lakehouse · every domain through every environment, account groups from Entra ID
+include: [model.yaml]
+present: views
+
+each:
+  domain: [orders, webshop, finance, sales, customers, supply, marketing, logistics, procurement, hr, payroll, pricing, inventory, returns, loyalty, fraud, support, products, partners, risk]
+  env:                     # what the domain's team and the environment's service principal are on its catalogs
+    dev: { team: owner, jobs: pipeline }
+    test: { team: read-catalog, jobs: owner }
+    prod: { team: read-catalog, jobs: owner }
+  part: [1, 2]
+
+layers:
+  <env>: { tags: [<env>], title: <env> }
+
+principals:
+  platform-team: { kind: account-group, label: platform-team, caption: Metastore and workspace admins }
+  engineers: { kind: account-group, label: engineers, caption: Every domain team }
+  <domain>-team: { kind: account-group, label: <domain>-team, member-of: engineers, column: Domain team }
+  analysts: { kind: account-group, label: analysts, caption: Power BI and Genie }
+  sp-lakehouse-<env>: { kind: service-principal, label: sp-lakehouse-<env>, caption: Deploys and runs <env>, tags: [<env>] }
+
+resources:
+  uc-weu: { kind: metastore, label: uc-weu, caption: Metastore }
+  dbw-lakehouse-<env>: { kind: databricks, label: dbw-lakehouse-<env>, tags: [<env>] }
+  # Catalogs: ISOLATED, each bound to its environment's workspace only
+  <domain>_<env>: { kind: catalog, label: <domain>_<env>, bound: dbw-lakehouse-<env>, tags: [<env>] }
+  <domain>_prod_gold: { kind: schema, label: <domain>_prod.gold, in: <domain>_prod, tags: [prod] }
+
+roles:
+  # on: says where a privilege can be granted in Unity Catalog, so carto validate warns about a misplaced grant
+  metastore-admin: { label: Metastore admin, tone: rose, permissions: [{ CREATE CATALOG: { on: metastore } }, take ownership] }
+  workspace-admin: { label: Workspace admin, tone: rose, permissions: [manage workspace] }
+  workspace-user: { label: Workspace user, tone: slate, permissions: [sign in] }
+  browse: { label: BROWSE, tone: slate, permissions: [{ BROWSE: { on: [catalog, external-location] } }] }
+  use-catalog: { label: Use catalog, tone: teal, permissions: [{ USE CATALOG: { on: catalog } }] }
+  read-schema: { label: Read schema, tone: teal, permissions: [{ USE SCHEMA: { on: [schema, catalog] } }, { SELECT: { on: [table, schema, catalog] } }] }
+  read-catalog: { label: Read catalog, tone: teal, inherits: [use-catalog, read-schema], permissions: [{ READ VOLUME: { on: [volume, schema, catalog] } }, { EXECUTE: { on: [function, schema, catalog] } }] }
+  # What a Lakeflow pipeline, a job and model training need to build the medallion layers
+  pipeline: { label: Pipeline, tone: indigo, inherits: read-catalog, permissions: [{ MODIFY: { on: [table, schema, catalog] } }, { CREATE SCHEMA: { on: catalog } }, { CREATE TABLE: { on: [schema, catalog] } }, { CREATE MATERIALIZED VIEW: { on: [schema, catalog] } }, { CREATE MODEL: { on: [schema, catalog] } }] }
+  # Ownership is not a grant: the owner has every privilege and, like MANAGE, grants, transfers and drops
+  owner: { label: Owner, tone: violet, permissions: [ALL PRIVILEGES, MANAGE] }
+policies:   # ABAC: set on the catalog, it masks every column tagged pii for everyone but the CRM team and the prod jobs
+  mask-pii: { kind: column-mask, label: mask_pii, tag: pii, on: customers_prod, excludes: [customers-team, sp-lakehouse-prod] }
+
+assignments:
+  - platform-team is metastore-admin on uc-weu
+  - platform-team is workspace-admin on dbw-lakehouse-<env>
+  - engineers is workspace-user on dbw-lakehouse-<env>
+  - sp-lakehouse-<env> is workspace-user on dbw-lakehouse-<env>
+  - analysts is workspace-user on dbw-lakehouse-prod
+  # In dev each team owns its catalog and the pipelines write as sp-lakehouse-dev; in test and prod the service
+  # principal owns the catalogs and each team reads its own (each: env)
+  - <domain>-team is <env.team> on <domain>_<env>
+  - sp-lakehouse-<env> is <env.jobs> on <domain>_<env>
+  # Every engineer may find production data; analysts read gold
+  - engineers is browse on <domain>_prod
+  - analysts is use-catalog on <domain>_prod
+  - analysts is read-schema on <domain>_prod_gold
+
+views:
+  admins:
+    title: Who administers
+    subtitle: Northwind lakehouse · the platform team runs the metastore and the workspaces, and holds no grants on domain data
+    include: [platform-team]
+  orders:
+    title: One domain through its environments
+    subtitle: Northwind lakehouse · orders-team owns dev and reads test and prod; there the service principal owns and writes
+    include: [orders-team, kind:service-principal, orders_<env>]
+  team-access-<part>:
+    title: Every domain, every environment (<part> of 2)
+    subtitle: Northwind lakehouse · a row per domain; per environment what its team and the service principal hold
+    show: access
+    rows: domain
+    columns: env
+    page: <part> of 2
+    exclude: [engineers, analysts, kind:databricks, uc-weu]
+  prod-readers-<part>:
+    title: Who reads production (<part> of 2)
+    subtitle: Northwind lakehouse · each team reads its catalog, the jobs own it, engineers BROWSE, analysts read gold
+    show: access
+    rows: domain
+    page: <part> of 2
+    environment: prod
+    exclude: [kind:databricks, uc-weu]
+  reading-roles:
+    title: What the reading roles hold
+    subtitle: Northwind lakehouse · BROWSE and USE CATALOG on a catalog, USE SCHEMA and SELECT on a schema or catalog
+    show: roles
+    include: [kind:account-group]
+    exclude: [uc-weu, kind:databricks]
+  pipeline-role:
+    title: What a pipeline needs
+    subtitle: Northwind lakehouse · granted on each dev catalog to sp-lakehouse-dev; in test and prod the principal owns them
+    show: roles
+    include: [sp-lakehouse-dev]
+    exclude: [kind:databricks]

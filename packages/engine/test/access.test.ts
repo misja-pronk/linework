@@ -171,6 +171,47 @@ describe('access checks', () => {
     expect(await warnings(source('graph'))).toEqual(['alice is Owner on rg directly, where sg-ops holds the same role: membership of the group would do']);
   });
 
+  it('names the type by what the file holds: Unity Catalog grants, roles and groups, or access packages', async () => {
+    const uc = 'type: access\nprincipals:\n  analysts: account-group\nresources:\n  sales: catalog\nroles:\n  read: { permissions: [SELECT] }\nassignments:\n  - analysts is read on sales\n';
+    expect((await render(uc, { fonts: 'none' })).typeName).toBe('Unity Catalog access');
+    expect((await render(uc.replace('sales: catalog', 'sales: subscription'), { fonts: 'none' })).typeName).toBe('Roles and groups');
+    // With access packages the type's own name says it.
+    expect((await render(source('graph'), { fonts: 'none' })).typeName).toBeUndefined();
+  });
+
+  it('names a role granted on a kind of scope where it, or a permission in it, does not apply', async () => {
+    const text = `type: access
+principals:
+  analysts: group
+  ops: group
+resources:
+  sales: { kind: catalog }
+  gold: { kind: schema, in: sales }
+  kv: { kind: key-vault }
+  rg: { kind: resource-group }
+roles:
+  browse: { permissions: [BROWSE] }
+  read: { inherits: browse, permissions: [{ USE CATALOG: { on: catalog } }, { USE SCHEMA: { on: [catalog, schema] } }, SELECT] }
+  schema-read: { permissions: [{ USE SCHEMA: { on: [catalog, schema] } }, SELECT] }
+  secrets: { on: key-vault, permissions: [get secret] }
+assignments:
+  - analysts is read on sales
+  - analysts is read on gold
+  - analysts is schema-read on gold
+  - ops is secrets on kv
+  - ops is secrets on rg
+`;
+    const r = await render(text, { fonts: 'none' });
+    expect(r.diagnostics.filter((d) => d.severity === 'warning').map((d) => [d.line, d.message])).toEqual([
+      [17, 'read holds USE CATALOG (on catalog), and gold is a schema: grant it where that applies, or take it out of the role'],
+      [20, 'secrets is granted on key-vault, and rg is a resource-group'],
+    ]);
+    // The roles table names the permissions as ever, the inherited ones too.
+    const roles = await render(text.replace('type: access', 'type: access\nview: roles'), { fonts: 'none' });
+    expect(roles.svg).toContain('USE CATALOG');
+    expect(roles.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+  });
+
   it('names a guest with an owner-level role on a broad scope, also through a group', async () => {
     const text = `type: access
 principals:
@@ -398,5 +439,109 @@ describe('notes under a pill', () => {
 
   it('end a line after a comma rather than leave a name hanging, when that takes no more lines', () => {
     expect(wrapNote('via sg-azure-platform-admins, from Northwind')).toEqual(['via sg-azure-platform-admins,', 'from Northwind']);
+  });
+});
+
+// A lakehouse in small: two domains through two environments, a share and a mask.
+const lake = (views: string) => `type: access
+present: views
+principals:
+  engineers: account-group
+  orders-team: { kind: account-group, member-of: engineers }
+  sales-team: { kind: account-group, member-of: engineers }
+  analysts: account-group
+  sp-dev: { kind: service-principal, tags: [dev] }
+  sp-prod: { kind: service-principal, tags: [prod] }
+  contoso: { kind: recipient, tags: [prod] }
+resources:
+  dbw-prod: { kind: databricks, tags: [prod] }
+  orders_dev: { kind: catalog, bound: dbw-prod, tags: [dev] }
+  orders_prod: { kind: catalog, bound: dbw-prod, tags: [prod] }
+  sales_prod: { kind: catalog, tags: [prod] }
+  sales_gold: { kind: schema, in: sales_prod, tags: [prod] }
+  share: { kind: share, tags: [prod] }
+roles:
+  browse: { label: BROWSE, permissions: [BROWSE] }
+  read: { label: Read, inherits: browse, permissions: [SELECT] }
+  write: { label: Write, inherits: read, permissions: [MODIFY] }
+  manage: { label: MANAGE, inherits: read, permissions: [MANAGE] }
+  share-read: { label: SELECT on share, permissions: [SELECT on share] }
+policies:
+  mask: { kind: column-mask, tag: pii, on: sales_prod, excludes: [sales-team] }
+assignments:
+  - orders-team is manage on orders_dev
+  - orders-team is manage on orders_prod
+  - sales-team is manage on sales_prod
+  - sp-dev is write on orders_dev
+  - sp-prod is write on orders_prod
+  - sp-prod is write on sales_prod
+  - engineers is browse on orders_prod
+  - analysts is read on sales_gold
+  - contoso is share-read on share
+views:
+${views}`;
+
+describe('views of an access diagram', () => {
+  const draw = (views: string, view?: string) => render(lake(views), { fonts: 'none', ...(view ? { view } : {}) });
+  const table = (r: Awaited<ReturnType<typeof render>>) => {
+    const m = r.graph!.nodes[0]!.shape as MatrixShape;
+    return { rows: m.rows.map((x) => x.label), columns: m.columns.map((x) => x.label), m };
+  };
+
+  it('cuts the graph to the principals and scopes it picks, with the grants between them', async () => {
+    const r = await draw('  orders:\n    title: Orders\n    include: [orders-team, orders_dev, orders_prod]');
+    expect(r.diagnostics).toEqual([]);
+    expect(r.graph!.title).toBe('Orders');
+    expect(r.graph!.nodes.map((n) => n.id).sort()).toEqual(['orders-team', 'orders_dev', 'orders_prod']);
+    expect(r.graph!.edges.map((e) => e.label)).toEqual(['MANAGE', 'MANAGE']);
+  });
+
+  it('leaves a side open that it names nothing of', async () => {
+    const r = await draw('  sales:\n    include: [sales_prod.*]');
+    expect(r.graph!.nodes.map((n) => n.id).sort()).toEqual(['analysts', 'mask', 'sales-team', 'sales_gold', 'sp-prod']);
+    expect(r.graph!.groups.map((g) => g.id)).toEqual(['sales_prod']);
+  });
+
+  it('cuts the who × where matrix and the roles table alike', async () => {
+    const r = await draw('  prod:\n    show: access\n    environment: prod\n    exclude: [kind:databricks, engineers]\n  roles-prod:\n    show: roles\n    environment: prod', 'prod');
+    expect(r.diagnostics).toEqual([]);
+    const t = table(r);
+    // engineers left out with its grants: its members do not BROWSE through it here.
+    expect(t.rows).toEqual(['orders-team', 'sales-team', 'analysts', 'sp-prod', 'contoso']);
+    expect(t.columns).toEqual(['orders_prod', 'sales_prod', 'sales_gold', 'share']);
+    const roles = table(await draw('  prod:\n    show: access\n  roles-prod:\n    show: roles\n    environment: prod', 'roles-prod'));
+    expect(roles.rows).toEqual(['BROWSE', 'Read', 'Write', 'MANAGE', 'SELECT on share']);
+  });
+
+  it('says in the matrix what a data policy does to what is read, and to whom it does not', async () => {
+    const t = table(await draw('  prod:\n    show: access\n    environment: prod'));
+    const cell = (row: string, col: string) => t.m.cells[t.rows.indexOf(row)]![t.columns.indexOf(col)];
+    expect(cell('analysts', 'sales_gold')!.note).toContain('columns tagged pii masked');
+    expect(cell('sales-team', 'sales_prod')!.note ?? '').not.toContain('masked');
+    // BROWSE reads no rows: nothing to mask.
+    expect(cell('engineers', 'orders_prod')!.note ?? '').not.toContain('masked');
+  });
+
+  it('draws the graph in columns: who, their groups, then where', async () => {
+    const r = await draw('  all:\n    include: ["*"]');
+    const x = (id: string) => r.placed!.nodes.get(id)!.x;
+    expect(x('orders-team')).toBeLessThan(x('engineers'));
+    expect(x('sp-dev')).toBeLessThan(x('engineers'));
+    expect(x('engineers')).toBeLessThan(x('orders_dev'));
+    expect(r.graph!.nodes.find((n) => n.id === 'orders_dev')!.shape).toMatchObject({ caption: 'Bound to dbw-prod' });
+    expect(r.graph!.nodes.find((n) => n.id === 'mask')!.shape).toMatchObject({ caption: 'Masks columns tagged pii', icon: 'eye-off' });
+  });
+
+  it('presents the views alone, and warns about a view named like one of its drawings', async () => {
+    const r = await draw('  a: { include: [orders-team] }\n  roles: { show: roles }');
+    expect(r.views!.map((v) => v.name)).toEqual(['a', 'roles']);
+    expect(r.diagnostics.map((d) => d.message)).toEqual([expect.stringContaining('"roles" is also the name of one of this type\'s own drawings')]);
+    const bad = await draw('  a: { show: packages-table }');
+    expect(bad.diagnostics.map((d) => d.message)).toEqual([expect.stringContaining('There is no drawing "packages-table"')]);
+  });
+
+  it('checks what a binding and a data policy name', async () => {
+    const r = await render(lake('  a: { include: [orders-team] }').replace('bound: dbw-prod, tags: [dev]', 'bound: dbw-nope, tags: [dev]').replace('on: sales_prod', 'on: nope'), { fonts: 'none' });
+    expect(r.diagnostics.map((d) => d.message).sort()).toEqual(['There is no resource "nope"', 'There is no workspace "dbw-nope" under resources']);
   });
 });

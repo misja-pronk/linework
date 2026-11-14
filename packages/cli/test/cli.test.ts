@@ -186,6 +186,23 @@ describe('carto validate on a slide', () => {
   }, 60_000);
 });
 
+describe('carto validate on a folder of files that include one model', () => {
+  it('says a warning in the model once, in the model, not again in every file that includes it', async () => {
+    const dir = path.join(tmp, 'shared');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'model.yaml'), 'type: model\nelements:\n  api: { kind: api }\n  db: { kind: database }\nrelations:\n  - api -> db\n  - api -> nothere\n');
+    fs.writeFileSync(path.join(dir, 'a.yaml'), 'type: systems\ninclude: [model.yaml]\nnodes:\n  api:\n  db:\n');
+    fs.writeFileSync(path.join(dir, 'b.yaml'), 'type: azure\ninclude: [model.yaml]\nnodes:\n  api: { ref: api, kind: app-service }\n');
+    const nothere = (err: string) => err.split('\n').filter((l) => l.includes('There is no element "nothere"'));
+    const folder = await carto('validate', 'shared');
+    expect(folder.code).toBe(0);
+    expect(nothere(folder.err)).toEqual([expect.stringMatching(/model\.yaml:7:5 {2}warning/)]);
+    // Without the model among the files checked: said once, by the first file that includes it.
+    const two = await carto('validate', 'shared/a.yaml', 'shared/b.yaml');
+    expect(nothere(two.err)).toEqual([expect.stringMatching(/a\.yaml:2:\d+ {2}warning/)]);
+  }, 60_000);
+});
+
 describe('carto diff', () => {
   const grown = shop.replace('  kv: key-vault\n', '  kv: { kind: key-vault, label: Secrets }\n  cache: { kind: redis, in: rg }\n').replace('  - web -> kv\n', '  - web -> cache\n');
 
@@ -514,6 +531,36 @@ describe('carto errors and help', () => {
     expect((await carto('render', path.join(root, 'examples/sequence/entra-sign-in.yaml'), '--view', 'whole', '-o', 'whole.pptx')).out).toContain('whole.pptx');
     expect((await carto('deck', path.join(root, 'examples/sequence/entra-sign-in.yaml'), '-o', 'phases.pptx')).out).toContain('2 diagrams');
     expect((await carto('render', path.join(root, 'examples/sequence/entra-sign-in.yaml'), '--all-views', '-o', 'seq.pdf')).out).toContain('3 drawings: the whole and 2 views');
+  }, 120_000);
+
+  it('takes the views of a canvas (present: views) and never its whole drawing', async () => {
+    // Three environments side by side are no slide; each environment is.
+    const envs = ['prod', 'test', 'dev', 'qa'];
+    const fan = Array.from({ length: 7 }, (_, i) => i);
+    const text = `type: azure\npresent: views\ngroups:\n${envs.map((e) => `  ${e}: { kind: vnet, env: ${e} }`).join('\n')}\nnodes:\n  fw: firewall\n${envs.flatMap((e) => fan.map((i) => `  ${e}-${i}: { kind: app-service, label: App service ${i}, in: ${e} }`)).join('\n')}\nedges:\n${envs.flatMap((e) => [...fan.slice(1).map((i) => `  - ${e}-0 -> ${e}-${i}: calls`), `  - ${e}-6 -> fw`]).join('\n')}\nviews:\n${envs.map((e) => `  ${e}: { environment: ${e} }`).join('\n')}\n`;
+    write('canvas.yaml', text);
+    const whole = await render(text, { fonts: 'none', view: '' });
+    expect(whole.canvas).toBe(true);
+    const v = await carto('validate', 'canvas.yaml');
+    expect(v.code).toBe(0);
+    expect(v.err).toBe('');
+    // The same file as one slide: the whole is checked, and too small.
+    write('one.yaml', text.replace('present: views\n', ''));
+    expect((await carto('validate', 'one.yaml')).err).toMatch(/warning {2}On a 16:9 slide its smallest text is [\d.]+ pt/);
+    // Each format and command: the views, a slide (page, picture) each.
+    const pptx = await carto('render', 'canvas.yaml', '-o', 'canvas.pptx');
+    expect(pptx.out).toContain('4 drawings: its views; the whole is a working canvas');
+    expect(new Set(fs.readFileSync(path.join(tmp, 'canvas.pptx'), 'latin1').match(/ppt\/slides\/slide\d+\.xml/g)).size).toBe(4);
+    expect((await carto('render', 'canvas.yaml', '--all-views', '-o', 'canvas.pdf')).code).toBe(0);
+    expect(fs.readFileSync(path.join(tmp, 'canvas.pdf'), 'latin1').match(/\/Type \/Page\b/g)).toHaveLength(4);
+    expect((await carto('render', 'canvas.yaml', '--all-views', '-o', 'cv/')).code).toBe(0);
+    expect(fs.readdirSync(path.join(tmp, 'cv')).sort()).toEqual(['canvas--dev.svg', 'canvas--prod.svg', 'canvas--qa.svg', 'canvas--test.svg']);
+    expect((await carto('deck', 'canvas.yaml', '-o', 'cdeck.pptx')).out).toContain('4 diagrams');
+    const told = await carto('describe', 'canvas.yaml');
+    expect(told.out.match(/Azure infrastructure diagram/g)).toHaveLength(4);
+    // --view '' draws the canvas itself.
+    expect((await carto('render', 'canvas.yaml', '--view', '', '-o', 'whole.svg')).code).toBe(0);
+    expect(read('whole.svg')).toContain('29 elements in 4 groups');
   }, 120_000);
 
   it('leaves empty views out of --all-views', async () => {

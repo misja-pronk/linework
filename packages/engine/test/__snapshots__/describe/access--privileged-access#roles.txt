@@ -1,6 +1,6 @@
 Privileged access
 
-Roles, groups and access packages, roles × permissions: Roles × permissions. A table of 6 rows by 6 columns.
+Roles and groups, roles × permissions: Roles × permissions. A table of 6 rows by 6 columns.
 
 By row (Role by permission)
 Columns: reset passwords, manage users, manage mail, manage sites, assign roles and PIM and everything else.

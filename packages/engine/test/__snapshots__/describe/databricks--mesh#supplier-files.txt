@@ -1,0 +1,18 @@
+Supplier files
+
+Data products diagram: Northwind lakehouse · the suppliers' CSV files, read over SFTP into a bronze table. 3 elements in 1 group, with 2 connections.
+
+Groups and elements
+- Suppliers (CSV files over SFTP)
+- Supply chain (Domain · Supply chain data team)
+  - Supplier files (Bronze · v1.0.0)
+  - Stock levels (Gold · v1.1.0)
+
+Connections
+- Suppliers connects to Supplier files.
+- Supplier files.supply_prod.bronze.supplier_files connects to Stock levels.
+
+Key
+- Orange icon: Bronze
+- Amber icon: Gold
+- Solid line: Data flow

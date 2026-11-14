@@ -28,6 +28,10 @@ describe('kind by typing', () => {
     expect(matchKinds('fic', items)[0]!.kind).toBe('federated-credential');
     expect(matchKinds('dbx', items)[0]!.kind).toBe('databricks');
     expect(matchKinds('vwan', items)[0]!.kind).toBe('virtual-wan');
+    expect(matchKinds('dbac', items)[0]!.kind).toBe('access-connector');
+    expect(matchKinds('ncc', items)[0]!.kind).toBe('ncc');
+    expect(matchKinds('dlt', items)[0]!.kind).toBe('lakeflow-pipeline');
+    expect(matchKinds('opensharing', items)[0]!.kind).toBe('share');
     expect(matchKinds('policy', items)[0]!.kind).toBe('policy');
     const access = shapeKinds(findType('access')!);
     expect(matchKinds('ca', access)[0]!.kind).toBe('conditional-access');

@@ -54,6 +54,8 @@ export interface PDrawing extends Picture {
   shapes: Record<string, number>;
   /** Drawn shape → the drawing it opens (a link, or the view a level down). */
   drill: Record<string, number>;
+  /** A link drawn inside a shape (a sequence's ref box, data-link in the SVG) as written → the drawing it opens. */
+  links?: Record<string, number>;
   /** The levels above, for breadcrumbs: the element and the drawing about it. */
   trail?: { label: string; to?: number }[];
 }

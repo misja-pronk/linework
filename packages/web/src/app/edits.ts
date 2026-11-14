@@ -219,7 +219,7 @@ export function useEdits({ drawing, selection: sel, select: sx, pins: px, editor
     if (!path) return undefined;
     if (lt.kind === 'edge') {
       if (isChainLine(textNow(), type, lt.id)) return result?.graph?.edges.find((x) => x.id === lt.id)?.label ?? '';
-      const f = path[0] === 'edges' && typeof path[1] === 'number' ? edgeFields(textNow(), type, path).find((x) => x.key === 'label') : undefined;
+      const f = path.length === 2 && path[0] === 'edges' && typeof path[1] === 'number' ? edgeFields(textNow(), type, path).find((x) => x.key === 'label') : undefined;
       return f?.kind === 'text' ? f.value : undefined;
     }
     if (!isEntryPath(path)) return undefined;

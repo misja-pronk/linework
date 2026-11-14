@@ -1,0 +1,55 @@
+Dev, test and production
+
+Process diagram: Northwind lakehouse · one bundle goes from Git through dev and test, and a person opens the gate to production. 12 elements in 4 lanes, with 11 connections.
+
+Lanes and steps
+- GitHub (lane)
+  - Pull request (start event, a change to the bundle)
+  - Reviewed and merged (into main)
+  - Release approved? (decision, a required reviewer)
+  - Release stopped (end event)
+- dbw-lakehouse-dev (lane)
+  - Deploy a copy (sp-lakehouse-dev · [pr-<number>])
+- dbw-lakehouse-test (lane)
+  - Deploy to test (sp-lakehouse-test)
+  - Run pipelines (a red run stops it)
+- dbw-lakehouse-prod (lane)
+  - Deploy to prod (sp-lakehouse-prod)
+  - Smoke test green? (decision)
+  - Live in prod (end event)
+  - Deploy the last tag (the previous release)
+  - Rolled back (end event)
+
+Main path
+1. Pull request
+2. Deploy a copy
+3. Reviewed and merged (Deploy a copy: checks green)
+4. Deploy to test
+5. Run pipelines
+6. Release approved?
+7. Deploy to prod (Release approved?: yes)
+8. Smoke test green?
+9. Live in prod (Smoke test green?: yes)
+
+Connections
+- Pull request leads to Deploy a copy.
+- Deploy a copy leads to Reviewed and merged (checks green).
+- Reviewed and merged leads to Deploy to test.
+- Deploy to test leads to Run pipelines.
+- Run pipelines leads to Release approved?
+- Release approved? leads to Deploy to prod (yes) and leads to Release stopped (no).
+- Deploy to prod leads to Smoke test green?
+- Smoke test green? leads to Live in prod (yes) and leads to Deploy the last tag (no).
+- Deploy the last tag leads to Rolled back.
+
+Walkthrough
+1. One bundle, three workspaces: One bundle goes to each workspace as that environment's service principal; each catalog is bound to one workspace.
+2. Every pull request: Actions signs in with OIDC as sp-lakehouse-dev and deploys a copy named [pr-<number>], so no PR overwrites another.
+3. Test: Green and reviewed, the change is merged; sp-lakehouse-test deploys it and runs the pipelines on the _test catalogs.
+4. The gate: The prod environment in GitHub has required reviewers; only its jobs get a token for sp-lakehouse-prod.
+5. Production: sp-lakehouse-prod, owner of the _prod catalogs, deploys the same bundle; a smoke test checks it.
+6. Roll back: A red smoke test? Actions deploys the previous tag; tables written wrongly go back with RESTORE.
+
+Key
+- Solid line, thick: Happy path
+- Solid line: Other paths

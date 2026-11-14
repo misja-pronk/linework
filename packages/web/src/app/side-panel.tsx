@@ -53,7 +53,8 @@ export function inspected(drawing: Drawing, selected: Selection | undefined, pat
   const selGroup = selected?.kind === 'group' ? (result ?? drawn)?.graph?.groups.find((g) => g.id === selected.id) : undefined;
   const selEdge = selected?.kind === 'edge' ? (result ?? drawn)?.graph?.edges.find((e) => e.id === selected.id) : undefined;
   const isEntry = !!selectedPath && isEntryPath(selectedPath) && selected?.kind !== 'edge';
-  const isEdgeItem = !!selectedPath && selectedPath[0] === 'edges' && typeof selectedPath[1] === 'number';
+  // A line a pattern wrote out (each:) has a path one step longer: it is changed in the YAML, where the pattern is.
+  const isEdgeItem = !!selectedPath && selectedPath.length === 2 && selectedPath[0] === 'edges' && typeof selectedPath[1] === 'number';
   return { selectedPath, selNode, selGroup, selEdge, isEntry, isEdgeItem };
 }
 
@@ -226,7 +227,7 @@ export function SidePanel(p: Props) {
             </span>
             <div className="inspector-title">
               <strong>{shown?.graph?.title || t('Drawing')}</strong>
-              <span>{say(type.name as Message)}</span>
+              <span>{say((shown?.typeName ?? type.name) as Message)}</span>
             </div>
           </header>
           <div className="inspector-body">

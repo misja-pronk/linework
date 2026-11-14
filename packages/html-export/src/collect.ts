@@ -3,7 +3,7 @@
 // for comes from the model (the workspace index), so a reader can click a box and see what it is,
 // where else it appears, and open the view a level down. Runs in Node and in the editor alike.
 import { parse as parseYaml } from 'yaml';
-import { drillTarget, elementAt, indexFile, indexWorkspace, isDiagramFile, joinPath, trail, viewAbout, type Graph, type LayoutSidecar, type Link, type WorkspaceIndex } from '@cartography/core';
+import { drillTarget, elementAt, indexFile, indexWorkspace, isDiagramFile, joinPath, parseLink, trail, viewAbout, type Graph, type LayoutSidecar, type Link, type WorkspaceIndex } from '@cartography/core';
 import { render, type RenderOptions, type RenderResult } from '@cartography/engine';
 import type { Theme } from '@cartography/theme';
 import { describe, linkTarget, linkText } from '@cartography/embed/shared';
@@ -143,6 +143,7 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
   /** Drill and link targets by key, resolved to drawing indices once everything is drawn. */
   const pendingDrill: { drawing: number; shape: string; key: string }[] = [];
   const pendingTrail: { drawing: number; crumbs: { label: string; key?: string }[] }[] = [];
+  const pendingLinks: { drawing: number; target: string; key: string }[] = [];
 
   const subtitles = new Map<string, string>();
   /** The drawing each file is as written, where that is one of its type's views: a link to the file opens it. */
@@ -241,7 +242,7 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
     // hidden one (a mesh written view: detailed) comes first, as the drawing a link to the file opens.
     const written = first.asWritten;
     const offered = (first.views ?? []).map((v) => v.name);
-    const views: (string | undefined)[] = written ? (offered.includes(written.name) ? offered : [written.name, ...offered]) : first.onlyViews ? offered : [undefined, ...offered];
+    const views: (string | undefined)[] = written ? (offered.includes(written.name) ? offered : [written.name, ...offered]) : first.onlyViews || first.canvas ? offered : [undefined, ...offered];
     for (const [vi, view] of views.entries()) {
       const idPrefix = `${prefix}v${vi}`;
       const asWritten = view === undefined || view === written?.name;
@@ -260,7 +261,7 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
       const pic = picture(light, dark);
       const wsView = viewName ? ix.views.find((v) => v.file === file && v.name === viewName) : undefined;
       const title = (viewName ? (first.views?.find((v) => v.name === viewName) ?? (viewName === written?.name ? written : undefined))?.title : undefined) ?? light.graph.title ?? baseOf(file).replace(/\.ya?ml$/i, '');
-      const typeName = first.type?.name ?? first.type?.id ?? pfile.type;
+      const typeName = first.typeName ?? first.type?.name ?? first.type?.id ?? pfile.type;
       const drawing: PDrawing = { key: keyOf(file, viewName), file, ...(viewName ? { view: viewName } : {}), title, kind: wsView?.kind ? tr(first.lang, '{kind} view', { kind: wsView.kind }) : viewName ? tr(first.lang, 'view of {type}', { type: typeName }) : `${typeName}`, words: toText(inWords({ ...light, name: baseOf(file) }), { title: false }).trim(), ...pic, shapes: {}, drill: {} };
       const index = n++;
       drawings.push(drawing);
@@ -321,6 +322,17 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
         }
       }
 
+      // Links drawn inside a shape (a sequence's ref box): followed as a card's link is.
+      for (const m of light.svg.matchAll(/\sdata-link="([^"]*)"/g)) {
+        const target = unescapeAttr(m[1]!);
+        const l = parseLink(target);
+        const key = l && linkKey(file, l);
+        if (!key || key === drawing.key) continue;
+        pendingLinks.push({ drawing: index, target, key });
+        const tf = key.split('#')[0]!;
+        if (follow && ix.files.has(tf)) want(tf);
+      }
+
       // Breadcrumbs: the elements above the one this view is about.
       const chain = trail(ix, file, viewName);
       if (chain.length) {
@@ -344,6 +356,10 @@ export async function collect(input: HtmlExportInput): Promise<Collected> {
   for (const p of pendingDrill) {
     const to = byKey.get(p.key);
     if (to !== undefined && to !== p.drawing) drawings[p.drawing]!.drill[p.shape] = to;
+  }
+  for (const p of pendingLinks) {
+    const to = byKey.get(p.key);
+    if (to !== undefined && to !== p.drawing) (drawings[p.drawing]!.links ??= {})[p.target] = to;
   }
   for (const t of pendingTrail) drawings[t.drawing]!.trail = t.crumbs.map((c) => ({ label: c.label, ...(c.key && byKey.has(c.key) ? { to: byKey.get(c.key)! } : {}) }));
 

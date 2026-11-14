@@ -517,3 +517,26 @@ messages:
     expect(r.svg).toMatchSnapshot();
   });
 });
+
+describe('a ref box that links', () => {
+  const yaml = (link: string) => `type: sequence\nparticipants: { a: service, b: service }\nmessages:\n  - a -> b: Order\n  - ref: Shipping\n    link: ${link}\n`;
+
+  it('leads to another diagram, one of its views or a view here, as a card\'s link does', async () => {
+    const href = async (link: string, file?: string) => /<a href="([^"]*)"/.exec((await render(yaml(link), { fonts: 'none', ...(file ? { file } : {}) })).svg!)?.[1];
+    expect(await href('shipping.yaml')).toBe('shipping.svg');
+    expect(await href("'shipping.yaml#phase-payment'")).toBe('shipping--phase-payment.svg');
+    expect(await href("'#phase-start'", 'checkout.yaml')).toBe('checkout--phase-start.svg');
+    expect(await href('https://example.com/runbook')).toBe('https://example.com/runbook');
+  });
+
+  it('says its link in the editor, for ⌘-click to follow', async () => {
+    const r = await render(yaml("'shipping.yaml#phase-payment'"), { fonts: 'none', interactive: true });
+    expect(r.svg).toContain('data-link="shipping.yaml#phase-payment"');
+    expect(r.svg).not.toContain('<a href');
+  });
+
+  it('says a link that leads nowhere', async () => {
+    const r = await render(yaml("'  '"), { fonts: 'none' });
+    expect(r.diagnostics.map((d) => `${d.line}: ${d.message}`)).toEqual(['6: A link is a URL, another diagram (other.yaml) or a view (other.yaml#view)']);
+  });
+});

@@ -1,6 +1,6 @@
 Azure access
 
-Roles, groups and access packages, who × where: Who × where. A table of 6 rows by 6 columns.
+Roles and groups, who × where: Who × where. A table of 6 rows by 6 columns.
 
 By row (Who by where)
 Columns: Northwind, Landing zones, sub-shop-dev, sub-shop-prod, rg-shop-prod and kv-shop-prod.

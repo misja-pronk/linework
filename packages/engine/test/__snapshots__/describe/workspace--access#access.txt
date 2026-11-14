@@ -1,6 +1,6 @@
 Harbour Bank access
 
-Roles, groups and access packages, who × where: Who × where. A table of 3 rows by 3 columns.
+Roles and groups, who × where: Who × where. A table of 3 rows by 3 columns.
 
 By row (Who by where)
 Columns: Harbour Online, Payments hub and Core ledger.

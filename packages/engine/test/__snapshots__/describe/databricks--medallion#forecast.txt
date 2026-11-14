@@ -1,0 +1,24 @@
+Demand forecast
+
+Azure infrastructure diagram: Northwind lakehouse · trained weekly on orders and stock, served to replenishment. 6 elements in 3 groups, with 5 connections.
+
+Groups and elements
+- orders_prod (Catalog)
+  - gold (Schema)
+- forecast-training (Weekly · MLflow)
+- supply_prod (Catalog)
+  - gold (Schema)
+    - demand_forecast (Model)
+    - stock_levels (Table)
+- demand-forecast (Serving endpoint)
+- Replenishment (Supply planning app): Orders stock from suppliers on the demand forecast
+
+Connections
+- gold (Schema) sends data to forecast-training (orders).
+- forecast-training sends data to demand_forecast (Registers).
+- demand_forecast sends data to demand-forecast (Served by).
+- demand-forecast sends data to Replenishment (Forecast [REST]).
+- gold (Schema) sends data to forecast-training (stock).
+
+Key
+- Solid violet line with ticks: Data flow

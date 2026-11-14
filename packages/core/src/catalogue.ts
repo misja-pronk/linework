@@ -87,7 +87,7 @@ export interface ViewSpec {
   title?: string;
   subtitle?: string;
   direction?: Direction;
-  /** Element ids, `id.*` (its children), `tag:x`, `kind:x`, `*`, or relations `a -> b` with `*` for any side. */
+  /** Element ids (a group written here: with what is in it), `id.*` (its children), `tag:x`, `kind:x`, `env:x`, `*`, or relations `a -> b` with `*` for any side. */
   include?: string[];
   exclude?: string[];
   /** Elements drawn as a boundary with their children inside, instead of one card. */
@@ -100,6 +100,14 @@ export interface ViewSpec {
   layers?: string[];
   /** The view claims to deploy everything: true for every part of every system, or the elements it is about. */
   complete?: true | string[];
+  /** One of the type's own drawings (an access diagram's graph, access matrix or roles table) this view draws. */
+  show?: string;
+  /** An access matrix pivoted on the file's `each:` lists: a row per value of this list (rows: domain) … */
+  rows?: string;
+  /** … and a column per value of this one (columns: env), each split by who holds a role there. */
+  columns?: string;
+  /** With rows: which part of them this view shows, as written: "1 of 2". */
+  page?: string;
   at: Path;
 }
 
@@ -118,6 +126,13 @@ export interface Catalogue {
   views: Map<string, ViewSpec>;
   /** Views of included files. They stay those files' own; nodes with `of:` link to the one that shows their element. */
   includedViews?: IncludedView[];
+  /** Relations of the model this file leaves out of every drawing (`exclude:` at the top), as written. */
+  exclude?: string[];
+  /**
+   * `present: views`: the diagram as written is a working canvas, not a slide. Its views are what is
+   * presented: drawn first, checked, exported and described; the whole is drawn when asked for (view '').
+   */
+  present?: 'views';
 }
 
 export interface ModelContext extends Catalogue {
@@ -130,7 +145,7 @@ export interface ModelContext extends Catalogue {
 export const emptyCatalogue = (): Catalogue => ({ elements: new Map(), relations: [], views: new Map() });
 
 /** Top-level keys that belong to the model layer, not to a diagram type. */
-export const modelKeys = ['include', 'elements', 'relations', 'views'] as const;
+export const modelKeys = ['include', 'elements', 'relations', 'views', 'exclude', 'present'] as const;
 
 type Report = (path: Path, message: string, severity?: 'error' | 'warning') => void;
 
@@ -187,6 +202,17 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
       cat.relations.push({ from: full(spec.from), to: full(spec.to), label: spec.label, ...(technology ? { technology } : {}), style, ...tags, at: at(['relations', i]), index: cat.relations.length });
     }
 
+  // What the file itself says about its drawings; an included file's stay its own.
+  if (!included && data.exclude != null) {
+    const rules = (Array.isArray(data.exclude) ? data.exclude : [data.exclude]).map(String);
+    rules.forEach((r, i) => {
+      if (!r.includes('->')) report(at(Array.isArray(data.exclude) ? ['exclude', i] : ['exclude']), `exclude: at the top leaves relations of the model out, such as "${r} -> *"; leave a node out by not writing it, or in a view`, 'warning');
+    });
+    const kept = rules.filter((r) => r.includes('->'));
+    if (kept.length) cat.exclude = kept;
+  }
+  if (!included && data.present === 'views') cat.present = 'views';
+
   if (included && data.views && typeof data.views === 'object' && !Array.isArray(data.views))
     for (const [name, raw] of Object.entries(data.views as Record<string, unknown>)) {
       const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
@@ -237,6 +263,10 @@ export function readModel(data: Record<string, unknown>, cat: Catalogue, at: (p:
         ...(typeof o.environment === 'string' ? { environment: o.environment } : {}),
         ...(list('layers') ? { layers: list('layers') } : {}),
         ...(o.complete === true ? { complete: true as const } : list('complete') ? { complete: list('complete') } : {}),
+        ...(typeof o.show === 'string' ? { show: o.show } : {}),
+        ...(typeof o.rows === 'string' ? { rows: o.rows } : {}),
+        ...(typeof o.columns === 'string' ? { columns: o.columns } : {}),
+        ...(typeof o.page === 'string' || typeof o.page === 'number' ? { page: String(o.page) } : {}),
         at: at(['views', name]),
       });
     }
@@ -343,7 +373,7 @@ function elementSchema(depth: number): object {
   return { anyOf: [{ type: 'null' }, { type: 'string', description: 'Its kind' }, { type: 'object', properties: props, additionalProperties: false }] };
 }
 
-const selectors = { type: 'array', items: { type: 'string', description: 'id, id.*, tag:x, kind:x, * or a relation like "* -> shop"' } };
+const selectors = { type: 'array', items: { type: 'string', description: 'id (a group: with what is in it), id.*, tag:x, kind:x, env:x, * or a relation like "* -> shop"' } };
 const viewSchema = {
   type: 'object',
   properties: {
@@ -370,6 +400,10 @@ const viewSchema = {
     },
     environment: { type: 'string', description: 'One environment of a deployment, e.g. prod: nodes and groups with another env: are left out' },
     layers: viewLayersSchema,
+    show: { type: 'string', description: 'Which of the type’s own drawings this view is, e.g. graph, access (who × where) or roles in an access diagram' },
+    rows: { type: 'string', description: 'show: access as a table of a list of each: (rows: domain): a row per value, what is written for that value in it' },
+    columns: { type: 'string', description: 'With rows: a column per value of another list of each: (columns: env), split by who holds a role there' },
+    page: { type: 'string', description: 'With rows: which part of the rows this view shows, e.g. 1 of 2: twenty domains on two slides' },
     complete: {
       anyOf: [{ type: 'boolean' }, { type: 'string' }, { type: 'array', items: { type: 'string' } }],
       description: 'Warn about parts of the model that nothing runs here: true for every system, or the elements it is about, e.g. [shop]',
@@ -405,6 +439,14 @@ export const modelProperties = {
   elements: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: elementSchema(3), description: 'Shared elements that nodes reference with ref:' },
   relations: { type: 'array', items: edgeItemSchema(relationProps), description: 'Relations between model elements, e.g. "shop.web -> shop.api: REST"' },
   views: { type: 'object', propertyNames: { pattern: idPattern }, additionalProperties: viewSchema, description: 'Named views: what each drawing of this model shows' },
+  exclude: {
+    anyOf: [{ type: 'string' }, selectors],
+    description: 'Relations of the model left out of every drawing of this file, the way a view leaves them out, e.g. "uc-weu -> lakehouse"',
+  },
+  present: {
+    enum: ['whole', 'views'],
+    description: 'views: the drawing as written is a working canvas, not a slide; the views are presented, checked and exported, the editor opens on the first (whole is the default)',
+  },
 };
 
 /** The schema of a `type: model` file. */

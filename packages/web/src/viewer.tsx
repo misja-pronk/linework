@@ -58,7 +58,7 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
   const [presenting, setPresenting] = useState(false);
   const [message, setMessage] = useState<string>();
   const name = doc.name ?? 'shared.yaml';
-  const rendered = useRender(doc.yaml, theme, doc.layout, undefined, 0, view, name);
+  const { rendered } = useRender(doc.yaml, theme, doc.layout, undefined, 0, view, name);
   const result = rendered?.drawn ?? rendered?.result;
   const errors = rendered?.result.diagnostics.filter((d) => d.severity === 'error') ?? [];
   const title = result?.graph?.title ?? baseName(name);
@@ -108,7 +108,7 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
     return () => window.removeEventListener('keydown', key);
   });
 
-  const input = (): ExportInput => ({ text: doc.yaml, theme, sidecar: doc.layout, view: result?.view, file: name });
+  const input = (): ExportInput => ({ text: doc.yaml, theme, sidecar: doc.layout, view: result?.view ?? view, file: name });
   const attempt = (run: () => Promise<void>) => () => void run().catch((e: unknown) => setMessage(t('Export failed: {error}', { error: e instanceof Error ? e.message : String(e) })));
   const base = baseName(name);
   // A document of this browser's own: the editor opens it from the same link data, with an undo.
@@ -131,7 +131,7 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
         </div>
         <div className="actions">
           {choices && choices.views.length > 1 && (
-            <select className="viewer-views" aria-label={t('View')} value={choices.value} onChange={(e) => setView(pickedView(e.target.value, choices.written))}>
+            <select className="viewer-views" aria-label={t('View')} value={choices.value} onChange={(e) => setView(pickedView(e.target.value, choices.written, choices.canvas))}>
               {choices.asWritten && <option value="">{t('Whole diagram')}</option>}
               {choices.views.map((v) => (
                 <option key={v.name} value={v.name}>

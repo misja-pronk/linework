@@ -1,0 +1,28 @@
+Web shop domain
+
+Azure infrastructure diagram: Northwind lakehouse · web shop orders and clickstream into webshop_prod. 8 elements in 2 groups, with 7 connections.
+
+Groups and elements
+- sqldb-webshop-prod (Azure SQL Database): Web shop orders and accounts
+- webshop-ingest (SQL Server connector)
+- webshop_prod (Catalog)
+  - bronze (Schema)
+  - silver (Schema)
+  - gold (Schema)
+    - sessions (Table)
+- evhns-webshop-prod (Event Hubs · clickstream): Clickstream events of the web shop
+- clickstream (Streaming · Kafka API)
+- webshop-pipeline (Continuous)
+
+Connections
+- sqldb-webshop-prod sends data to webshop-ingest (CDC).
+- webshop-ingest sends data to bronze.
+- bronze sends data to silver (clean).
+- silver sends data to gold (sessionise).
+- evhns-webshop-prod sends data to clickstream (Kafka).
+- clickstream sends data to bronze.
+- webshop-pipeline connects to webshop_prod (Management: refreshes).
+
+Key
+- Solid violet line with ticks: Data flow
+- Dotted line with ticks: Management

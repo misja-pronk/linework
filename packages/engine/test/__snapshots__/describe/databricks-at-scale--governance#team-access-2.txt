@@ -1,0 +1,25 @@
+Every domain, every environment (2 of 2)
+
+Unity Catalog access diagram: Northwind lakehouse · a row per domain; per environment what its team and the service principal hold. A table of 10 rows by 6 columns.
+
+By row (domain by env)
+Columns: dev (Domain team, sp-lakehouse-dev); test (Domain team, sp-lakehouse-test); prod (Domain team, sp-lakehouse-prod).
+- payroll: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- pricing: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- inventory: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- returns: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- loyalty: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- fraud: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- support: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- products: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- partners: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+- risk: dev Domain team: Owner; sp-lakehouse-dev: Pipeline; test Domain team: Read catalog; sp-lakehouse-test: Owner; prod Domain team: Read catalog; sp-lakehouse-prod: Owner
+
+Layers
+Ways to look at this drawing by tag.
+- dev (tags dev; 0 elements).
+- test (tags test; 0 elements).
+- prod (tags prod; 0 elements).
+
+Key
+- Indigo filled pill: Assigned directly

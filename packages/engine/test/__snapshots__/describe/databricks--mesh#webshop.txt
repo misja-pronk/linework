@@ -1,0 +1,19 @@
+Web sessions
+
+Data products diagram: Northwind lakehouse · web shop orders and the clickstream, sessionised for Power BI. 4 elements in 1 group, with 3 connections.
+
+Groups and elements
+- Web shop (Azure SQL · CDC)
+- Web shop (Domain · Web shop team)
+  - Web sessions (Gold · v1.2.0)
+- Power BI (Reports)
+- Clickstream (Event Hubs)
+
+Connections
+- Web shop (Azure SQL) connects to Web sessions.
+- Web sessions.webshop_prod.gold.sessions connects to Power BI.
+- Clickstream connects to Web sessions.
+
+Key
+- Amber icon: Gold
+- Solid line: Data flow

@@ -1,6 +1,7 @@
 // The plugin contract: a diagram type turns its own YAML into the shared Graph.
 import type { CardForm, Graph, LayoutMemory, LayoutSidecar, Path, Placed, Sized, Tone } from './model.ts';
 import type { ModelContext } from './catalogue.ts';
+import type { EachContext } from './each.ts';
 import type { Lang } from '@cartography/i18n';
 
 export interface DiagramType<Source = any> {
@@ -14,6 +15,11 @@ export interface DiagramType<Source = any> {
   icon?: string;
   /** One line: what you draw with it. */
   tagline?: string;
+  /**
+   * The type's name for what this source holds, where `name` would say more than it does (a file of
+   * Unity Catalog grants is not about access packages): the editor's type pill says it.
+   */
+  nameFor?(source: Source): string | undefined;
   /** Two to four concrete situations. */
   useWhen?: string[];
   /** Look-alike jobs this type is the wrong pick for; `use` is the id of the better type. */
@@ -146,6 +152,8 @@ export interface BuildContext {
   lang?: Lang;
   /** The words the type writes itself (a section heading, a count), in the drawing's language: as views() gets them. Absent: English. */
   word?: Word;
+  /** The file's `each:` lists and what each entry a pattern wrote out was written for (each.ts); absent without `each:`. */
+  each?: EachContext;
 }
 
 export interface PaletteItem {

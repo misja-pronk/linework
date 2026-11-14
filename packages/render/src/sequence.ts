@@ -2,7 +2,7 @@
 // tinted bands with a small tab. Text is measured first, then the lanes engine spaces the lifelines
 // (each gap as wide as its widest label) and stacks the rows, so labels never collide: every message
 // owns its row, and a row is as tall as its wrapped label.
-import { safeHref, type Box, type SequenceEvent, type SequenceParticipant, type SequenceShape, type Tone } from '@cartography/core';
+import { linkHref, parseLink, type Box, type SequenceEvent, type SequenceParticipant, type SequenceShape, type Tone } from '@cartography/core';
 import { deepest, nesting, spread, stack, tracks, type Apart, type Band, type Row, type Span } from '@cartography/lanes';
 import { baselineOffset, fitText, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, mix, paperTint, type Theme } from '@cartography/theme';
 import { icon } from '@cartography/icons';
@@ -555,8 +555,12 @@ function rect(b: Box, rx: number, attrs: string) {
   return `<rect x="${r1(b.x)}" y="${r1(b.y)}" width="${r1(b.width)}" height="${r1(b.height)}" rx="${rx}" ${attrs}/>`;
 }
 
-/** `upTo`: one step of a presentation. The conversation has reached that message: what came before is drawn quiet, what comes after is not there yet. */
-export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadowId: string, upTo?: { message: number; quiet: Theme }): string {
+/**
+ * `upTo`: one step of a presentation. The conversation has reached that message: what came before is drawn quiet, what comes after is not there yet.
+ * `links`: how a ref box leads where its link: says. An export carries a real link (a diagram to the SVG written next to it,
+ * file: the diagram's own, for #view); in the editor (and with marks, besides the link) a ref says its link (data-link) to follow.
+ */
+export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadowId: string, upTo?: { message: number; quiet: Theme }, links: { interactive?: boolean; marks?: boolean; file?: string } = {}): string {
   const g = sequenceGeometry(shape, theme);
   const now = upTo ? g.messages[Math.min(g.messages.length, upTo.message) - 1] : undefined;
   const limit = now ? now.y + (now.self?.h ?? 0) + 4 : Infinity;
@@ -621,7 +625,7 @@ export function drawSequence(shape: SequenceShape, at: Box, theme: Theme, shadow
   for (const [i, f] of g.frames.entries()) if (f.box.y <= limit) out.push(drawFrame(f, theme, fills[i]!));
   for (const m of g.messages) if (m.y <= limit) out.push(drawMessage(m, upTo && m !== now ? upTo.quiet : theme, patch));
   for (const n of g.notes) if (n.box.y <= limit) out.push(drawNote(n.box, n.lines, n.centred, theme, ground(n.box.x + n.box.width / 2, n.box.y + n.box.height / 2)));
-  for (const r of g.refs) if (r.box.y <= limit) out.push(drawRef(r, theme));
+  for (const r of g.refs) if (r.box.y <= limit) out.push(drawRef(r, theme, links));
 
   for (const h of g.headers) {
     out.push(drawHeader(h, g.headerY, g.headerHeight, theme, shadowId));
@@ -755,7 +759,7 @@ function drawNote(b: Box, lines: string[], centred: boolean, theme: Theme, back:
   return s;
 }
 
-function drawRef(r: { box: Box; label: string; link?: string }, theme: Theme): string {
+function drawRef(r: { box: Box; label: string; link?: string }, theme: Theme, links: { interactive?: boolean; marks?: boolean; file?: string }): string {
   const t = theme.tones.slate;
   const b = r.box;
   const ww = measureText('REF', TAB.size, 600) + 2 * TAB.padX;
@@ -771,9 +775,12 @@ function drawRef(r: { box: Box; label: string; link?: string }, theme: Theme): s
     const x = cx - (lw + 22) / 2;
     s += text(x, cy, r.label, theme.size.label, 600, theme.tones.blue.fg);
     s += glyph('link', x + lw + 8, cy - 7, 14, theme.tones.blue.fg);
+    const said = links.interactive || links.marks ? ` data-link="${esc(r.link)}"` : '';
+    if (links.interactive) return `<g${said}>${s}</g>`;
     // Only links a page can safely carry (http, https, mailto, relative): the text stays, the link goes.
-    const href = safeHref(r.link);
-    return href ? `<a href="${esc(href)}">${s}</a>` : s;
+    const link = parseLink(r.link);
+    const href = link && linkHref(link, links.file);
+    return href ? `<a href="${esc(href)}"${link!.kind === 'url' ? ' target="_blank"' : ''}${said}>${s}</a>` : said ? `<g${said}>${s}</g>` : s;
   }
   return s + text(cx, cy, r.label, theme.size.label, 600, theme.text, 'middle');
 }

@@ -535,6 +535,18 @@ function place(sized: Sized, parts: number): { placed: Placed; crossings: number
       v += height;
     }
     if (boxed) v += GAP.lanePad;
+    // A lane whose header says more (a description under its name) is as tall as that needs, its
+    // rows and lines in the middle of it.
+    const need = across && boxed ? (sized.groupMinHeight?.get(lanes[lane]!.id) ?? 0) : 0;
+    if (need > v - top) {
+      const half = (need - (v - top)) / 2;
+      for (const [y, h] of hlines.entries()) {
+        if (h.lane !== lane) continue;
+        if (h.row !== undefined) rowV[h.row]! += half;
+        else if (chanV.has(y)) chanV.get(y)!.top += half;
+      }
+      v = top + need;
+    }
     laneBox.push({ top, bottom: v });
     v += lane < nLanes - 1 ? (boxed ? GAP.lane : GAP.row) : 0;
   }

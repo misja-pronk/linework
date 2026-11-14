@@ -41,6 +41,8 @@ export interface Drawing {
   alt?: string;
   /** The diagram type, as render() returns it: the alt text says what kind of drawing it is. */
   type?: { id: string; name: string };
+  /** The type's name for what this file holds (render's typeName), where it is not the type's name. */
+  typeName?: string;
 }
 
 /** SVG to PNG bytes at the given pixel size; icons get a PNG for apps that cannot show SVG. */
@@ -263,7 +265,7 @@ export async function toPptx(input: Drawing | Drawing[], opts: PptxOptions = {})
     const lang = d.lang;
     // How big the drawing is, as describe tells it: "4 participants and 13 messages", not the one node a sequence is.
     const nodes = graph.nodes.filter((n) => !n.folded).length;
-    const size = describe({ lang, graph, type: d.type, name: d.name }).size ?? `${tr(lang, '{count} element|{count} elements', { count: nodes })}, ${tr(lang, '{count} connection|{count} connections', { count: graph.edges.length })}`;
+    const size = describe({ lang, graph, type: d.type, ...(d.typeName ? { typeName: d.typeName } : {}), name: d.name }).size ?? `${tr(lang, '{count} element|{count} elements', { count: nodes })}, ${tr(lang, '{count} connection|{count} connections', { count: graph.edges.length })}`;
     const about = [graph.title ?? d.name ?? tr(lang, 'Diagram'), graph.subtitle ?? ''];
     const from = d.name ? tr(lang, ', from {file}', { file: d.name }) : '';
     // What the presenter says at this step leads the speaker notes.

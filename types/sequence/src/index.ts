@@ -26,6 +26,7 @@
 import {
   english,
   idPattern,
+  parseLink,
   type BuildContext,
   type DiagramType,
   type FrameKind,
@@ -258,7 +259,10 @@ export function buildSequence(src: SequenceSource, ctx: BuildContext): Graph {
       else if (kind === 'ref') {
         const over = o.over == null ? participants.map((p) => p.id) : list(o.over);
         if (!over.every((id) => known(id, [...path, 'over']))) continue;
-        const ev: SequenceEvent = { kind: 'ref', label: String(o.ref ?? ''), over, ...(typeof o.link === 'string' ? { link: o.link } : {}), path };
+        // Like any drill-down: another diagram (other.yaml), one of its views (other.yaml#view), a view here (#view) or a URL.
+        const link = o.link != null ? parseLink(o.link) : undefined;
+        if (o.link != null && !link) ctx.error([...path, 'link'], 'A link is a URL, another diagram (other.yaml) or a view (other.yaml#view)');
+        const ev: SequenceEvent = { kind: 'ref', label: String(o.ref ?? ''), over, ...(link ? { link: link.target } : {}), path };
         if (o.over == null) wide.add(ev);
         events.push(ev);
       } else if (kind === 'activate' || kind === 'deactivate') {
@@ -512,7 +516,7 @@ function stepsSchema(inner: object): object {
           additionalProperties: false,
         },
         { type: 'object', required: ['divider'], properties: { divider: { type: 'string' } }, additionalProperties: false },
-        { type: 'object', required: ['ref'], properties: { ref: { type: 'string' }, over: ids, link: { type: 'string', description: 'Another diagram or a URL' } }, additionalProperties: false },
+        { type: 'object', required: ['ref'], properties: { ref: { type: 'string' }, over: ids, link: { type: 'string', description: 'Where the box leads: another diagram (other.yaml), one of its views (other.yaml#view), a view here (#view) or a URL' } }, additionalProperties: false },
         { type: 'object', required: ['activate'], properties: { activate: { type: 'string', pattern: idPattern } }, additionalProperties: false },
         { type: 'object', required: ['deactivate'], properties: { deactivate: { type: 'string', pattern: idPattern } }, additionalProperties: false },
         ...frames.map(frame),

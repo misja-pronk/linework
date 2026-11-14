@@ -1,0 +1,25 @@
+Serverless compute
+
+Azure infrastructure diagram: Northwind lakehouse · warehouses, jobs and Model Serving reach the accounts through the NCC's endpoints. 6 elements in 1 group, with 5 connections.
+
+Groups and elements
+- Serverless compute plane (Run by Databricks)
+  - SQL warehouses and jobs (Serverless · dbw-lakehouse-prod)
+  - ncc-lakehouse-prod (Attached to dbw-lakehouse-prod)
+  - demand-forecast (Model Serving endpoint)
+- stordersprod (ADLS Gen2 · one per domain)
+- stsupplyprod (ADLS Gen2 · model artifacts)
+- stsalesprod (ADLS Gen2 · sell_through)
+
+Connections
+- SQL warehouses and jobs connects to ncc-lakehouse-prod (Private network).
+- ncc-lakehouse-prod connects to stordersprod (Private network: dfs), connects to stsupplyprod (Private network: blob · dfs) and connects to stsalesprod (Private network: dfs).
+- demand-forecast connects to ncc-lakehouse-prod (Private network).
+
+Walkthrough
+1. Serverless compute: Serverless runs in Databricks' account; ncc-lakehouse-prod gives it private endpoints to Northwind's.
+2. Reading data: A dfs rule per domain account, approved on the account; the account allows no public network access.
+3. Model Serving: Serving downloads model artifacts over blob, so stsupplyprod has a blob rule as well as dfs.
+
+Key
+- Dashed teal line: Private network

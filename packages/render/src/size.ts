@@ -7,7 +7,7 @@ import { sequenceGeometry } from './sequence.ts';
 import { gitflowGeometry } from './gitflow.ts';
 import { roadmapGeometry } from './roadmap.ts';
 import { journeyScene } from './journey.ts';
-import { flowSize, laneHeader } from './flow.ts';
+import { flowSize, laneHeadDown, laneHeader, laneHeight, laneNameLines } from './flow.ts';
 import { blockSize } from './block.ts';
 import { SMALL_PX } from './readable.ts';
 
@@ -73,7 +73,12 @@ export function size(graph: Graph, theme: Theme): Sized {
 
   const groupMinWidth = new Map<string, number>();
   // A lane's name stands in a header at its start: that header's width is what it needs.
-  for (const g of graph.groups) groupMinWidth.set(g.id, g.lane ? laneHeader(g.label, theme) : groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24 + (g.links?.length ? LINK_ROOM : 0));
+  for (const g of graph.groups) groupMinWidth.set(g.id, g.lane ? laneHeader(g, theme) : groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24 + (g.links?.length ? LINK_ROOM : 0));
+
+  // A lane with a description, or a name on more than one line, is as tall as its header's words need, where lanes are rows (laneHeight).
+  const lanes = graph.groups.filter((g) => g.lane);
+  const laneHead = Math.max(0, ...lanes.map((g) => laneHeader(g, theme)));
+  const groupMinHeight = new Map(lanes.filter((g) => g.description || laneNameLines(g, theme) > 1).map((g) => [g.id, laneHeight(g, theme, laneHead)]));
 
   // The smallest words a reader needs (layout's slide sizes go by it): labels on lines, group names, a table's section names (SECTION_PX), tags and the word KEY (SMALL_PX).
   const small = [
@@ -82,7 +87,7 @@ export function size(graph: Graph, theme: Theme): Sized {
     ...(graph.nodes.some((n) => n.shape.kind === 'table' && n.shape.rows.some((r) => r.kind === 'section' && r.label)) ? [SECTION_PX] : []),
     ...((graph.legend?.length && look(theme).legend === 'key') || graph.edges.some((e) => e.ends || e.marks?.length) || graph.nodes.some((n) => n.marks?.length) || graph.groups.some((g) => g.marks?.length) ? [SMALL_PX] : []),
   ];
-  return { graph, nodes, edgeLabels, groupHeader: theme.space.group.header, groupMinWidth, ...(small.length ? { smallText: Math.min(...small) } : {}) };
+  return { graph, nodes, edgeLabels, groupHeader: lanes.length ? laneHeadDown(lanes, theme) : theme.space.group.header, groupMinWidth, ...(groupMinHeight.size ? { groupMinHeight } : {}), ...(small.length ? { smallText: Math.min(...small) } : {}) };
 }
 
 /** A table's section names (INPUT PORTS, SCHEMA) in small capitals: their size (px). */
@@ -143,23 +148,32 @@ export const bodyHeight = (lines: string[]) => (lines.length ? BODY.top + lines.
 /** Where text may break: any space but a no-break space ("4\u00a0h" stays whole). */
 export const BREAK = /[^\S\u00a0]+/;
 
-/** Words in lines of at most `width`; the last line ends in an ellipsis when the text goes on. */
-export function wrapText(text: string, size: number, weight: 400 | 500 | 600, width: number, max: number): string[] {
+/**
+ * Words in lines of at most `width`; the last line ends in an ellipsis when the text goes on.
+ * `hyphens`: a word may also break after a hyphen (a name such as dbw-lakehouse-prod), the hyphen
+ * ending the line.
+ */
+export function wrapText(text: string, size: number, weight: 400 | 500 | 600, width: number, max: number, hyphens = false): string[] {
   const lines: string[] = [];
   let line = '';
-  const words = text.trim().split(BREAK);
-  for (const [i, w] of words.entries()) {
-    const next = line ? `${line} ${w}` : w;
+  // Each piece with what joins it to the one before: a space between words, nothing after a hyphen.
+  const pieces = text
+    .trim()
+    .split(BREAK)
+    .flatMap((w) => (hyphens ? w.split(/(?<=[^-\s]-)(?=[^-])/) : [w]).map((p, j) => ({ p, join: j ? '' : ' ' })));
+  const rest = (i: number) => pieces.slice(i).reduce((s, x, j) => s + (j ? x.join : '') + x.p, '');
+  for (const [i, { p, join }] of pieces.entries()) {
+    const next = line ? `${line}${join}${p}` : p;
     if (!line || measureText(next, size, weight) <= width) {
       line = next;
       continue;
     }
     if (lines.length === max - 1) {
-      lines.push(fitText(`${line} ${words.slice(i).join(' ')}`, size, weight, width));
+      lines.push(fitText(`${line}${join}${rest(i)}`, size, weight, width));
       return lines;
     }
     lines.push(line);
-    line = w;
+    line = p;
   }
   if (line) lines.push(fitText(line, size, weight, width));
   return lines;

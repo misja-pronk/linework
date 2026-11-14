@@ -1,0 +1,19 @@
+Revenue
+
+Data products diagram: Northwind lakehouse · revenue per month and country, reconciled with the ledger. 4 elements in 1 group, with 3 connections.
+
+Groups and elements
+- ERP (SQL Server · CDC)
+- Finance (Domain · Finance data team)
+  - Revenue (Gold · v3.0.0)
+  - revenue (Data contract · v3.0.0 · internal)
+- Power BI (Reports)
+
+Connections
+- ERP connects to Revenue.
+- Revenue.finance_prod.gold.revenue connects to Power BI and is linked with revenue.
+
+Key
+- Amber icon: Gold
+- Solid line: Data flow
+- Dashed violet line: Data contract

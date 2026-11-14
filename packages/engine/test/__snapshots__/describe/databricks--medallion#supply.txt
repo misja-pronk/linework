@@ -1,0 +1,27 @@
+Supply chain domain
+
+Azure infrastructure diagram: Northwind lakehouse · stock from the ERP and the suppliers' files over SFTP into supply_prod. 7 elements in 3 groups, with 6 connections.
+
+Groups and elements
+- ERP (SQL Server · on-premises): Orders and invoices and stock
+- erp-ingest (SQL Server connector · ingestion gateway)
+- supply_prod (Catalog)
+  - bronze (Schema)
+    - supplier_files (Table)
+  - silver (Schema)
+  - gold (Schema)
+    - stock_levels (Table)
+- Supplier SFTP (SFTP server · CSV files): Stock and lead times that suppliers upload
+- supply-pipeline (SFTP connector · hourly)
+
+Connections
+- ERP sends data to erp-ingest (CDC [SQL Server]).
+- erp-ingest sends data to bronze.
+- bronze sends data to silver (clean).
+- silver sends data to gold (model).
+- Supplier SFTP sends data to bronze over SFTP connector · CSV.
+- supply-pipeline connects to supply_prod (Management: refreshes).
+
+Key
+- Solid violet line with ticks: Data flow
+- Dotted line with ticks: Management

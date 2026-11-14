@@ -1,0 +1,20 @@
+Northwind lakehouse at scale
+
+Architecture diagram: Northwind lakehouse · every domain a pipeline in the bundle and a catalog per environment in uc-weu. 6 elements, with 5 connections.
+
+Elements
+- ERP (SQL Server · on-premises)
+- Northwind lakehouse (System): Pipelines, jobs and serving, deployed from Git to dev, test and prod
+- uc-weu (Unity Catalog · West Europe)
+- Power BI (Fabric capacity F64)
+- Business analysts (Users): Read gold data in Power BI and Genie
+- Salesforce (Sales Cloud)
+
+Connections
+- ERP sends data to Northwind lakehouse (CDC).
+- Northwind lakehouse sends data to uc-weu and sends data to Power BI (DirectQuery).
+- Power BI sends data to Business analysts (Reports).
+- Salesforce sends data to Northwind lakehouse (API).
+
+Key
+- Solid violet line with ticks: Data flow

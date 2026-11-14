@@ -1,0 +1,27 @@
+One domain through its environments
+
+Unity Catalog access diagram: Northwind lakehouse · orders-team owns dev and reads test and prod; there the service principal owns and writes. 7 elements, with 6 connections.
+
+Elements
+- orders-team (Account group)
+- orders_dev (Bound to dbw-lakehouse-dev)
+- orders_test (Bound to dbw-lakehouse-test)
+- orders_prod (Bound to dbw-lakehouse-prod)
+- sp-lakehouse-dev (Deploys and runs dev)
+- sp-lakehouse-test (Deploys and runs test)
+- sp-lakehouse-prod (Deploys and runs prod)
+
+Connections
+- orders-team is Owner on orders_dev, is Read catalog on orders_test and is Read catalog on orders_prod.
+- sp-lakehouse-dev is Pipeline on orders_dev.
+- sp-lakehouse-test is Owner on orders_test.
+- sp-lakehouse-prod is Owner on orders_prod.
+
+Layers
+Ways to look at this drawing by tag.
+- dev (tags dev; 2 elements).
+- test (tags test; 2 elements).
+- prod (tags prod; 2 elements).
+
+Key
+- Solid sky line: Role assignment

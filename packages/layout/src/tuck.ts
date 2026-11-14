@@ -25,10 +25,11 @@ const hit = (a: Box, b: Box, gx: number, gy: number) => a.x < b.x + b.width + gx
 /**
  * Placements with one card outside the groups moved into free room of the rest, most promising
  * first (by `scale`, how large a placement comes out on the page), at most `most`. Only moves that
- * make the drawing come out larger by `gain`; a card never ends up further from what it is joined to
+ * make the drawing come out larger by `gain` (next to nothing: under a slide's title a tuck that frees
+ * a row often makes the text only a percent or two larger, and that is still larger); a card never ends up further from what it is joined to
  * than it was (by more than its own length), nor before what feeds it or after what it feeds.
  */
-export function tuck(p: Placement, graph: Graph, gaps: { along: number; across: number }, scale: (q: Placement) => number, gain = 1.03, most = 4): Placement[] {
+export function tuck(p: Placement, graph: Graph, gaps: { along: number; across: number }, scale: (q: Placement) => number, gain = 1.003, most = 4): Placement[] {
   const down = graph.direction === 'down';
   // Room between columns along the flow, and between cards across it, as dot keeps them.
   const [gx, gy] = down ? [gaps.across, gaps.along] : [gaps.along, gaps.across];
@@ -40,7 +41,8 @@ export function tuck(p: Placement, graph: Graph, gaps: { along: number; across: 
   const found: { q: Placement; s: number; d: number; level: boolean }[] = [];
   for (const n of graph.nodes) {
     const card = p.nodes.get(n.id);
-    if (n.parent || !card) continue;
+    // A card with a rank hint stands in its layer (a column of principals): it is not moved out of it.
+    if (n.parent || !card || n.rank != null) continue;
     const lines = graph.edges.filter((e) => (e.from.node === n.id) !== (e.to.node === n.id));
     if (!lines.length) continue;
     const ends = lines.map((e) => ({ out: e.from.node === n.id, box: p.nodes.get(e.from.node === n.id ? e.to.node : e.from.node) ?? p.groups.get(e.from.node === n.id ? e.to.node : e.from.node) }));

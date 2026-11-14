@@ -1,0 +1,27 @@
+Test
+
+Azure infrastructure diagram: Northwind lakehouse · built as production, in its own spoke, workspace and NCC. 8 elements in 4 groups, with 7 connections.
+
+Groups and elements
+- vnet-hub-weu (10.0.0.0/22 · sub-connectivity)
+  - pep-dbw-lakehouse-test-ui (databricks_ui_api · snet-pep)
+  - afw-hub (Premium · 10.0.0.68 · SNAT out)
+- Databricks control plane (West Europe)
+  - dbw-lakehouse-test (Web app · REST API · SCC relay)
+- vnet-lakehouse-test (10.1.12.0/22 · peered to the hub)
+  - Cluster VMs (Host and container subnets · SCC)
+  - pep-dbw-lakehouse-test (databricks_ui_api · back-end)
+  - pep-storderstest-dfs (dfs · snet-pep)
+- storderstest (ADLS Gen2 · one per domain)
+- Serverless compute plane (Run by Databricks)
+  - ncc-lakehouse-test (Attached to dbw-lakehouse-test)
+
+Connections
+- pep-dbw-lakehouse-test-ui connects to dbw-lakehouse-test (Private network: front-end).
+- Cluster VMs connects to afw-hub (Private network: 0.0.0.0/0), connects to pep-dbw-lakehouse-test (Private network: SCC relay · REST) and connects to pep-storderstest-dfs (Private network).
+- pep-dbw-lakehouse-test connects to dbw-lakehouse-test (Private network: back-end).
+- pep-storderstest-dfs connects to storderstest (Private network).
+- ncc-lakehouse-test connects to storderstest (Private network: dfs).
+
+Key
+- Dashed teal line: Private network

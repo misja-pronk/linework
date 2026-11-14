@@ -83,16 +83,37 @@ export function flowSize(shape: FlowShape, theme: Theme): NodeSize {
 /** A lane's name as the theme writes group names (capitals, tracking), wrapped to a width. */
 function laneName(label: string, theme: Theme, width: number, max: number) {
   const lab = groupLabel(theme, label);
-  // Tracking widens every letter; a line of a lane name has about a dozen.
-  const lines = wrapText(lab.text, lab.size, 600, width - lab.tracking * 12, max);
+  // Tracking widens every letter; a line of a lane name has about a dozen. A name without spaces
+  // (a workspace, dbw-lakehouse-prod) breaks after its hyphens.
+  const lines = wrapText(lab.text, lab.size, 600, width - lab.tracking * 12, max, true);
   return { ...lab, lines, wide: Math.max(0, ...lines.map((l) => measureText(l, lab.size, 600, 'sans', lab.tracking))) };
 }
 
-/** The width of a lane's header: its name, wrapped, with room around it. */
-export function laneHeader(label: string, theme: Theme): number {
+/** A lane's description: its own words under its name, as large as the name (a group's words), not bold. */
+const NOTE = { line: 14, lines: 4, gap: 3 } as const;
+const laneNote = (g: Pick<GraphGroup, 'description'>, theme: Theme, width: number, max: number) => (g.description && max > 0 ? wrapText(g.description, look(theme).group.size, 400, width, max) : []);
+
+/** The width of a lane's header: its name (wrapped) and its description, with room around them. */
+export function laneHeader(g: Pick<GraphGroup, 'label' | 'description'>, theme: Theme): number {
   const l = FLOW.lane;
-  return Math.min(l.max, Math.max(l.min, even(laneName(label, theme, l.max - 2 * l.padX, 3).wide + 2 * l.padX)));
+  const name = laneName(g.label, theme, l.max - 2 * l.padX, 3).wide;
+  const note = g.description ? Math.min(l.max - 2 * l.padX, measureText(g.description, look(theme).group.size, 400)) : 0;
+  return Math.min(l.max, Math.max(l.min, even(Math.max(name, note) + 2 * l.padX)));
 }
+
+/** How many lines a lane's name takes in its header, where lanes are rows. */
+export const laneNameLines = (g: Pick<GraphGroup, 'label'>, theme: Theme) => laneName(g.label, theme, FLOW.lane.max - 2 * FLOW.lane.padX, 3).lines.length;
+
+/** How tall a lane across must be for its header's words: the name, then the description under it. */
+export function laneHeight(g: Pick<GraphGroup, 'label' | 'description'>, theme: Theme, header: number): number {
+  const l = FLOW.lane;
+  const name = laneName(g.label, theme, l.max - 2 * l.padX, 3).lines.length;
+  const note = laneNote(g, theme, header - 2 * l.padX, NOTE.lines).length;
+  return name * l.line + (note ? NOTE.gap + note * NOTE.line : 0) + 16;
+}
+
+/** The header along the top of lanes that stand as columns (a flow that runs down): a line more for a description. */
+export const laneHeadDown = (groups: Pick<GraphGroup, 'lane' | 'description'>[], theme: Theme) => theme.space.group.header + (groups.some((g) => g.lane && g.description) ? NOTE.line : 0);
 
 const poly = (pts: [number, number][]): JourneySeg[] => [...pts.map(([x, y], i) => [i ? 'L' : 'M', x, y] as JourneySeg), ['Z']];
 
@@ -208,14 +229,25 @@ export function laneMarks(g: GraphGroup, b: Box, theme: Theme, across: boolean, 
   const rule = edge ?? theme.border;
   const ink = groupLabelInk(theme, tone);
   const m: JourneyMark[] = [{ t: 'rect', x: b.x, y: b.y, w: b.width, h: b.height, r: Math.min(theme.radius.group, 12), fill: groupFill(theme, 0, tone), ...(edge ? { stroke: edge, sw: theme.stroke.group } : {}), dash: g.border === 'dashed', name: g.label }];
+  const caption = { size: look(theme).group.size, weight: 400 as const, fill: theme.textMuted, lh: NOTE.line };
   if (across) {
     const name = laneName(g.label, theme, l.max - 2 * l.padX, Math.max(1, Math.min(3, Math.floor((b.height - 8) / l.line))));
+    // The description under the name, in as many lines as the lane has room for (four at most).
+    const room = Math.floor((b.height - 8 - name.lines.length * l.line - NOTE.gap) / NOTE.line);
+    const note = laneNote(g, theme, header - 2 * l.padX, Math.min(NOTE.lines, room));
+    const block = name.lines.length * l.line + (note.length ? NOTE.gap + note.length * NOTE.line : 0);
+    const top = b.y + (b.height - block) / 2;
     m.push({ t: 'path', d: [['M', b.x + header, b.y + 1], ['L', b.x + header, b.y + b.height - 1]], stroke: rule, sw: theme.stroke.group });
-    m.push({ t: 'text', x: b.x + l.padX, y: b.y + (b.height - name.lines.length * l.line) / 2, w: header - 2 * l.padX, lines: name.lines, size: name.size, weight: 600, fill: ink, align: 'c', lh: l.line, tracking: name.tracking });
+    m.push({ t: 'text', x: b.x + l.padX, y: top, w: header - 2 * l.padX, lines: name.lines, size: name.size, weight: 600, fill: ink, align: 'c', lh: l.line, tracking: name.tracking });
+    if (note.length) m.push({ t: 'text', x: b.x + l.padX, y: top + name.lines.length * l.line + NOTE.gap, w: header - 2 * l.padX, lines: note, align: 'c', ...caption });
   } else {
     const name = laneName(g.label, theme, b.width - 16, 1);
+    // One line of the description under the name, in the header laneHeadDown makes taller for it.
+    const note = laneNote(g, theme, b.width - 16, 1);
+    const y = b.y + (header - l.line - (note.length ? NOTE.line : 0)) / 2;
     m.push({ t: 'path', d: [['M', b.x + 1, b.y + header], ['L', b.x + b.width - 1, b.y + header]], stroke: rule, sw: theme.stroke.group });
-    m.push({ t: 'text', x: b.x + 8, y: b.y + (header - l.line) / 2, w: b.width - 16, lines: name.lines, size: name.size, weight: 600, fill: ink, align: 'c', lh: l.line, tracking: name.tracking });
+    m.push({ t: 'text', x: b.x + 8, y, w: b.width - 16, lines: name.lines, size: name.size, weight: 600, fill: ink, align: 'c', lh: l.line, tracking: name.tracking });
+    if (note.length) m.push({ t: 'text', x: b.x + 8, y: y + l.line, w: b.width - 16, lines: note, align: 'c', ...caption });
   }
   return m;
 }

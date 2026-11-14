@@ -1,0 +1,23 @@
+One order, shared
+
+Azure infrastructure diagram: Northwind lakehouse · sell_through in an OpenSharing share, read by Contoso Retail. 4 elements in 2 groups, with 3 connections.
+
+Groups and elements
+- sales_prod (Catalog)
+  - gold (Schema)
+    - sell_through (Table)
+- contoso_sell_through (OpenSharing)
+- contoso (Databricks-to-Databricks)
+- Contoso Retail (Retail partner · own Databricks account): Retail partner; reads sell-through in its own Databricks account
+
+Connections
+- sell_through sends data to contoso_sell_through (Shared in).
+- contoso_sell_through connects to contoso (Granted to).
+- contoso sends data to Contoso Retail (OpenSharing).
+
+Walkthrough
+1. Shared with Contoso: sell_through is in the share contoso_sell_through; Contoso reads it in its own Databricks account, no copy made.
+
+Key
+- Solid line: Connection
+- Solid violet line with ticks: Data flow

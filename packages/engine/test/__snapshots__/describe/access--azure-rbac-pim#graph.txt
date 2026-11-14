@@ -1,6 +1,6 @@
 Azure access
 
-Roles, groups and access packages, who gets what, as a graph: Northwind shop · Azure roles from management group to resource, standing and eligible through PIM. 8 elements in 4 groups, with 9 connections.
+Roles and groups, who gets what, as a graph: Northwind shop · Azure roles from management group to resource, standing and eligible through PIM. 8 elements in 4 groups, with 9 connections.
 
 Groups and elements
 - Priya Shah (Developer)

@@ -1,0 +1,22 @@
+Who × where in production
+
+Unity Catalog access diagram: Northwind lakehouse · sp-lakehouse-prod owns the prod catalogs; each team reads its own; no one holds MANAGE. A table of 7 rows by 6 columns.
+
+By row (Who by where)
+Columns: orders_prod, webshop_prod, finance_prod, sales_prod, customers_prod and supply_prod.
+- orders-team (Account group): orders_prod: Read catalog
+- webshop-team (Account group): webshop_prod: Read catalog
+- finance-team (Account group): finance_prod: Read catalog
+- sales-team (Account group): sales_prod: Read catalog
+- customers-team (Account group): customers_prod: Read catalog
+- supply-team (Account group): supply_prod: Read catalog
+- sp-lakehouse-prod (Deploys and runs prod): orders_prod: Owner; webshop_prod: Owner; finance_prod: Owner; sales_prod: Owner; customers_prod: Owner; supply_prod: Owner
+
+Layers
+Ways to look at this drawing by tag.
+- dev (tags dev; 0 elements).
+- test (tags test; 0 elements).
+- prod (tags prod; 0 elements).
+
+Key
+- Indigo filled pill: Assigned directly

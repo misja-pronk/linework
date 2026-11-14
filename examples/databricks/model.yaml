@@ -1,0 +1,235 @@
+# Northwind's lakehouse on Azure Databricks, described once (West Europe). Diagrams in this folder include it.
+# One VNet-injected workspace per environment, shared by the domains; one Unity Catalog metastore. Per domain and
+# environment an ISOLATED catalog bound to its workspace, a storage account, a credential and an external location.
+# A name with <domain> or <env> is written once per value of that list under each:, so a domain is one line there,
+# and an environment is a line under env: with its address space and who owns its catalogs.
+# Data-flow relations describe production; storage, binding and network relations are given for every environment.
+type: model
+title: Northwind lakehouse
+
+each:
+  domain:
+    orders: { team: Order management team, runs: Nightly }
+    webshop: { team: Web shop team, runs: Continuous }
+    finance: { team: Finance data team, runs: Nightly }
+    sales: { team: Sales analytics team, runs: Nightly }
+    customers: { team: CRM team, runs: Nightly }
+    supply: { team: Supply chain data team, runs: SFTP connector · hourly }
+  # owner: who owns the environment's catalogs in Unity Catalog: the domain team in dev, the environment's service
+  # principal from test on, so only a reviewed release changes data there (governance.yaml)
+  env:
+    dev: { cidr: 10.1.8.0/22, host: 10.1.8.0/24, container: 10.1.9.0/24, pep: 10.1.10.0/27, owner: <domain>-team }
+    test: { cidr: 10.1.12.0/22, host: 10.1.12.0/24, container: 10.1.13.0/24, pep: 10.1.14.0/27, owner: sp-lakehouse-<env> }
+    prod: { cidr: 10.1.16.0/21, host: 10.1.16.0/23, container: 10.1.18.0/23, pep: 10.1.20.0/27, owner: sp-lakehouse-<env> }
+
+elements:
+  # Teams
+  platform-team: { kind: users, label: Data platform team, description: Runs the workspaces and Unity Catalog, tags: [team] }
+  <domain>-team: { kind: users, label: <domain.team>, tags: [team] }
+  analysts: { kind: users, label: Business analysts, technology: Power BI · Genie, description: Read gold data in Power BI and Genie }
+  sales-reps: { kind: users, label: Sales reps, technology: Customer 360 app, description: Look up customers in the Customer 360 app }
+
+  # Identity
+  entra-id: { kind: identity, label: Entra ID, technology: northwind.onmicrosoft.com, description: Users and groups; synced to the Databricks account by automatic identity management }
+  databricks-account: { kind: control-plane, label: Databricks account, technology: Account console, description: Holds account groups and workspaces and the metastore, owner: platform-team }
+
+  # Sources
+  erp: { kind: external, label: ERP, technology: SQL Server · on-premises, description: Orders and invoices and stock, tags: [source] }
+  sqldb-webshop-prod: { kind: database, label: sqldb-webshop-prod, technology: Azure SQL Database, description: Web shop orders and accounts, owner: webshop-team, tags: [source, prod] }
+  evhns-webshop-prod: { kind: topic, label: evhns-webshop-prod, technology: Event Hubs · clickstream, description: Clickstream events of the web shop, owner: webshop-team, tags: [source, prod] }
+  salesforce: { kind: external, label: Salesforce, technology: Sales Cloud, description: Accounts and opportunities, tags: [source, external] }
+  # Suppliers drop CSV files on Northwind's SFTP server. supply-pipeline reads them with Lakeflow Connect's SFTP
+  # connector (Auto Loader on sftp:// through the Unity Catalog connection sftp_suppliers, USE CONNECTION) straight
+  # into the streaming table supply_prod.bronze.supplier_files: no landing container in between.
+  # https://learn.microsoft.com/azure/databricks/ingestion/sftp
+  supplier-sftp: { kind: external, label: Supplier SFTP, technology: SFTP server · CSV files, description: Stock and lead times that suppliers upload, owner: supply-team, tags: [source] }
+
+  # What the bundle deploys (Declarative Automation Bundles), the same in every workspace
+  lakehouse:
+    kind: databricks
+    label: Northwind lakehouse
+    description: Pipelines, jobs and serving, deployed from Git to dev, test and prod
+    owner: platform-team
+    elements:
+      # One ingestion pipeline with its one gateway (classic compute in the workspace VNet, reaching the ERP over
+      # ExpressRoute) writes the bronze of three domains, so the platform team runs it rather than one domain
+      erp-ingest: { kind: lakeflow-connect, label: erp-ingest, technology: SQL Server connector · ingestion gateway, owner: platform-team }
+      webshop-ingest: { kind: lakeflow-connect, label: webshop-ingest, technology: SQL Server connector, owner: webshop-team }
+      salesforce-ingest: { kind: lakeflow-connect, label: salesforce-ingest, technology: Salesforce connector, owner: customers-team }
+      clickstream: { kind: lakeflow-pipeline, label: clickstream, technology: Streaming · Kafka API, owner: webshop-team }
+      # A Lakeflow pipeline per domain (bronze to gold), owned by the domain's team; domain: says how it runs
+      <domain>-pipeline: { kind: lakeflow-pipeline, label: <domain>-pipeline, technology: <domain.runs>, owner: <domain>-team }
+      nightly: { kind: lakeflow-job, label: nightly, technology: 02:00 · serverless, description: "Runs orders, customers and finance, then sales; webshop runs continuously and supply hourly" }
+      forecast-training: { kind: lakeflow-job, label: forecast-training, technology: Weekly · MLflow, owner: supply-team }
+      bi-warehouse: { kind: sql-warehouse, label: bi-warehouse, technology: Serverless SQL warehouse }
+      demand-forecast: { kind: model-serving, label: demand-forecast, technology: Serving endpoint, owner: supply-team }
+      # The app reads as its own service principal (app authorization), which mask_pii leaves out: sales reps see contact details
+      customer-360: { kind: databricks-app, label: customer-360, technology: Databricks App, description: Runs as its own service principal; sees customers unmasked, owner: sales-team }
+
+  # Unity Catalog: one metastore for the region, every environment in it
+  uc-weu:
+    kind: metastore
+    label: uc-weu
+    technology: Unity Catalog · West Europe
+    description: No metastore storage; every catalog has its own managed location
+    owner: platform-team
+    elements:
+      system: { kind: catalog, label: system, description: System tables for billing and audit and lineage }
+      # A catalog per domain and environment, owned as its environment says; production's gold holds the tables
+      # the diagrams name, added to the catalog the pattern writes
+      <domain>_<env>: { kind: catalog, label: <domain>_<env>, owner: <env.owner>, tags: [<env>], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      orders_prod: { elements: { gold: { elements: { orders: { kind: table, label: orders } } } } }
+      webshop_prod: { elements: { gold: { elements: { sessions: { kind: table, label: sessions } } } } }
+      finance_prod: { elements: { gold: { elements: { revenue: { kind: table, label: revenue } } } } }
+      sales_prod: { elements: { gold: { elements: { sell_through: { kind: table, label: sell_through } } } } }
+      customers_prod: { elements: { gold: { elements: { customers: { kind: table, label: customers, tags: [pii] } } } } }
+      supply_prod:
+        elements:
+          bronze: { elements: { supplier_files: { kind: table, label: supplier_files } } }
+          gold: { elements: { stock_levels: { kind: table, label: stock_levels }, demand_forecast: { kind: registered-model, label: demand_forecast } } }
+      # Storage credentials and external locations, per domain and environment and ISOLATED like the catalogs, as the
+      # Unity Catalog deployment guide advises (docs/research/databricks-2026.md §5). A credential uses its environment's
+      # access connector, so domains are kept apart in Unity Catalog, not in Azure RBAC. <domain>_<env>_catalog is the
+      # catalog's managed location. Every source is read by a connector or a stream, so there is no landing container.
+      cred_<domain>_<env>: { kind: storage-credential, label: cred_<domain>_<env>, tags: [<env>] }
+      <domain>_<env>_catalog: { kind: external-location, label: <domain>_<env>_catalog, technology: catalog@st<domain><env>, tags: [<env>] }
+      contoso_sell_through: { kind: share, label: contoso_sell_through, technology: OpenSharing, owner: sales-team }
+      contoso: { kind: recipient, label: contoso, technology: Databricks-to-Databricks }
+
+  # Hub (Connectivity subscription, the network team's): as in examples/azure/hub-spoke.yaml
+  sub-connectivity: { kind: subscription, label: sub-connectivity }
+  vnet-hub-weu:
+    kind: vnet
+    label: vnet-hub-weu
+    technology: 10.0.0.0/22
+    elements:
+      GatewaySubnet: { kind: subnet, label: GatewaySubnet, technology: 10.0.0.0/27 }
+      AzureFirewallSubnet: { kind: subnet, label: AzureFirewallSubnet, technology: 10.0.0.64/26 }
+      snet-pep: { kind: subnet, label: snet-pep, technology: 10.0.1.0/26 }
+      snet-webauth-host: { kind: subnet, label: snet-webauth-host, technology: 10.0.1.64/28 }
+      snet-webauth-container: { kind: subnet, label: snet-webauth-container, technology: 10.0.1.80/28 }
+      snet-dnspr-inbound: { kind: subnet, label: snet-dnspr-inbound, technology: 10.0.1.96/28 }   # delegated to Microsoft.Network/dnsResolvers
+      snet-pbi-gateway: { kind: subnet, label: snet-pbi-gateway, technology: 10.0.1.112/28 }      # delegated to Microsoft.PowerPlatform/vnetaccesslinks
+  afw-hub: { kind: firewall, label: afw-hub, technology: Premium · 10.0.0.68 }
+  # On GatewaySubnet: what comes in over ExpressRoute for a spoke goes through the firewall too, so replies return the
+  # way requests left (the spokes' own tables send everything, on-premises included, to afw-hub)
+  rt-hub-gateway: { kind: route-table, label: rt-hub-gateway, technology: 10.1.0.0/16 → 10.0.0.68 }
+  dbw-webauth-weu: { kind: databricks, label: dbw-webauth-weu, technology: Private web auth · no workloads, description: Holds the region's browser_authentication endpoint; delete lock, owner: platform-team }
+  pep-dbw-webauth-weu: { kind: private-endpoint, label: pep-dbw-webauth-weu, technology: browser_authentication }
+  pep-dbw-lakehouse-<env>-ui: { kind: private-endpoint, label: pep-dbw-lakehouse-<env>-ui, technology: databricks_ui_api · front-end, tags: [<env>] }
+  privatelink-azuredatabricks-net: { kind: dns, label: privatelink.azuredatabricks.net, technology: Private DNS zone }
+  privatelink-dfs-core-windows-net: { kind: dns, label: privatelink.dfs.core.windows.net, technology: Private DNS zone }
+  privatelink-blob-core-windows-net: { kind: dns, label: privatelink.blob.core.windows.net, technology: Private DNS zone }
+  # The offices' DNS servers forward *.azuredatabricks.net, *.privatelink.azuredatabricks.net, *.databricksapps.com and
+  # the storage privatelink zones to the resolver's inbound endpoint, which answers from the zones linked to the hub
+  dnspr-hub-weu: { kind: dns, label: dnspr-hub-weu, technology: DNS Private Resolver · 10.0.1.100 }
+  # OpenSharing SecureConnect: an NCC attached to the metastore, never to a workspace, with a blob and a dfs rule to the
+  # storage behind what is shared, https://learn.microsoft.com/azure/databricks/opensharing/secureconnect-provider
+  ncc-opensharing-weu: { kind: ncc, label: ncc-opensharing-weu, technology: Metastore NCC · SecureConnect, owner: platform-team }
+
+  # Per environment: a spoke subscription with the workspace, one access connector (its managed identity has Storage
+  # Blob Data Contributor on the environment's domain accounts) and a storage account per domain (container:
+  # catalog), each with a dfs private endpoint in snet-pep. The accounts allow no public network access; a resource
+  # instance rule lets the access connector in, https://learn.microsoft.com/azure/databricks/connect/unity-catalog/cloud-storage/azure-managed-identities
+  sub-lakehouse-<env>: { kind: subscription, label: sub-lakehouse-<env>, tags: [<env>] }
+  rg-lakehouse-<env>: { kind: resource-group, label: rg-lakehouse-<env>, tags: [<env>] }
+  vnet-lakehouse-<env>:
+    kind: vnet
+    label: vnet-lakehouse-<env>
+    technology: <env.cidr>
+    tags: [<env>]
+    elements:
+      snet-dbw-host: { kind: subnet, label: snet-dbw-host, technology: <env.host> }
+      snet-dbw-container: { kind: subnet, label: snet-dbw-container, technology: <env.container> }
+      snet-pep: { kind: subnet, label: snet-pep, technology: <env.pep> }
+  nsg-dbw-lakehouse-<env>: { kind: nsg, label: nsg-dbw-lakehouse-<env>, technology: Rules managed by Databricks, tags: [<env>] }
+  # Gateway route propagation off: else the ERP's 10.10.0.0/16, learned over ExpressRoute by BGP, would be more
+  # specific than 0.0.0.0/0 and pass the firewall by, https://learn.microsoft.com/azure/virtual-network/virtual-networks-udr-overview
+  rt-lakehouse-<env>: { kind: route-table, label: rt-lakehouse-<env>, technology: 0.0.0.0/0 → 10.0.0.68 · gateway routes off, tags: [<env>] }
+  dbw-lakehouse-<env>: { kind: databricks, label: dbw-lakehouse-<env>, technology: Premium · VNet-injected · no public access, owner: platform-team, tags: [<env>] }
+  dbac-lakehouse-<env>: { kind: access-connector, label: dbac-lakehouse-<env>, technology: System-assigned identity, tags: [<env>] }
+  kv-lakehouse-<env>: { kind: secrets, label: kv-lakehouse-<env>, technology: Key Vault · secret scope, tags: [<env>] }
+  ncc-lakehouse-<env>: { kind: ncc, label: ncc-lakehouse-<env>, technology: Private endpoints to the <env> accounts, tags: [<env>] }
+  pep-dbw-lakehouse-<env>: { kind: private-endpoint, label: pep-dbw-lakehouse-<env>, technology: databricks_ui_api · back-end, tags: [<env>] }
+  st<domain><env>: { kind: storage, label: st<domain><env>, technology: ADLS Gen2 · catalog, owner: <domain>-team, tags: [<env>] }
+  pep-st<domain><env>-dfs: { kind: private-endpoint, label: pep-st<domain><env>-dfs, technology: dfs, tags: [<env>] }
+
+  # Consumers
+  power-bi: { kind: fabric, label: Power BI, technology: Fabric capacity F64, description: Reports on gold through the SQL warehouse }
+  replenishment: { kind: service, label: Replenishment, technology: Supply planning app, description: Orders stock from suppliers on the demand forecast, owner: supply-team }
+  contoso-retail: { kind: external, label: Contoso Retail, technology: Retail partner · own Databricks account, description: Retail partner; reads sell-through in its own Databricks account, tags: [external] }
+
+relations:
+  # Ingestion into bronze
+  - erp -> lakehouse.erp-ingest: { label: CDC, technology: SQL Server, style: data }
+  - sqldb-webshop-prod -> lakehouse.webshop-ingest: { label: CDC, style: data }
+  - salesforce -> lakehouse.salesforce-ingest: { label: API, style: data }
+  - evhns-webshop-prod -> lakehouse.clickstream: { label: Kafka, style: data }
+  - supplier-sftp -> uc-weu.supply_prod.bronze: { label: SFTP connector · CSV, style: data }
+  - lakehouse.erp-ingest -> uc-weu.orders_prod.bronze: { style: data }
+  - lakehouse.erp-ingest -> uc-weu.finance_prod.bronze: { style: data }
+  - lakehouse.erp-ingest -> uc-weu.supply_prod.bronze: { style: data }
+  - lakehouse.webshop-ingest -> uc-weu.webshop_prod.bronze: { style: data }
+  - lakehouse.clickstream -> uc-weu.webshop_prod.bronze: { style: data }
+  - lakehouse.salesforce-ingest -> uc-weu.customers_prod.bronze: { style: data }
+  - lakehouse.salesforce-ingest -> uc-weu.sales_prod.bronze: { style: data }
+  # Bronze → silver → gold, one pipeline per domain; sales also reads orders and customers
+  - uc-weu.<domain>_prod.bronze -> lakehouse.<domain>-pipeline: { style: data }
+  - lakehouse.<domain>-pipeline -> uc-weu.<domain>_prod.gold: { style: data }
+  - uc-weu.orders_prod.gold -> lakehouse.sales-pipeline: { label: orders, style: data }
+  - uc-weu.customers_prod.gold -> lakehouse.sales-pipeline: { label: customers, style: data }
+  - lakehouse.nightly -> lakehouse.orders-pipeline: Runs
+  - lakehouse.nightly -> lakehouse.sales-pipeline: Runs
+  - lakehouse.nightly -> lakehouse.finance-pipeline: Runs
+  - lakehouse.nightly -> lakehouse.customers-pipeline: Runs
+  # Machine learning
+  - uc-weu.orders_prod.gold -> lakehouse.forecast-training: { label: orders, style: data }
+  - uc-weu.supply_prod.gold -> lakehouse.forecast-training: { label: stock, style: data }
+  - lakehouse.forecast-training -> uc-weu.supply_prod.gold.demand_forecast: { label: Registers, style: data }
+  - uc-weu.supply_prod.gold.demand_forecast -> lakehouse.demand-forecast: { label: Served by, style: data }
+  - lakehouse.demand-forecast -> replenishment: { label: Forecast, technology: REST, style: data }
+  # Consumption and sharing: every arrow points the way the data goes (store → reader → person). Analysts read the
+  # gold of webshop, finance and sales in Power BI; customers' gold goes to the Customer 360 app (governance.yaml)
+  - uc-weu.sales_prod.gold -> lakehouse.bi-warehouse: { style: data }
+  - uc-weu.finance_prod.gold -> lakehouse.bi-warehouse: { style: data }
+  - uc-weu.customers_prod.gold -> lakehouse.bi-warehouse: { style: data }
+  - uc-weu.webshop_prod.gold -> lakehouse.bi-warehouse: { style: data }
+  - lakehouse.bi-warehouse -> power-bi: { label: DirectQuery, style: data }
+  - power-bi -> analysts: { label: Reports, style: data }
+  - lakehouse.bi-warehouse -> lakehouse.customer-360: { label: SQL, style: data }
+  - lakehouse.customer-360 -> sales-reps: { label: Customer 360, style: data }
+  - uc-weu.sales_prod.gold.sell_through -> uc-weu.contoso_sell_through: { label: Shared in, style: data }
+  - uc-weu.contoso_sell_through -> uc-weu.contoso: Granted to
+  - uc-weu.contoso -> contoso-retail: { label: OpenSharing, style: data }
+  - ncc-opensharing-weu -> uc-weu: Attached
+  - ncc-opensharing-weu -> stsalesprod: { label: blob · dfs, style: private }
+  # Identity
+  - entra-id -> databricks-account: { label: Automatic identity management, style: identity }
+  - databricks-account -> uc-weu: Owns
+  # Catalogs are ISOLATED, each bound read-write to its environment's workspace only
+  - uc-weu.<domain>_<env> -> dbw-lakehouse-<env>: Bound
+  # Storage, per domain and environment: catalog → external location → credential → access connector → storage account
+  - uc-weu.<domain>_<env> -> uc-weu.<domain>_<env>_catalog: Managed location
+  - uc-weu.<domain>_<env>_catalog -> uc-weu.cred_<domain>_<env>: Uses
+  - uc-weu.cred_<domain>_<env> -> dbac-lakehouse-<env>: { label: Managed identity, style: identity }
+  - dbac-lakehouse-<env> -> st<domain><env>: { label: Storage Blob Data Contributor, style: role }
+  # Storage over Private Link: a dfs endpoint per account for the classic plane, the NCC's for serverless
+  - pep-st<domain><env>-dfs -> st<domain><env>: { style: private }
+  - ncc-lakehouse-<env> -> st<domain><env>: { label: serverless, style: private }
+  # Workspaces: attached to the metastore, reached over Private Link, egress through the hub firewall
+  - dbw-lakehouse-<env> -> uc-weu: Attached
+  - pep-dbw-lakehouse-<env>-ui -> dbw-lakehouse-<env>: { label: front-end, style: private }
+  - pep-dbw-lakehouse-<env> -> dbw-lakehouse-<env>: { label: back-end, style: private }
+  - pep-dbw-webauth-weu -> dbw-webauth-weu: { label: browser sign-in, style: private }
+  - rt-lakehouse-<env> -> afw-hub: { label: 0.0.0.0/0, style: private }
+  - rt-hub-gateway -> afw-hub: { label: 10.1.0.0/16, style: private }
+
+views:
+  # The model drawn on its own, for a slide: sources on the left, the lakehouse and Unity Catalog in the middle,
+  # who uses the data on the right. Every arrow points the way the data goes.
+  landscape:
+    title: Northwind lakehouse
+    subtitle: Where the data comes from, where it lives and who uses it
+    direction: right
+    include: [erp, sqldb-webshop-prod, evhns-webshop-prod, salesforce, supplier-sftp, lakehouse, uc-weu, power-bi, replenishment, contoso-retail, analysts, sales-reps]
+    exclude: ['uc-weu -> lakehouse', 'lakehouse.forecast-training -> uc-weu.supply_prod.gold.demand_forecast']   # each drawn once, as the lakehouse writing to Unity Catalog

@@ -1,0 +1,22 @@
+Stock levels
+
+Data products diagram: Northwind lakehouse · stock from the ERP and the suppliers, hourly, under a contract. 5 elements in 1 group, with 4 connections.
+
+Groups and elements
+- ERP (SQL Server · CDC)
+- Supply chain (Domain · Supply chain data team)
+  - Stock levels (Gold · v1.1.0)
+  - Demand forecast (Gold · beta · v0.4.0)
+  - stock_levels (Data contract · v1.1.0 · internal)
+  - Supplier files (Bronze · v1.0.0)
+
+Connections
+- ERP connects to Stock levels.
+- Stock levels.supply_prod.gold.stock_levels connects to Demand forecast and is linked with stock_levels.
+- Supplier files connects to Stock levels.
+
+Key
+- Orange icon: Bronze
+- Amber icon: Gold
+- Solid line: Data flow
+- Dashed violet line: Data contract

@@ -53,6 +53,17 @@ describe('staying put', () => {
     // Left to right: the database right of the app (or below it in the same column), never above.
     expect(b.x >= a.x + a.width || b.y >= a.y + a.height).toBe(true);
   });
+
+  it('a card tucked under the one it feeds stays there when a card is added', async () => {
+    // Wrapped in two rows, Front Door is tucked under Web (its line runs up): a Key Vault added
+    // beside it keeps every card where it was, as the editor's add menu does in a live demo.
+    const nodes = ['gw: { kind: front-door, label: Front Door }', 'web: { kind: app-service, label: Web, in: rg }', 'api: { kind: function-app, label: API, in: rg }', 'auth: { kind: entra-id, label: Entra ID }', 'db: { kind: sql-database, label: Orders DB, in: rg }', 'cache: { kind: redis, label: Cache, in: rg }', 'bus: { kind: service-bus, label: Bus, in: rg }', 'worker: { kind: container-app, label: Worker, in: rg }'];
+    const edges = ['gw -> web', 'web -> api', 'api -> db', 'api -> cache', 'api -> bus', 'bus -> worker', 'web -> auth'];
+    const text = (extra = '') => `type: azure\ngroups:\n  rg: { kind: resource-group, label: rg-shop }\nnodes:\n${nodes.map((n) => `  ${n}\n`).join('')}${extra}edges:\n${edges.map((e) => `  - ${e}\n`).join('')}`;
+    const before = await render(text(), { fonts: 'none' });
+    const after = await render(text('  key-vault: { kind: key-vault, label: Key Vault }\n'), { fonts: 'none', previous: before.placed!.memory });
+    expect(moved(before.placed!.memory!.nodes!, after.placed!.memory!.nodes!)).toBe(0);
+  });
 });
 
 describe('drawn again', () => {

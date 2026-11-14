@@ -1,6 +1,6 @@
 Harbour Bank access
 
-Roles, groups and access packages, roles × permissions: Roles × permissions. A table of 2 rows by 2 columns.
+Roles and groups, roles × permissions: Roles × permissions. A table of 2 rows by 2 columns.
 
 By row (Role by permission)
 Columns: read and deploy.

@@ -132,7 +132,7 @@ Examples: [examples/c4](../examples/c4) · guide: [c4.md](c4.md)
 
 Use it to map the resources in a subscription, show which VNet or subnet each service sits in, or draw hub and spoke, private endpoints, Front Door and firewalls. Supporting links (Key Vault, identities) can be badges instead of lines.
 
-Besides the services there are kinds for identity (`app-registration`, `service-principal`, `federated-credential`, `managed-identity`), governance (`subscription` and `management-group` as cards, `policy` and `initiative` for Azure Policy), data (`databricks`, `sql-warehouse`, `fabric`) and Virtual WAN (`virtual-wan`, and `virtual-hub` as a card or a group). Line styles: `public`, `private`, `data`, `identity`, `management`, and `role` for a role assignment: identity → scope, the role as its label (`- sp -> rg: { label: Contributor, style: role }`).
+Besides the services there are kinds for identity (`app-registration`, `service-principal`, `federated-credential`, `managed-identity`), governance (`subscription` and `management-group` as cards, `policy` and `initiative` for Azure Policy), data (`databricks`, `sql-warehouse`, `fabric`) and Virtual WAN (`virtual-wan`, and `virtual-hub` as a card or a group). Azure Databricks has its own: the `databricks` workspace, `control-plane`, `compute-plane` and `serverless-plane`, Unity Catalog's `metastore`, `catalog` and `schema` (each a card or a group), `table`, `volume`, `registered-model`, `storage-credential`, `external-location` and `access-connector`; `compute`, `serverless`, `lakeflow-connect`, `lakeflow-pipeline` and `lakeflow-job`; `model-serving`, `databricks-app`, OpenSharing's `share` and `recipient`; and `ncc` and `network-policy` for the serverless plane's network. [examples/databricks/model.yaml](../examples/databricks/model.yaml) uses them all. Line styles: `public`, `private`, `data`, `identity`, `management`, and `role` for a role assignment: identity → scope, the role as its label (`- sp -> rg: { label: Contributor, style: role }`).
 
 Not for: a cloud-neutral overview (use `systems`), Entra groups and roles (use `access`).
 
@@ -250,7 +250,7 @@ An assignment reads `sg-ops is owner on prod`; `sg-ops is eligible owner on prod
 
 In the who × where matrix a cell shows the strongest role on its pill and names every other role there in the note under it (`also …`, `eligible for …`), before where the pill's role comes from; describe gives the whole note. A group that an access package hands out is a column too, once someone is in it, so a membership shows where it is held.
 
-Principals are people and groups, and also workload identities and devices: `service-principal`, `managed-identity`, `app-registration` (a service principal or a `federated-credential` names its app with `app:`), `device` and `paw` (a privileged access workstation). `owners:` draws who owns a group or an app. `policies:` holds Conditional Access: a `conditional-access` policy `targets` people, groups or directory roles, `excludes` some (the break-glass accounts), covers `apps`, checks `locations` (a `named-location`) and `requires` an `authentication-strength`, a `compliance-policy`, a device or PAW, or words such as MFA; `block: true` and `state: report-only` say the rest. A package policy can have its own `id:` for steps and focus. Principals, resources, packages, policies and assignments take `tags:`, so `layers:` work (a layer per admin tier, say).
+Principals are people and groups (`account-group` for a Databricks account group), and also workload identities and devices: `service-principal`, `managed-identity`, `app-registration` (a service principal or a `federated-credential` names its app with `app:`), `device` and `paw` (a privileged access workstation). `owners:` draws who owns a group or an app. `policies:` holds Conditional Access: a `conditional-access` policy `targets` people, groups or directory roles, `excludes` some (the break-glass accounts), covers `apps`, checks `locations` (a `named-location`) and `requires` an `authentication-strength`, a `compliance-policy`, a device or PAW, or words such as MFA; `block: true` and `state: report-only` say the rest. A package policy can have its own `id:` for steps and focus. Principals, resources, packages, policies and assignments take `tags:`, so `layers:` work (a layer per admin tier, say).
 
 ```yaml
 policies:
@@ -262,6 +262,62 @@ principals:
   sp-deploy: { kind: service-principal, label: app-shop-deploy, app: app-deploy }
   fic-github: { kind: federated-credential, label: github-prod, app: app-deploy }
 ```
+
+Unity Catalog has its own: `account-group`, `recipient` (OpenSharing, called Delta Sharing until June 2026) with `share`, `metastore`, `catalog`, `schema`, `table`, `volume`, and `databricks` for a workspace. `bound: dbw-lakehouse-prod` says which workspaces an isolated catalog is bound to: its card says so in the graph (a line along the column of scopes would cross every grant). A data access policy (ABAC) is a `column-mask` or `row-filter` policy `on` a catalog, schema or table, matching a governed `tag`, for everyone or its `targets`, `excludes` the ones it leaves alone; in the matrix a cell that reads there says what it does (`columns tagged pii masked`).
+
+```yaml
+policies:
+  mask-pii: { kind: column-mask, label: mask_pii, tag: pii, on: customers_prod, excludes: [customers-team, sp-lakehouse-prod] }
+```
+
+**Where a role applies.** A permission that is only granted on some kinds of scope says so with `on:` (Unity Catalog's `USE CATALOG` on a catalog, `USE SCHEMA` on a catalog or schema), and a whole role can say it too (an Azure role made for key vaults, an Entra role for administrative units). Granted on another kind, directly or through a role it inherits, `carto validate` warns: `read holds USE CATALOG (on catalog), and gold is a schema`. The roles table and the matrix name the permissions as ever.
+
+```yaml
+roles:
+  read: { inherits: browse, permissions: [{ USE CATALOG: { on: catalog } }, { USE SCHEMA: { on: [catalog, schema] } }, SELECT] }
+  kv-secrets: { label: Key Vault Secrets User, on: key-vault, permissions: [get secret] }
+```
+
+Without access packages or Conditional Access the graph reads in columns: people and workloads, then their groups, then where they are granted something (data policies stand just before their scopes). It is drawn left to right as it is, never turned or wrapped for the slide.
+
+**Views.** A large platform (six domains through three environments, sixty grants) is never one slide: give the file `views:`, one per concern, and `present: views` to make the whole a working canvas (see [model.md](model.md#present-views--the-whole-is-a-working-canvas)). A view picks principals and scopes with `include:` (ids, `catalog.*` for a scope and what is in it, `tag:pii`, `kind:service-principal`, `*`); a side it names nothing of is left open, so `include: [orders-team]` is orders-team with all it is granted, and `include: [customers_prod.*]` everyone granted something there. `exclude:` leaves things out with their grants (and grants tagged as it names), `environment: prod` leaves out what is tagged but not prod. `show:` picks the drawing, `graph` (the default), `access` (who × where) or `roles`, and the cut applies to it: the matrix keeps the rows and columns the view keeps, the roles table the roles its grants give.
+
+```yaml
+present: views
+views:
+  orders:
+    title: One domain through its environments
+    include: [orders-team, engineers, kind:service-principal, orders_dev, orders_test, orders_prod]
+  prod-access:
+    title: Who × where in production
+    show: access
+    environment: prod
+    exclude: [uc-weu, kind:databricks]
+  privileges:
+    title: What each role holds
+    show: roles
+```
+
+Name a view other than `graph`, `access`, `packages` or `roles`: asked for by that name, the type's own drawing of the whole is drawn. [examples/databricks/governance.yaml](../examples/databricks/governance.yaml) has eleven views of one lakehouse.
+
+**Many of one thing: rows by a list.** Twenty domains through three environments are sixty catalogs, too many columns for a slide. A file that writes them with `each:` (see [model.md](model.md#each-a-pattern-for-a-list-of-values)) can lay the matrix out by its lists: `rows: domain` gives a row per domain, `columns: env` a band per environment, and in it a column per who holds a role there. A principal written once per domain (`<domain>-team`) is one column, each row its own team; one written per environment (`sp-lakehouse-<env>`) or once (`analysts`) a column of its own. A column is headed by the name the principal is written as (`<domain>-team`), or by its `column:` (`<domain>-team: { kind: account-group, column: Domain team }`); elsewhere it keeps its own name, orders-team. A cell is what that principal holds on what is written for the row's domain and the band's environment (orders-team on `orders_dev`); a scope written for the domain alone (`<domain>_prod_gold`, `in: <domain>_prod`) goes under its parent's environment. Without `columns:` there is a column per way a scope is written (`<domain>_prod`, `<domain>_prod_gold`), and what a scope above holds is said there only. `page: 1 of 2` shows a part of the rows, the columns the same on every part, so ten domains go on a slide; with `each: { part: [1, 2] }` the views are written once:
+
+```yaml
+each:
+  domain: [orders, webshop, finance, …]
+  env: [dev, test, prod]
+  part: [1, 2]
+views:
+  team-access-<part>:
+    title: Every domain, every environment (<part> of 2)
+    show: access
+    rows: domain
+    columns: env
+    page: <part> of 2
+    exclude: [engineers, analysts, kind:databricks, uc-weu]
+```
+
+What is written for neither list (a workspace, the metastore) has no cell: other views show it. `include:`, `exclude:` and `environment:` cut the pivoted matrix as they cut the plain one. [examples/databricks-at-scale/governance.yaml](../examples/databricks-at-scale/governance.yaml) grants twenty domains in about a hundred lines; its 191 grants are 10 lines.
 
 Not for: where the resources run (use `azure`), GitHub teams and repository permissions (use `github`).
 
@@ -352,7 +408,7 @@ messages:
   - divider: Fulfilment
   - ref: Shipping flow                      # a box pointing at another diagram
     over: [shopper, orders]
-    link: shipping.yaml
+    link: shipping.yaml                     # or shipping.yaml#view, '#view' here, a URL
 ```
 
 The messages are listed under `messages:` (inside a frame too). Older files that call them `steps:` still draw, with a warning: everywhere else `steps:` are the presenting steps.

@@ -82,6 +82,22 @@ const crossingBudget: Record<string, number> = {
   'model/context.yaml': 0,
   'model/deployment.yaml': 0,
   'model/model.yaml': 0,
+  'databricks/model.yaml': 0,
+  'databricks/governance.yaml': 0, // a canvas: drawn as its first view, who administers
+  'databricks/governance.yaml#orders': 1, // orders-team's read line down to test passes the dev service principal's line to dev
+  'databricks/governance.yaml#production': 0,
+  'databricks/governance.yaml#pii': 1, // the policy's line back to the prod service principal, whom it leaves alone, passes customers-team's read
+  'databricks/governance.yaml#sharing': 0,
+  'databricks/governance.yaml#storage': 0,
+  'databricks/medallion.yaml': 0,
+  'databricks/mesh.yaml': 2, // the ERP's line to Revenue passes Orders' line down to the demand forecast; Web sessions' line down to Power BI passes the forecast's to replenishment
+  'databricks/overview.yaml': 0,
+  'databricks/deployment.yaml': 0,
+  'databricks/environments.yaml': 0,
+  'databricks-at-scale/model.yaml': 0, // a canvas: drawn as its first view, the landscape
+  'databricks-at-scale/model.yaml#orders-storage': 0,
+  'databricks-at-scale/governance.yaml': 0, // a canvas: drawn as its first view, who administers
+  'databricks-at-scale/governance.yaml#orders': 1,
   'workspace/access.yaml': 0,
   'workspace/containers.yaml': 0,
   'workspace/containers.yaml#payments': 1, // wrapped for a slide (text 5.6 → 7 pt): the interbank payments pass the nightly extract
@@ -180,6 +196,10 @@ const jogBudget: Record<string, number> = {
   'states/pull-request.yaml': 1, // the return from Changes requested steps into Awaiting review's side
   'systems/data-pipeline.yaml': 1, // two lines into one side
   'systems/saas-platform.yaml': 1, // the overview: the host dashboard's way in steps aside past the guest app's
+  'databricks/governance.yaml#orders': 1, // two grants into orders_dev's side: one steps a lane aside
+  'databricks-at-scale/governance.yaml#orders': 1, // two grants into orders_test's side: one steps a lane aside
+  'databricks/governance.yaml#pii': 1, // three exclusions leave mask_pii on one side: the one up to the app steps a lane aside
+  'databricks/mesh.yaml': 2, // the web shop's two sources join one line into Web sessions; three lines into Power BI's side: one steps aside
 };
 
 // Labels sitting on a corner of their line: none, but for the ones named here.
@@ -211,6 +231,7 @@ const orderBudget: Record<string, number> = {
   'kubernetes/platform.yaml': 1,
   'model/deployment.yaml': 1,
   'network/small-office.yaml': 1,
+  'databricks/mesh.yaml': 1, // Orders stands below Customers and Sales: its lines run on to Sell-through and the demand forecast
 };
 
 // Lines on one track that are not one trunk (falseJoins): none, but for the ones named here.
@@ -222,6 +243,7 @@ const joinBudget: Record<string, number> = {
 // Labels with another line running through or right beside them (nearer than 6 px): none, but for the ones named here.
 const touchBudget: Record<string, number> = {
   'workspace/model.yaml': 1, // the landscape's dense middle: two labels share a corner
+  'databricks-at-scale/governance.yaml#orders': 1, // orders-team's Read catalog into orders_test sits by the step its line takes into the catalog's side
   'c4/kestrel-bank.yaml#containers': 1,
   'c4/kestrel-bank.yaml#components': 1,
   'kubernetes/inference.yaml': 1,
@@ -246,6 +268,7 @@ const returns: Record<string, number> = {
   'workspace/context.yaml': 1, // wrapped into two columns for a slide: the line on to the second runs back
   'systems/data-pipeline.yaml': 1, // wrapped into two rows for a slide: the line down to the second row runs back to its start
   'azure/data-platform.yaml': 1, // wrapped for a slide: serving stands under the ingest, so gold's line down to the warehouse runs back
+  'databricks/overview.yaml': 1, // the lakehouse writes to Unity Catalog and reads gold back: one of the two runs back
   // Wrapped into rows (columns, top-down) for a slide, as slideReadability weighs it: the lines on to the next row run back.
   'cloud/multi-cloud.yaml': 3,
   'deployment/azure.yaml': 1,
@@ -268,6 +291,7 @@ const returns: Record<string, number> = {
   'c4/kestrel-bank.yaml#notifications': 2, // the notifier sends to Postbird and the push gateway, drawn under the boundary on the left
   'c4/kestrel-bank.yaml#payment-notice': 1,
   'c4/kestrel-bank.yaml#production': 1, // wrapped for a slide: the line down to the core ledger runs back to its start
+  'databricks/medallion.yaml': 1, // one order: two columns top-down, orders gold runs back up to sales gold in the second
 };
 
 describe('layout quality', () => {
@@ -314,10 +338,11 @@ describe('layout quality', () => {
     const load = (rel: string) => fs.readFileSync(path.resolve(examples, 'deployment', rel), 'utf8');
     // Drawn on its own (not the way the first environment was), as it would be without the others,
     // and with the account around the region that the example leaves out to fit a slide: one more group title to pass.
+    // As placed, not wrapped: on the slide's real room (under its title) it is cut into two columns, and the users stand above the gateway.
     const aws = fs.readFileSync(path.join(examples, 'deployment/aws.yaml'), 'utf8');
     const inAccount = aws.replace('  region: { kind: region, region: eu-west-1 }', '  account: { kind: account, label: shop }\n  region: { kind: region, region: eu-west-1, in: account }');
     expect(inAccount).not.toBe(aws);
-    const r = await render(inAccount, { fonts: 'none', load, view: 'dev', previous: null });
+    const r = await render(inAccount, { fonts: 'none', load, view: 'dev', previous: null, tuning: { wrap: false } });
     const line = r.graph!.edges.find((e) => e.from.node === 'users' && e.to.node === 'igw')!;
     expect(r.placed!.edges.get(line.id)!.points).toHaveLength(2);
   });
