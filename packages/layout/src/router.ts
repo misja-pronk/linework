@@ -84,10 +84,11 @@ const CROSS = 70;
 const OVERLAP = 6; // per pixel of running on top of another line
 const SOFT = 4; // per pixel inside a group header
 const PASSES = 3;
-// Of ways that cost the same so far, the search takes the one furthest along first: a long line across a
-// large drawing then runs down one way instead of widening every equal one. (A millionth of the cost: it
-// decides ties, never the cost found.)
+// On a large grid, of ways that cost the same so far, the search takes the one furthest along first: a long
+// line across the drawing then runs down one way instead of widening every equal one. (A millionth of the
+// cost: it decides ties, never the cost found.) A smaller drawing keeps its first way among equals: it is quick.
 const TIE_DEEP = 1e-6;
+const LARGE_GRID = 20000;
 const LABEL_AIR = 6; // a label keeps this far from every other line: nearer, it seems to belong to that one
 const LABEL_NEAR = 16; // and keeps this far when it can
 const CROWD = 2; // per pixel nearer than that, per line
@@ -1328,6 +1329,7 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = In
   // is to run on its siblings' the guess must not be dearer than running there, or the search stops
   // at the first way in it finds instead of the best one.
   const guess = share < SHARE ? share : 1;
+  const deep = g.W * g.H > LARGE_GRID ? TIE_DEEP : 0;
   const { xs, ys, W, H } = g;
   const sx = g.xi.get(p.start.x);
   const sy = g.yi.get(p.start.y);
@@ -1413,7 +1415,7 @@ function search(g: Grid, p: Ports, strange?: ZoneCost, share = SHARE, limit = In
         stamp[nk] = gen;
         cost[nk] = c;
         prev[nk] = k;
-        heap.push(nk, c + ahead(nx, ny, nd) - TIE_DEEP * c);
+        heap.push(nk, c + ahead(nx, ny, nd) - deep * c);
       }
     }
   }
