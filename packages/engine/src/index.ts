@@ -182,7 +182,23 @@ export interface RenderOptions extends SvgOptions {
   layers?: string | string[] | null;
   /** Only the layers (laid out on their own) or everything with the rest faded; by default as the layers say. */
   layerMode?: LayerMode;
+  /**
+   * Called once the drawing is built and before it is laid out (most of what it costs): how many
+   * elements and lines it has, and whether it is the whole of a working canvas (view '' of a
+   * diagram that says present: views). The CLI and the editor say so when that will take long.
+   */
+  onLayout?(about: LayoutAbout): void;
 }
+
+/** What is about to be laid out (RenderOptions.onLayout). */
+export interface LayoutAbout {
+  nodes: number;
+  edges: number;
+  whole: boolean;
+}
+
+/** Elements past which laying out the whole of a working canvas is said to take long. */
+export const BIG_CANVAS = 40;
 
 /** The layers of a diagram, and which are drawn: what the editor's Layers control and exports read. */
 export interface LayersInfo {
@@ -216,6 +232,8 @@ export interface RenderResult {
   origin?: { x: number; y: number };
   /** The page the drawing is meant for (aspect: in the YAML, a 16:9 slide by default); none with aspect: auto. */
   page?: Page;
+  /** The type's name for what this diagram holds (DiagramType.nameFor), where it is not the type's name. */
+  typeName?: string;
   /** The views the diagram (and what it includes) defines, and the one drawn. */
   views?: { name: string; title?: string }[];
   view?: string;
@@ -399,9 +417,12 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     if (opts.view) {
       model.view = model.views.get(opts.view);
       if (!model.view) report([], `There is no view "${opts.view}"${names.length ? `; views: ${names.join(', ')}` : ''}`);
-    } else if (onlyViews || (canvas && opts.view === undefined && !ownView))
+    } else if (onlyViews || (canvas && opts.view === undefined && !ownView)) {
       // Only views, nothing drawn as written (or the whole is a canvas): the first view is the diagram.
       model.view = model.views.get(names[0]!);
+      // The whole asked for (view ''), where there is no whole: said, not drawn as if it were.
+      if (onlyViews && opts.view === '') report([], `There is no whole drawing here: the diagram only has views (it draws nothing as written), so view '' draws its first view, "${names[0]}"`, 'warning');
+    }
   } else if (opts.view) report([], `There is no view "${opts.view}": ${ownViews?.length ? `views: ${ownViews.map((v) => v.name).join(', ')}` : 'this diagram has no views'}`);
   if (ownView) built = { ...built, view: ownView };
   // A view of the model that is one of the type's own drawings (`show: access`): that drawing, cut to the view.
@@ -523,6 +544,8 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   const previous = only ? (opts.previous ?? unpackLayout(viewPins(opts.sidecar, layerKey(model?.view?.name, lens.info!.active))?.layout) ?? null) : before;
   const place = async (at: Sized, previous: LayoutMemory | null | undefined) =>
     type.layout ? await type.layout(at, pins, previous === null ? undefined : (previous ?? unpackLayout(pins?.layout)), aspect != null ? { aspect } : {}) : await layout(at, spacing, pins, { autoDirection, ...(steady ? { wrap: false as const } : {}), ...(aspect != null ? { aspect } : {}), ...type.tuning, ...(previous !== undefined ? { previous } : {}), ...opts.tuning });
+  // Told before laying out, which is most of what a drawing costs: a big one (a canvas's whole) can take minutes.
+  opts.onLayout?.({ nodes: graph.nodes.length, edges: graph.edges.length, whole: canvas && opts.view === '' });
   let placed = await place(sized, previous);
   // Ports that may stand in any order (a data product's) follow where what feeds them was placed, so
   // their lines do not cross; drawn once more from there, everything else holding where it was.
@@ -583,6 +606,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // The type's views among those, and the one the file is written for: their titles in another language.
   const titled = new Set([...(model?.views.size ? (typeViews?.slice(1) ?? []) : (typeViews ?? [])).map((v) => v.name), ...(!model?.view && writtenView ? [writtenView.name] : [])]);
   const viewTitles = (other: Lang) => Object.fromEntries((type.views?.(rest, wordIn(other)) ?? []).filter((v) => v.title && titled.has(v.name)).map((v) => [v.name, v.title!]));
+  const typeName = type.nameFor?.(built);
   return {
     svg: out.svg,
     width: out.width,
@@ -591,6 +615,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(pageFor(aspect) ? { page: pageFor(aspect) } : {}),
     diagnostics: once(diagnostics),
     type,
+    ...(typeName && typeName !== type.name ? { typeName } : {}),
     graph,
     placed,
     theme,

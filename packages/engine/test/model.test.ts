@@ -239,6 +239,25 @@ views:
     expect(said.view).toBeUndefined();
     expect((await render('type: azure\npresent: slides\nnodes:\n  fw: firewall\n', { fonts: 'none' })).diagnostics[0]!.severity).toBe('error');
   });
+
+  it('says what it is about to lay out, and whether that is the whole of a canvas', async () => {
+    const told: unknown[] = [];
+    await render(canvas, { fonts: 'none', view: '', onLayout: (a) => told.push(a) });
+    await render(canvas, { fonts: 'none', onLayout: (a) => told.push(a) });
+    expect(told).toEqual([
+      { nodes: 3, edges: 2, whole: true },
+      { nodes: 2, edges: 1, whole: false },
+    ]);
+  });
+
+  it('says so when the whole is asked for where there is none: a diagram of only views', async () => {
+    const only = `type: model\nelements:\n  a: { kind: person, label: A }\n  s: { kind: system, label: S }\nrelations:\n  - a -> s: uses\nviews:\n  context: { kind: landscape }\n`;
+    const r = await render(only, { fonts: 'none', view: '' });
+    expect(r.view).toBe('context');
+    expect(r.diagnostics).toEqual([expect.objectContaining({ severity: 'warning', message: expect.stringContaining("only has views (it draws nothing as written), so view '' draws its first view, \"context\"") })]);
+    // Without a view asked for, the first view is the diagram, as ever: nothing to say.
+    expect((await render(only, { fonts: 'none' })).diagnostics).toEqual([]);
+  });
 });
 
 describe('view selectors for one file of several environments', () => {

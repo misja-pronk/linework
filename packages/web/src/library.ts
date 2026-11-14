@@ -1,5 +1,6 @@
 // Starting points: each type's template plus every example from the repo, bundled at build time.
 import { types } from '@cartography/engine';
+import { sourcedLoader, type Loader } from './render-client.ts';
 
 const raw = import.meta.glob('../../../examples/**/*.yaml', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 
@@ -47,19 +48,9 @@ export const starters: Starter[] = [
 const files = new Map(Object.entries(raw).map(([p, text]) => [p.replace(/^.*\/examples\//, ''), text]));
 
 /** A loader for an example: reads files relative to it from the bundle. */
-export function exampleLoader(starterId: string): ((file: string) => string) | undefined {
+export function exampleLoader(starterId: string): Loader | undefined {
   if (!starterId.startsWith('example:')) return undefined;
-  const dir = starterId.slice('example:'.length).split('/').slice(0, -1);
-  return (file) => {
-    const parts = [...dir];
-    for (const seg of file.split('/')) {
-      if (seg === '..') parts.pop();
-      else if (seg !== '.') parts.push(seg);
-    }
-    const text = files.get(parts.join('/'));
-    if (text == null) throw new Error(`No file ${file}`);
-    return text;
-  };
+  return sourcedLoader(starterId.slice('example:'.length).split('/').slice(0, -1), (path) => files.get(path), () => files, 'No file {file}');
 }
 
 /** A clean start of a type, to build from the palette. */

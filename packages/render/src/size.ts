@@ -7,7 +7,7 @@ import { sequenceGeometry } from './sequence.ts';
 import { gitflowGeometry } from './gitflow.ts';
 import { roadmapGeometry } from './roadmap.ts';
 import { journeyScene } from './journey.ts';
-import { flowSize, laneHeader } from './flow.ts';
+import { flowSize, laneHeadDown, laneHeader, laneHeight } from './flow.ts';
 import { blockSize } from './block.ts';
 import { SMALL_PX } from './readable.ts';
 
@@ -73,7 +73,12 @@ export function size(graph: Graph, theme: Theme): Sized {
 
   const groupMinWidth = new Map<string, number>();
   // A lane's name stands in a header at its start: that header's width is what it needs.
-  for (const g of graph.groups) groupMinWidth.set(g.id, g.lane ? laneHeader(g.label, theme) : groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24 + (g.links?.length ? LINK_ROOM : 0));
+  for (const g of graph.groups) groupMinWidth.set(g.id, g.lane ? laneHeader(g, theme) : groupLabelWidth(g.label, g.caption, theme) + 2 * theme.space.group.pad + 24 + (g.links?.length ? LINK_ROOM : 0));
+
+  // A lane with a description is as tall as its header's words need, where lanes are rows (laneHeight).
+  const lanes = graph.groups.filter((g) => g.lane);
+  const laneHead = Math.max(0, ...lanes.map((g) => laneHeader(g, theme)));
+  const groupMinHeight = new Map(lanes.filter((g) => g.description).map((g) => [g.id, laneHeight(g, theme, laneHead)]));
 
   // The smallest words a reader needs (layout's slide sizes go by it): labels on lines, group names, a table's section names (SECTION_PX), tags and the word KEY (SMALL_PX).
   const small = [
@@ -82,7 +87,7 @@ export function size(graph: Graph, theme: Theme): Sized {
     ...(graph.nodes.some((n) => n.shape.kind === 'table' && n.shape.rows.some((r) => r.kind === 'section' && r.label)) ? [SECTION_PX] : []),
     ...((graph.legend?.length && look(theme).legend === 'key') || graph.edges.some((e) => e.ends || e.marks?.length) || graph.nodes.some((n) => n.marks?.length) || graph.groups.some((g) => g.marks?.length) ? [SMALL_PX] : []),
   ];
-  return { graph, nodes, edgeLabels, groupHeader: theme.space.group.header, groupMinWidth, ...(small.length ? { smallText: Math.min(...small) } : {}) };
+  return { graph, nodes, edgeLabels, groupHeader: lanes.length ? laneHeadDown(lanes, theme) : theme.space.group.header, groupMinWidth, ...(groupMinHeight.size ? { groupMinHeight } : {}), ...(small.length ? { smallText: Math.min(...small) } : {}) };
 }
 
 /** A table's section names (INPUT PORTS, SCHEMA) in small capitals: their size (px). */

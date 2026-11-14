@@ -2,7 +2,7 @@
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
 import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeader, laneMarks, LEGEND, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type JourneySeg, journeyPath, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, SECTION_PX, SMALL_PX, smallestTextPx, patternWidth } from '@cartography/render';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeadDown, laneHeader, laneMarks, LEGEND, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type JourneySeg, journeyPath, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, SECTION_PX, SMALL_PX, smallestTextPx, patternWidth } from '@cartography/render';
 import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
 import { tr } from '@cartography/i18n/drawing';
 import { legendLayout, PX } from './fit.ts';
@@ -215,7 +215,7 @@ class SlideDrawing {
     const as = (em: string | undefined) => (this.theme = em === 'dim' ? quiet : full);
     // Lanes share one header size, as in the SVG.
     const across = (placed.direction ?? graph.direction) === 'right';
-    const laneHead = across ? Math.max(0, ...graph.groups.filter((g) => g.lane).map((g) => laneHeader(g.label, full))) : full.space.group.header;
+    const laneHead = across ? Math.max(0, ...graph.groups.filter((g) => g.lane).map((g) => laneHeader(g, full))) : laneHeadDown(graph.groups, full);
     for (const g of byDepth(graph.groups)) {
       const box = placed.groups.get(g.id);
       if (!box || state?.groups[g.id] === 'hidden') continue;

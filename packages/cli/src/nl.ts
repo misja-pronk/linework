@@ -76,6 +76,7 @@ export const nl = {
   '--svg-safe is for SVG: ignored for {format}': '--svg-safe is voor SVG: genegeerd voor {format}',
   '--outline-text goes with --svg-safe: ignored': '--outline-text hoort bij --svg-safe: genegeerd',
   '--layout, --keep-look and --keep-slides go with --template: ignored': '--layout, --keep-look en --keep-slides horen bij --template: genegeerd',
+  "{file}: laying out the whole canvas, {nodes} elements and {edges} lines; this can take minutes (Ctrl-C stops it). Its views draw in seconds: leave out --view '', or --all-views": "{file}: het hele werkvlak wordt opgemaakt, {nodes} elementen en {edges} lijnen; dat kan minuten duren (Ctrl-C stopt het). De weergaven zijn in seconden getekend: laat --view '' weg, of --all-views",
   'empty: nothing to draw, not written': 'leeg: niets te tekenen, niet geschreven',
   '--all-layers: this diagram has no layers: (see docs/layers.md)': '--all-layers: dit diagram heeft geen layers: (zie docs/layers.md)',
   'nothing on this layer, not written': 'niets op deze laag, niet geschreven',

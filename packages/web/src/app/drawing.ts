@@ -48,7 +48,7 @@ export function useDrawing({ text, theme, pins, load, docKey, viewName, docFile,
   const [renderMs, setRenderMs] = useState(0);
   /** Counts layout resets: the drawing remembers where things were until one (use-render.ts). */
   const [fresh, setFresh] = useState(0);
-  const rendered = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh, focusAsked, lenses);
+  const { rendered, busy } = useRender(useDebounced(text, Math.min(400, Math.max(40, renderMs * 1.5)), docKey), theme, sidecar, load, docKey, viewName, docFile, stepNo, fresh, focusAsked, lenses);
   useEffect(() => {
     if (rendered) setRenderMs(rendered.ms);
   }, [rendered]);
@@ -72,6 +72,6 @@ export function useDrawing({ text, theme, pins, load, docKey, viewName, docFile,
   /** The drawing is of the text in the editor now (builder actions wait for that). */
   const current = rendered?.text === text;
   const pinCount = Object.keys(vpins?.nodes ?? {}).length + Object.keys(vpins?.groups ?? {}).length;
-  return { draft, setDraft, sidecar, setFresh, rendered, result, drawn, vpins, drawnLayout, tracked, locked, bent, pinnedIds, type, diagnostics, errors, warnings, entries, current, pinCount };
+  return { draft, setDraft, sidecar, setFresh, rendered, busy, result, drawn, vpins, drawnLayout, tracked, locked, bent, pinnedIds, type, diagnostics, errors, warnings, entries, current, pinCount };
 }
 export type Drawing = ReturnType<typeof useDrawing>;

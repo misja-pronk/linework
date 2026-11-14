@@ -3,6 +3,7 @@
 // read contracts relative to the diagram, as the CLI does. Other browsers fall back to upload/download.
 import { parseSidecar, type LayoutSidecar } from '@cartography/core';
 import { t } from './i18n/index.ts';
+import { sourcedLoader, type Loader } from './render-client.ts';
 
 export const canUseFolders = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 export const canSaveFiles = typeof window !== 'undefined' && 'showSaveFilePicker' in window;
@@ -62,18 +63,14 @@ export async function scan(dir: FileSystemDirectoryHandle): Promise<Workspace> {
 }
 
 /** A synchronous loader for one diagram: paths relative to it, from the cache. */
-export function folderLoader(ws: Workspace, diagram: string): (file: string) => string {
-  const base = diagram.split('/').slice(0, -1);
-  return (file) => {
-    const parts = [...base];
-    for (const seg of file.split('/')) {
-      if (seg === '..') parts.pop();
-      else if (seg && seg !== '.') parts.push(seg);
-    }
-    const hit = ws.files.get(parts.join('/'));
-    if (!hit) throw new Error(t('No file {file}', { file }));
-    return hit.text;
-  };
+export function folderLoader(ws: Workspace, diagram: string): Loader {
+  // The worker that draws (render-client.ts) gets the folder's texts as they are at each drawing.
+  return sourcedLoader(
+    diagram.split('/').slice(0, -1),
+    (path) => ws.files.get(path)?.text,
+    () => new Map([...ws.files].map(([path, f]) => [path, f.text])),
+    t('No file {file}', { file: '{file}' }),
+  );
 }
 
 export const sidecarPath = (diagram: string) => diagram.replace(/\.ya?ml$/i, '') + '.layout.json';

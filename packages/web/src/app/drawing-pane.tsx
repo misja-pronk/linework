@@ -2,9 +2,11 @@
 // focus and layers chips and notes at the top, the toolbar at the bottom, the hint, the empty state, the
 // add popup), the comparison over it, and the steps strip under it.
 import './drawing-pane.css';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
+import { keyHint } from '../keys.ts';
+import { BIG_CANVAS } from '@cartography/engine';
 import { AddMenu } from '../add-menu.tsx';
 import { FocusChip } from '../focus-chip.tsx';
 import { Preview, type DeckTemplate, type PreviewControl, type Selection } from '../preview.tsx';
@@ -15,6 +17,7 @@ import { drawnFields } from './names.ts';
 import type { useCraftPrefs } from '../craft-actions.tsx';
 import type { View } from '../start.tsx';
 import type { Drawing } from './drawing.ts';
+import type { Busy } from '../use-render.ts';
 import type { Edits } from './edits.ts';
 import type { Navigation } from './navigation.ts';
 import type { Pins } from './pins.ts';
@@ -186,9 +189,31 @@ export function DrawingPane(p: Props) {
         }}
       >
         <div className="canvas-top">
+          {/* A link followed: the way back to where it was followed from, in the view it showed. */}
+          {!adding && !p.session && nav.backTo && (
+            <button className="focus-chip back-chip" onClick={nav.back} onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()} title={t('Back to where the link was followed from (⌘[)')}>
+              <Icon name="arrow-left" size={14} />
+              <span className="focus-chip-name">
+                {t('Back to')} <strong>{nav.backTo.name}</strong>
+              </span>
+              <kbd>{keyHint('back')}</kbd>
+            </button>
+          )}
           {!adding && <FocusChip focus={drawn?.focus} off={p.focusOff} onHops={nav.focusHops} onDirection={nav.focusDirection} onLeave={nav.leaveFocus} />}
           {!adding && p.layersChip}
           {/* Notes about the drawing go on a row of their own under the chips. */}
+          {drawing.busy && (
+            <BusyNote
+              busy={drawing.busy}
+              whole={drawing.busy.view === '' && !!drawn?.canvas}
+              onStop={() => {
+                const asked = drawing.busy!.view;
+                drawing.busy!.stop();
+                // A view picked that would not draw in time: back to the one on screen.
+                if (asked !== undefined && asked !== drawn?.view) nav.showView(drawn?.canvas && drawn.view === drawn.views?.[0]?.name ? undefined : drawn?.view);
+              }}
+            />
+          )}
           {!!rendered && !!drawn?.svg && drawn !== result && (
             <div className="canvas-note">
               <div className="stale-note" role="status">
@@ -265,6 +290,36 @@ export function DrawingPane(p: Props) {
         />
       )}
     </section>
+  );
+}
+
+/** A drawing that is taking a while: how long so far, and a way to give it up. The editor goes on meanwhile. */
+function BusyNote({ busy, whole, onStop }: { busy: Busy; whole: boolean; onStop(): void }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const i = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(i);
+  }, []);
+  const s = Math.max(1, Math.round((Date.now() - busy.since) / 1000));
+  const a = busy.about;
+  return (
+    <div className="canvas-note">
+      <div className="busy-note" role="status" onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}>
+        <span className="busy-spinner" aria-hidden="true" />
+        <span>
+          {whole
+            ? a && a.nodes > BIG_CANVAS
+              ? t('Laying out the whole canvas, {nodes} elements and {edges} lines: {s} s. Every view at once can take minutes; its views draw in seconds.', { nodes: a.nodes, edges: a.edges, s })
+              : t('Laying out the whole canvas: {s} s. It holds every view at once and can take a minute.', { s })
+            : a
+              ? t('Laying out the drawing, {nodes} elements and {edges} lines: {s} s', { nodes: a.nodes, edges: a.edges, s })
+              : t('Laying out the drawing: {s} s', { s })}
+        </span>
+        <button onClick={onStop}>
+          {t('Stop')}
+        </button>
+      </div>
+    </div>
   );
 }
 

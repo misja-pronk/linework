@@ -82,6 +82,32 @@ if (!name.includes('containers.yaml')) fail('link did not open containers.yaml: 
 await page.screenshot({ path: `${out}/model-drill.png` });
 if (!(await page.locator('.view-picker select').count()) || (await page.locator('.view-picker select').inputValue()) !== 'containers') fail('link did not pick the containers view');
 
+// Back: a chip over the drawing names where the link came from; a walk of two links comes back
+// one at a time, each in the view it showed (⌘[ and the chip alike).
+const chip = page.locator('.back-chip');
+if (!(await chip.count())) fail('no way back after following a link');
+else if (!(await chip.innerText()).includes('context.yaml')) fail('the way back does not name context.yaml: ' + (await chip.innerText()));
+await page.locator('.view-picker select').selectOption('ordering');
+await page.waitForTimeout(800);
+const apiBox = await page.locator('.drawing [data-node="shop.api"], .drawing [data-node="api"]').first().boundingBox();
+await page.keyboard.down('Meta');
+await page.mouse.click(apiBox.x + apiBox.width / 2, apiBox.y + apiBox.height / 2);
+await page.keyboard.up('Meta');
+await page.waitForTimeout(800);
+if (!(await page.locator('.doc-name').innerText()).includes('deployment.yaml')) fail('the API link did not open deployment.yaml');
+if (!(await chip.innerText()).includes('Placing an order')) fail('the way back does not name the view it came from: ' + (await chip.innerText()));
+await page.screenshot({ path: `${out}/model-back-chip.png` });
+await page.locator('.preview').focus();
+await page.keyboard.press('Meta+BracketLeft');
+await page.waitForTimeout(800);
+if (!(await page.locator('.doc-name').innerText()).includes('containers.yaml')) fail('⌘[ did not go back to containers.yaml');
+if ((await page.locator('.view-picker select').inputValue()) !== 'ordering') fail('back in containers.yaml, the view is not the one it showed (ordering)');
+await chip.click();
+await page.waitForTimeout(800);
+if (!(await page.locator('.doc-name').innerText()).includes('context.yaml')) fail('the chip did not go back to context.yaml');
+if (await chip.count()) fail('a way back shows with nowhere left to go back to');
+await page.screenshot({ path: `${out}/model-back.png` });
+
 // The inspector lists links; the deployment diagram (Azure) reads the same elements.
 await page.click('.files .file:has-text("deployment.yaml")');
 await page.waitForTimeout(800);

@@ -58,7 +58,7 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
   const [presenting, setPresenting] = useState(false);
   const [message, setMessage] = useState<string>();
   const name = doc.name ?? 'shared.yaml';
-  const rendered = useRender(doc.yaml, theme, doc.layout, undefined, 0, view, name);
+  const { rendered } = useRender(doc.yaml, theme, doc.layout, undefined, 0, view, name);
   const result = rendered?.drawn ?? rendered?.result;
   const errors = rendered?.result.diagnostics.filter((d) => d.severity === 'error') ?? [];
   const title = result?.graph?.title ?? baseName(name);

@@ -270,6 +270,14 @@ policies:
   mask-pii: { kind: column-mask, label: mask_pii, tag: pii, on: customers_prod, excludes: [customers-team, sp-lakehouse-prod] }
 ```
 
+**Where a role applies.** A permission that is only granted on some kinds of scope says so with `on:` (Unity Catalog's `USE CATALOG` on a catalog, `USE SCHEMA` on a catalog or schema), and a whole role can say it too (an Azure role made for key vaults, an Entra role for administrative units). Granted on another kind, directly or through a role it inherits, `carto validate` warns: `read holds USE CATALOG (on catalog), and gold is a schema`. The roles table and the matrix name the permissions as ever.
+
+```yaml
+roles:
+  read: { inherits: browse, permissions: [{ USE CATALOG: { on: catalog } }, { USE SCHEMA: { on: [catalog, schema] } }, SELECT] }
+  kv-secrets: { label: Key Vault Secrets User, on: key-vault, permissions: [get secret] }
+```
+
 Without access packages or Conditional Access the graph reads in columns: people and workloads, then their groups, then where they are granted something (data policies stand just before their scopes). It is drawn left to right as it is, never turned or wrapped for the slide.
 
 **Views.** A large platform (six domains through three environments, sixty grants) is never one slide: give the file `views:`, one per concern, and `present: views` to make the whole a working canvas (see [model.md](model.md#present-views--the-whole-is-a-working-canvas)). A view picks principals and scopes with `include:` (ids, `catalog.*` for a scope and what is in it, `tag:pii`, `kind:service-principal`, `*`); a side it names nothing of is left open, so `include: [orders-team]` is orders-team with all it is granted, and `include: [customers_prod.*]` everyone granted something there. `exclude:` leaves things out with their grants (and grants tagged as it names), `environment: prod` leaves out what is tagged but not prod. `show:` picks the drawing, `graph` (the default), `access` (who × where) or `roles`, and the cut applies to it: the matrix keeps the rows and columns the view keeps, the roles table the roles its grants give.
