@@ -86,15 +86,104 @@ describe('each: in a model', () => {
   });
 });
 
+const prodTables = `type: model
+each:
+  domain: { orders: { team: Order management }, webshop: { team: Web shop } }
+  env: [dev, prod]
+elements:
+  uc:
+    kind: metastore
+    elements:
+      orders_prod:                                  # adds to what <domain>_<env> writes for orders, prod
+        label: Orders (live)
+        tags: [pii, prod]
+        elements:
+          sales: { kind: table, label: sales of <domain> }
+      <domain>_<env>: { kind: catalog, label: <domain>_<env>, owner: <domain>-team, tags: [<env>], elements: { gold: { kind: schema } } }
+`;
+
+describe('each: an entry written out adds to the one a pattern writes', () => {
+  it('merges maps key by key, adds list items after the pattern\'s, and its own fields win', () => {
+    const x = expandEach(parse(prodTables))!;
+    expect(x.problems).toEqual([]);
+    const uc = (x.data as { elements: { uc: { elements: Record<string, any> } } }).elements.uc.elements;
+    // In the pattern's place and order: the entry written out adds, it is not a second entry.
+    expect(Object.keys(uc)).toEqual(['orders_dev', 'orders_prod', 'webshop_dev', 'webshop_prod']);
+    expect(uc.orders_prod).toEqual({
+      kind: 'catalog',
+      label: 'Orders (live)',
+      owner: 'orders-team',
+      tags: ['prod', 'pii'],
+      elements: { gold: { kind: 'schema' }, sales: { kind: 'table', label: 'sales of orders' } },
+    });
+    expect(uc.webshop_prod.elements).toEqual({ gold: { kind: 'schema' } });
+  });
+
+  it('leads what it adds back to where it is written, and the rest to the pattern', () => {
+    const x = expandEach(parse(prodTables))!;
+    const at = ['elements', 'uc', 'elements'];
+    expect(x.back([...at, 'orders_prod', 'elements', 'sales', 'label'])).toEqual({ path: [...at, 'orders_prod', 'elements', 'sales', 'label'] });
+    expect(x.back([...at, 'orders_prod', 'tags', 1])).toEqual({ path: [...at, 'orders_prod', 'tags', 0] });
+    expect(x.back([...at, 'orders_prod', 'elements', 'gold']).path).toEqual([...at, '<domain>_<env>', 'elements', 'gold']);
+    expect(x.back([...at, 'orders_prod', 'kind'])).toMatchObject({ path: [...at, '<domain>_<env>', 'kind'], binding: { domain: 'orders', env: 'prod' } });
+  });
+
+  it('draws the tables only one catalog has, and says a problem in them on its own line', async () => {
+    const r = await render(`${prodTables}views:\n  prod: { include: [uc.orders_prod.*] }\n`, { fonts: 'none', view: 'prod' });
+    expect(errors(r)).toEqual([]);
+    expect(r.graph!.nodes.map(labelOf).sort()).toEqual(['gold', 'sales of orders']);
+    const bad = await render(prodTables.replace('kind: table', 'kind: table, ownr: x'), { fonts: 'none' });
+    expect(errors(bad)).toEqual(['13: Unknown field "ownr"']);
+  });
+});
+
+describe('each: fields that use other placeholders', () => {
+  const owners = `type: model
+each:
+  domain: [orders, webshop]
+  env: { prod: { owner: sp-lakehouse-<env>, label: Production }, dev: { owner: <domain>-team, label: <env.owner> in <env> } }
+elements:
+  <domain>_<env>: { kind: catalog, owner: <env.owner> }
+  dbw-<env>: { kind: databricks, label: <env.label> }
+`;
+
+  it('fills a field in with the values of the entry it is used in', () => {
+    const x = expandEach(parse(owners.replace('  dbw-<env>: { kind: databricks, label: <env.label> }\n', '')))!;
+    expect(x.problems).toEqual([]);
+    const e = (x.data as { elements: Record<string, { owner: string }> }).elements;
+    expect(Object.fromEntries(Object.entries(e).map(([k, v]) => [k, v.owner]))).toEqual({ orders_prod: 'sp-lakehouse-prod', orders_dev: 'orders-team', webshop_prod: 'sp-lakehouse-prod', webshop_dev: 'webshop-team' });
+  });
+
+  it('says a list the field names that the entry is not written for', async () => {
+    const r = await render(owners, { fonts: 'none' });
+    expect(errors(r)).toEqual(['7: <env.owner> of dev is <domain>-team, and <domain> is not given here: write it in the name of the entry (the key, or the list item) it is in, so that entry is written once per domain']);
+  });
+
+  it('says a field that comes back to itself, at each:', async () => {
+    const r = await render('type: systems\neach:\n  env:\n    dev: { a: x-<env.b>, b: <env.a> }\nnodes:\n  api-<env>: { kind: service, label: <env.a> }\n', { fonts: 'none' });
+    expect(errors(r)).toEqual(['4: a of dev comes back to itself: <env.a> → <env.b> → <env.a>. A field can use other fields, not itself']);
+  });
+
+  it('says a placeholder in a field that no list has, at each:', async () => {
+    const r = await render('type: systems\neach:\n  env:\n    dev: { owner: <domian>-team }\nnodes:\n  api-<env>: service\n', { fonts: 'none' });
+    expect(errors(r)[0]).toMatch(/^4: <domian> is not a list of each:/);
+  });
+});
+
 describe('each: problems, at the line they are written on', () => {
   it('says which lists there are when a placeholder names none', async () => {
     const r = await render('type: systems\neach:\n  domain: [orders]\nnodes:\n  <domain>: { kind: service, label: <domian> }\n', { fonts: 'none' });
     expect(errors(r)).toEqual(['5: <domian> is not a list of each: did you mean <domain>? (the lists under each: are <domain>). For the text <domian> itself, write \\<domian>']);
   });
 
-  it('says a name written twice, on the second', async () => {
-    const r = await render('type: systems\neach:\n  env: [dev, prod]\nnodes:\n  api-<env>: service\n  api-dev: service\n', { fonts: 'none' });
-    expect(errors(r)).toEqual(['6: "api-dev" is already written by api-<env>: give one of them another name']);
+  it('says a name two patterns write, on the second', async () => {
+    const r = await render('type: systems\neach:\n  env: [dev, prod]\n  stage: [dev]\nnodes:\n  api-<env>: service\n  api-<stage>: service\n', { fonts: 'none' });
+    expect(errors(r)).toEqual(['7: "api-dev" is already written by api-<env>: give one of them another name']);
+  });
+
+  it('says an entry that cannot add to the one a pattern writes', async () => {
+    const r = await render('type: systems\neach:\n  env: [dev, prod]\nnodes:\n  api-<env>: service\n  api-dev: service\n  db-<env>: database\n  db-dev: { label: Dev DB }\n', { fonts: 'none' });
+    expect(errors(r)).toEqual(['6: "api-dev" is written by api-<env> too: write what it adds to that in { }, like api-dev: { tags: [pii] }', '8: "db-dev" is written by db-<env> as one value: write that as { kind: … } for db-dev to add to it']);
   });
 
   it('says a placeholder no entry around it gives', async () => {

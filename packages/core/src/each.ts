@@ -68,6 +68,12 @@ interface Trace {
   /** Set on an entry a pattern wrote out: the values it was written for (with those of entries around it). */
   binding?: Binding;
   kids?: Map<string | number, Trace>;
+  /**
+   * Set where an entry written out by hand adds to one a pattern wrote: what it adds is written at this
+   * path of the file, not under the pattern, for the values of the entries around it (outer).
+   */
+  abs?: Path;
+  outer?: Binding;
 }
 
 /** Reads `each:`: list name → values, in the order written. */
@@ -168,10 +174,18 @@ export function expandEach(input: unknown): Expansion | undefined {
     }
     return ok;
   };
+  // A field may name lists itself (owner: sp-lakehouse-<env>): what it names must be there.
+  for (const [list, values] of lists) for (const v of values) for (const [f, x] of Object.entries(v.fields)) known(x, [EACH, list, v.name, f]);
+
   /** The lists a string names that the entry around it was not written for. */
   const open = (s: string, b: Binding) => [...new Set(named(s).map((n) => n.list))].filter((n) => lists.has(n) && !(n in b));
 
-  const fill = (s: string, b: Binding, at: Path): string =>
+  /**
+   * A string with the values of b. A field may itself name lists (owner: sp-lakehouse-<env>): those are
+   * filled in too, with the values of the entry it is used in; a field that comes back to itself is said
+   * at each:, where it is written.
+   */
+  const fill = (s: string, b: Binding, at: Path, through: string[] = []): string =>
     s.replace(PLACEHOLDER, (whole, escaped: string, list: string, field?: string) => {
       if (escaped) return whole.slice(1);
       const value = b[list];
@@ -182,7 +196,19 @@ export function expandEach(input: unknown): Expansion | undefined {
         problem(at, `${value} has no field "${field}" under each: ${list}`);
         return '';
       }
-      return v;
+      if (!named(v).length) return v;
+      const self = `<${list}.${field}>`;
+      if (through.includes(self)) {
+        const loop = [...through.slice(through.indexOf(self)), self];
+        problem([EACH, list, value, field], `${field} of ${value} comes back to itself: ${loop.join(' → ')}. A field can use other fields, not itself`);
+        return '';
+      }
+      const left = open(v, b);
+      if (left.length) {
+        problem(at, `${self} of ${value} is ${v}, and <${left[0]}> is not given here: write it in the name of the entry (the key, or the list item) it is in, so that entry is written once per ${left[0]}`);
+        return '';
+      }
+      return fill(v, b, at, [...through, self]);
     });
 
   /** A value that is not an entry's name or a list item: what it names must be given by the entry around it. */
@@ -221,14 +247,76 @@ export function expandEach(input: unknown): Expansion | undefined {
     return out;
   };
 
+  /**
+   * An entry written out by hand with a name a pattern also writes (orders_prod next to <domain>_<env>)
+   * adds to what the pattern wrote: maps are merged key by key, lists get its items after the pattern's
+   * (a value already there is not added twice), and a field it writes wins. What it adds leads back
+   * to where it is written (abs), for the values of the entries around it (outer).
+   */
+  const merge = (pv: unknown, pt: Trace | undefined, wv: unknown, wt: Trace, wAt: Path, outer: Binding): { v: unknown; t: Trace } => {
+    const moved = (t: Trace, path: Path): Trace => ({ ...t, abs: path, ...(Object.keys(outer).length ? { outer } : {}) });
+    const kid = (t: Trace, seg: string | number): { t: Trace; at: Path } => {
+      const k = t.kids?.get(seg) ?? { src: seg };
+      return { t: k, at: k.abs ?? [...wAt, k.src] };
+    };
+    if (pt && isMap(pv) && isMap(wv)) {
+      const v: Record<string, unknown> = { ...pv };
+      const t: Trace = { ...pt, kids: new Map(pt.kids) };
+      for (const [key, x] of Object.entries(wv)) {
+        const w = kid(wt, key);
+        if (key in pv) {
+          const m = merge(pv[key], pt.kids?.get(key), x, w.t, w.at, outer);
+          v[key] = m.v;
+          t.kids!.set(key, m.t);
+        } else {
+          v[key] = x;
+          t.kids!.set(key, moved(w.t, w.at));
+        }
+      }
+      return { v, t };
+    }
+    if (pt && Array.isArray(pv) && Array.isArray(wv)) {
+      const v = [...pv];
+      const t: Trace = { ...pt, kids: new Map(pt.kids) };
+      wv.forEach((x, i) => {
+        if (scalar(x) && pv.includes(x)) return;
+        const w = kid(wt, i);
+        t.kids!.set(v.length, moved(w.t, w.at));
+        v.push(x);
+      });
+      return { v, t };
+    }
+    return { v: wv, t: moved(wt, wAt) };
+  };
+
   const entries = (map: Record<string, unknown>, b: Binding, at: Path, trace: Trace): Record<string, unknown> => {
     const out: Record<string, unknown> = {};
     const from = new Map<string, string>();
     trace.kids = new Map();
+    // The names the patterns here write, first: an entry written out with one of them adds to it, wherever it is written.
+    const patterns = new Map<string, { k: string; b: Binding }>();
+    for (const k of Object.keys(map)) {
+      if (!named(k).length || !known(k, [...at, k])) continue;
+      const names = open(k, b);
+      if (!names.length) continue;
+      for (const extra of combinations(names, lists)) {
+        const bb = { ...b, ...extra };
+        const key = fill(k, bb, [...at, k]);
+        if (!patterns.has(key)) patterns.set(key, { k, b: bb });
+      }
+    }
+    const adds: { key: string; k: string; v: unknown }[] = [];
     for (const [k, v] of Object.entries(map)) {
       const here = [...at, k];
       if (!known(k, here)) continue;
       const names = open(k, b);
+      if (!names.length) {
+        const p = patterns.get(fill(k, b, here));
+        if (p && p.k !== k) {
+          adds.push({ key: fill(k, b, here), k, v });
+          continue;
+        }
+      }
       for (const extra of combinations(names, lists)) {
         const bb = { ...b, ...extra };
         const key = fill(k, bb, here);
@@ -243,6 +331,25 @@ export function expandEach(input: unknown): Expansion | undefined {
         trace.kids.set(key, t);
         out[key] = value(v, bb, here, t);
       }
+    }
+    for (const { key, k, v } of adds) {
+      const here = [...at, k];
+      const p = patterns.get(key)!;
+      if (v == null || !(key in out)) continue;
+      if (!isMap(v)) {
+        problem(here, `"${key}" is written by ${p.k} too: write what it adds to that in { }, like ${k}: { tags: [pii] }`);
+        continue;
+      }
+      if (!isMap(out[key])) {
+        problem(here, `"${key}" is written by ${p.k} as one value: write that as { kind: … } for ${k} to add to it`);
+        continue;
+      }
+      // Filled in with the values of the entry it adds to: <domain> in orders_prod is orders, as in the pattern.
+      const wt: Trace = { src: k };
+      const wv = value(v, p.b, here, wt);
+      const m = merge(out[key], trace.kids.get(key), wv, wt, here, b);
+      out[key] = m.v;
+      trace.kids.set(key, m.t);
     }
     return out;
   };
@@ -267,7 +374,12 @@ export function expandEach(input: unknown): Expansion | undefined {
           out.push(...path.slice(i));
           break;
         }
-        out.push(next.src);
+        if (next.abs) {
+          // Added by an entry written out by hand: it is written there, for the values of the entries around it.
+          out.splice(0, out.length, ...next.abs);
+          binding = next.outer;
+          entry = undefined;
+        } else out.push(next.src);
         if (next.binding) (binding = next.binding), (entry = path.slice(0, i + 1));
         t = next;
       }
