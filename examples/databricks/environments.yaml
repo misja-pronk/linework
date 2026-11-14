@@ -17,22 +17,23 @@ subtitle: Northwind lakehouse · one bundle goes from Git through dev and test, 
 #              to dbw-lakehouse-<env> alone
 #   gate       the GitHub environment prod has required reviewers, and only a job in it gets a token for sp-lakehouse-prod
 #   rollback   the previous release tag is deployed again
+# A lane per workspace, named as in Azure; each deploy is captioned with the service principal it signs in as.
+each:
+  env: [dev, test, prod]
 lanes:
   github: GitHub
-  dev: Dev workspace
-  test: Test workspace
-  prod: Production workspace
+  <env>: dbw-lakehouse-<env>
 
 nodes:
   Pull request: { in: github, kind: start, caption: a change to the bundle }
   # Each deploy is a GitHub Actions job that signs in with OIDC as the environment's service principal.
-  Deploy a copy: { in: dev, kind: service, caption: "dbw-lakehouse-dev · [pr-<number>]" }
+  Deploy a copy: { in: dev, kind: service, caption: 'sp-lakehouse-dev · [pr-\<number>]' }
   Reviewed and merged: { in: github, kind: user, caption: into main }
-  Deploy to test: { in: test, kind: service, caption: dbw-lakehouse-test }
+  Deploy to test: { in: test, kind: service, caption: sp-lakehouse-test }
   Run pipelines: { in: test, kind: script, caption: a red run stops it }
   # The prod environment has required reviewers: the run waits at the gate until one of them approves.
   Release approved?: { in: github, caption: a required reviewer }
-  Deploy to prod: { in: prod, kind: service, caption: dbw-lakehouse-prod }
+  Deploy to prod: { in: prod, kind: service, caption: sp-lakehouse-prod }
   Smoke test green?: prod
   Live in prod: { in: prod, kind: end }
   Release stopped: { in: github, kind: end }
@@ -49,7 +50,7 @@ steps:
   - title: One bundle, three workspaces
     caption: One bundle goes to each workspace as that environment's service principal; each catalog is bound to one workspace.
   - title: Every pull request
-    caption: Actions signs in with OIDC as sp-lakehouse-dev and deploys a copy named [pr-<number>], so no PR overwrites another.
+    caption: Actions signs in with OIDC as sp-lakehouse-dev and deploys a copy named [pr-\<number>], so no PR overwrites another.
     path: Pull request -> Deploy a copy
   - title: Test
     caption: Green and reviewed, the change is merged; sp-lakehouse-test deploys it and runs the pipelines on the _test catalogs.

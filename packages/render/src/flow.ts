@@ -83,8 +83,9 @@ export function flowSize(shape: FlowShape, theme: Theme): NodeSize {
 /** A lane's name as the theme writes group names (capitals, tracking), wrapped to a width. */
 function laneName(label: string, theme: Theme, width: number, max: number) {
   const lab = groupLabel(theme, label);
-  // Tracking widens every letter; a line of a lane name has about a dozen.
-  const lines = wrapText(lab.text, lab.size, 600, width - lab.tracking * 12, max);
+  // Tracking widens every letter; a line of a lane name has about a dozen. A name without spaces
+  // (a workspace, dbw-lakehouse-prod) breaks after its hyphens.
+  const lines = wrapText(lab.text, lab.size, 600, width - lab.tracking * 12, max, true);
   return { ...lab, lines, wide: Math.max(0, ...lines.map((l) => measureText(l, lab.size, 600, 'sans', lab.tracking))) };
 }
 
@@ -99,6 +100,9 @@ export function laneHeader(g: Pick<GraphGroup, 'label' | 'description'>, theme: 
   const note = g.description ? Math.min(l.max - 2 * l.padX, measureText(g.description, look(theme).group.size, 400)) : 0;
   return Math.min(l.max, Math.max(l.min, even(Math.max(name, note) + 2 * l.padX)));
 }
+
+/** How many lines a lane's name takes in its header, where lanes are rows. */
+export const laneNameLines = (g: Pick<GraphGroup, 'label'>, theme: Theme) => laneName(g.label, theme, FLOW.lane.max - 2 * FLOW.lane.padX, 3).lines.length;
 
 /** How tall a lane across must be for its header's words: the name, then the description under it. */
 export function laneHeight(g: Pick<GraphGroup, 'label' | 'description'>, theme: Theme, header: number): number {

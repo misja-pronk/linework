@@ -3,17 +3,17 @@ Who reads production (2 of 2)
 Unity Catalog access diagram: Northwind lakehouse · each team reads its catalog, the jobs own it, engineers BROWSE, analysts read gold. A table of 10 rows by 5 columns.
 
 By row (domain by where)
-Columns: engineers, <domain>-team, analysts, sp-lakehouse-prod and analysts.
-- payroll: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
-- pricing: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
-- inventory: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
-- returns: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
-- loyalty: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
-- fraud: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
-- support: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
-- products: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
-- partners: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
-- risk: engineers: BROWSE; <domain>-team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+Columns: engineers, Domain team, analysts, sp-lakehouse-prod and analysts.
+- payroll: engineers: BROWSE; Domain team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- pricing: engineers: BROWSE; Domain team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- inventory: engineers: BROWSE; Domain team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- returns: engineers: BROWSE; Domain team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- loyalty: engineers: BROWSE; Domain team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- fraud: engineers: BROWSE; Domain team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- support: engineers: BROWSE; Domain team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- products: engineers: BROWSE; Domain team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- partners: engineers: BROWSE; Domain team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
+- risk: engineers: BROWSE; Domain team: Read catalog; analysts: Use catalog; sp-lakehouse-prod: Owner; analysts: Read schema
 
 Layers
 Ways to look at this drawing by tag.

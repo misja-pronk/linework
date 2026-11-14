@@ -2,7 +2,7 @@
 # One VNet-injected workspace per environment, shared by the domains; one Unity Catalog metastore. Per domain and
 # environment an ISOLATED catalog bound to its workspace, a storage account, a credential and an external location.
 # A name with <domain> or <env> is written once per value of that list under each:, so a domain is one line there,
-# and an environment is a line under env: (and under staging: when it sits between dev and prod).
+# and an environment is a line under env: with its address space and who owns its catalogs.
 # Data-flow relations describe production; storage, binding and network relations are given for every environment.
 type: model
 title: Northwind lakehouse
@@ -15,12 +15,12 @@ each:
     sales: { team: Sales analytics team, runs: Nightly }
     customers: { team: CRM team, runs: Nightly }
     supply: { team: Supply chain data team, runs: SFTP connector · hourly }
+  # owner: who owns the environment's catalogs in Unity Catalog: the domain team in dev, the environment's service
+  # principal from test on, so only a reviewed release changes data there (governance.yaml)
   env:
-    dev: { cidr: 10.1.8.0/22, host: 10.1.8.0/24, container: 10.1.9.0/24, pep: 10.1.10.0/27 }
-    test: { cidr: 10.1.12.0/22, host: 10.1.12.0/24, container: 10.1.13.0/24, pep: 10.1.14.0/27 }
-    prod: { cidr: 10.1.16.0/21, host: 10.1.16.0/23, container: 10.1.18.0/23, pep: 10.1.20.0/27 }
-  # The environments between dev and prod: a release is tested there, and their service principal owns the catalogs
-  staging: [test]
+    dev: { cidr: 10.1.8.0/22, host: 10.1.8.0/24, container: 10.1.9.0/24, pep: 10.1.10.0/27, owner: <domain>-team }
+    test: { cidr: 10.1.12.0/22, host: 10.1.12.0/24, container: 10.1.13.0/24, pep: 10.1.14.0/27, owner: sp-lakehouse-<env> }
+    prod: { cidr: 10.1.16.0/21, host: 10.1.16.0/23, container: 10.1.18.0/23, pep: 10.1.20.0/27, owner: sp-lakehouse-<env> }
 
 elements:
   # Teams
@@ -75,69 +75,18 @@ elements:
     owner: platform-team
     elements:
       system: { kind: catalog, label: system, description: System tables for billing and audit and lineage }
-      # A catalog's Unity Catalog owner: the domain team in dev, the environment's service principal in test and
-      # prod (governance.yaml). Production's gold holds the tables the diagrams name, so prod is written per domain.
-      <domain>_dev: { kind: catalog, label: <domain>_dev, owner: <domain>-team, tags: [dev], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      <domain>_<staging>: { kind: catalog, label: <domain>_<staging>, owner: sp-lakehouse-<staging>, tags: [<staging>], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
-      orders_prod:
-        kind: catalog
-        label: orders_prod
-        owner: sp-lakehouse-prod
-        tags: [prod]
-        elements:
-          bronze: { kind: schema, label: bronze }
-          silver: { kind: schema, label: silver }
-          gold: { kind: schema, label: gold, elements: { orders: { kind: table, label: orders } } }
-      webshop_prod:
-        kind: catalog
-        label: webshop_prod
-        owner: sp-lakehouse-prod
-        tags: [prod]
-        elements:
-          bronze: { kind: schema, label: bronze }
-          silver: { kind: schema, label: silver }
-          gold: { kind: schema, label: gold, elements: { sessions: { kind: table, label: sessions } } }
-      finance_prod:
-        kind: catalog
-        label: finance_prod
-        owner: sp-lakehouse-prod
-        tags: [prod]
-        elements:
-          bronze: { kind: schema, label: bronze }
-          silver: { kind: schema, label: silver }
-          gold: { kind: schema, label: gold, elements: { revenue: { kind: table, label: revenue } } }
-      sales_prod:
-        kind: catalog
-        label: sales_prod
-        owner: sp-lakehouse-prod
-        tags: [prod]
-        elements:
-          bronze: { kind: schema, label: bronze }
-          silver: { kind: schema, label: silver }
-          gold: { kind: schema, label: gold, elements: { sell_through: { kind: table, label: sell_through } } }
-      customers_prod:
-        kind: catalog
-        label: customers_prod
-        owner: sp-lakehouse-prod
-        tags: [prod]
-        elements:
-          bronze: { kind: schema, label: bronze }
-          silver: { kind: schema, label: silver }
-          gold: { kind: schema, label: gold, elements: { customers: { kind: table, label: customers, tags: [pii] } } }
+      # A catalog per domain and environment, owned as its environment says; production's gold holds the tables
+      # the diagrams name, added to the catalog the pattern writes
+      <domain>_<env>: { kind: catalog, label: <domain>_<env>, owner: <env.owner>, tags: [<env>], elements: { bronze: { kind: schema, label: bronze }, silver: { kind: schema, label: silver }, gold: { kind: schema, label: gold } } }
+      orders_prod: { elements: { gold: { elements: { orders: { kind: table, label: orders } } } } }
+      webshop_prod: { elements: { gold: { elements: { sessions: { kind: table, label: sessions } } } } }
+      finance_prod: { elements: { gold: { elements: { revenue: { kind: table, label: revenue } } } } }
+      sales_prod: { elements: { gold: { elements: { sell_through: { kind: table, label: sell_through } } } } }
+      customers_prod: { elements: { gold: { elements: { customers: { kind: table, label: customers, tags: [pii] } } } } }
       supply_prod:
-        kind: catalog
-        label: supply_prod
-        owner: sp-lakehouse-prod
-        tags: [prod]
         elements:
-          bronze: { kind: schema, label: bronze, elements: { supplier_files: { kind: table, label: supplier_files } } }
-          silver: { kind: schema, label: silver }
-          gold:
-            kind: schema
-            label: gold
-            elements:
-              stock_levels: { kind: table, label: stock_levels }
-              demand_forecast: { kind: registered-model, label: demand_forecast }
+          bronze: { elements: { supplier_files: { kind: table, label: supplier_files } } }
+          gold: { elements: { stock_levels: { kind: table, label: stock_levels }, demand_forecast: { kind: registered-model, label: demand_forecast } } }
       # Storage credentials and external locations, per domain and environment and ISOLATED like the catalogs, as the
       # Unity Catalog deployment guide advises (docs/research/databricks-2026.md §5). A credential uses its environment's
       # access connector, so domains are kept apart in Unity Catalog, not in Azure RBAC. <domain>_<env>_catalog is the
