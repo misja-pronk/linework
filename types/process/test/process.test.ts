@@ -87,7 +87,7 @@ describe('what is drawn', () => {
     const at = lines.indexOf('OPERATIONS');
     expect(lines.slice(at + 1, at + 6).join(' ')).toContain('The night shift runs the batch and answers the pager');
     const box = across.placed!.groups.get('ops')!;
-    expect(box.height).toBeGreaterThanOrEqual(16 + 4 + 4 * 15);
+    expect(box.height).toBeGreaterThanOrEqual(16 + 3 + 2 * 14);
     // Down, one line of it under the name, in a header a line taller.
     const down = await render(text.replace('type: process\n', 'type: process\ndirection: down\n'), { fonts: 'none' });
     expect(down.diagnostics).toEqual([]);

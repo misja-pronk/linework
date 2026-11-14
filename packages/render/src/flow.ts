@@ -88,15 +88,15 @@ function laneName(label: string, theme: Theme, width: number, max: number) {
   return { ...lab, lines, wide: Math.max(0, ...lines.map((l) => measureText(l, lab.size, 600, 'sans', lab.tracking))) };
 }
 
-/** A lane's description: its own words under its name, in the caption's size, as a card's caption. */
-const NOTE = { line: 15, lines: 4, gap: 4 } as const;
-const laneNote = (g: Pick<GraphGroup, 'description'>, theme: Theme, width: number, max: number) => (g.description && max > 0 ? wrapText(g.description, theme.size.caption, 400, width, max) : []);
+/** A lane's description: its own words under its name, as large as the name (a group's words), not bold. */
+const NOTE = { line: 14, lines: 4, gap: 3 } as const;
+const laneNote = (g: Pick<GraphGroup, 'description'>, theme: Theme, width: number, max: number) => (g.description && max > 0 ? wrapText(g.description, look(theme).group.size, 400, width, max) : []);
 
 /** The width of a lane's header: its name (wrapped) and its description, with room around them. */
 export function laneHeader(g: Pick<GraphGroup, 'label' | 'description'>, theme: Theme): number {
   const l = FLOW.lane;
   const name = laneName(g.label, theme, l.max - 2 * l.padX, 3).wide;
-  const note = g.description ? Math.min(l.max - 2 * l.padX, measureText(g.description, theme.size.caption, 400)) : 0;
+  const note = g.description ? Math.min(l.max - 2 * l.padX, measureText(g.description, look(theme).group.size, 400)) : 0;
   return Math.min(l.max, Math.max(l.min, even(Math.max(name, note) + 2 * l.padX)));
 }
 
@@ -225,7 +225,7 @@ export function laneMarks(g: GraphGroup, b: Box, theme: Theme, across: boolean, 
   const rule = edge ?? theme.border;
   const ink = groupLabelInk(theme, tone);
   const m: JourneyMark[] = [{ t: 'rect', x: b.x, y: b.y, w: b.width, h: b.height, r: Math.min(theme.radius.group, 12), fill: groupFill(theme, 0, tone), ...(edge ? { stroke: edge, sw: theme.stroke.group } : {}), dash: g.border === 'dashed', name: g.label }];
-  const caption = { size: theme.size.caption, weight: 400 as const, fill: theme.textMuted, lh: NOTE.line };
+  const caption = { size: look(theme).group.size, weight: 400 as const, fill: theme.textMuted, lh: NOTE.line };
   if (across) {
     const name = laneName(g.label, theme, l.max - 2 * l.padX, Math.max(1, Math.min(3, Math.floor((b.height - 8) / l.line))));
     // The description under the name, in as many lines as the lane has room for (four at most).
