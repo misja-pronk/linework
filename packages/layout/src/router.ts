@@ -358,8 +358,11 @@ function slideEnds(input: RouterInput, routes: Map<string, PlacedEdge>, sides: M
 /**
  * Two lines into one side of a card (or out of it) that each turn onto the side's last stretch from
  * a lane of their own, and cross on the way there: the line that runs in on the outer lane took the
- * inner port. Each takes the other's lane and port (the piece before stretches or shrinks to reach
- * it), when that crosses less and runs through no card. The search cannot see this: it routes one
+ * inner port, or the two came to their lanes the other way round. Each takes the other's lane and
+ * port (the piece before stretches or shrinks to reach it), only the other's port, or only the
+ * other's lane, whichever crosses least, when that is less than before and runs through no card.
+ * Two lines into different cards on sides that face the same way (two endpoints, each to the card
+ * it serves) can swap lanes the same way. The search cannot see this: it routes one
  * line at a time, and the first one takes the lane nearest its port.
  */
 function untangleEnds(input: RouterInput, routes: Map<string, PlacedEdge>, sides: Map<string, [Side, Side]>, trunk: Map<string, string>, free: Set<string>) {
@@ -388,10 +391,13 @@ function untangleEnds(input: RouterInput, routes: Map<string, PlacedEdge>, sides
     return n;
   };
   for (const [i, a] of list.entries())
-    for (const b of list.slice(i + 1))
+    // (Only pairs that cross at all: most do not.)
+    for (const b of list.slice(i + 1).filter((o) => crossEach(routes.get(a.id)!.points, routes.get(o.id)!.points)))
       for (const ka of ['from', 'to'] as const)
         for (const kb of ['from', 'to'] as const) {
-          if (a[ka].node !== b[kb].node || a[ka].rowY != null || b[kb].rowY != null) continue;
+          // Into (or out of) one side of one card; or sides facing the same way, where only the lanes can change.
+          const one = a[ka].node === b[kb].node;
+          if (a[ka].rowY != null || b[kb].rowY != null) continue;
           const side = sides.get(a.id)![ka === 'from' ? 0 : 1];
           if (side !== sides.get(b.id)![kb === 'from' ? 0 : 1]) continue;
           // Each line with the shared end last.
@@ -403,26 +409,34 @@ function untangleEnds(input: RouterInput, routes: Map<string, PlacedEdge>, sides
           const across = along === 'x' ? 'y' : 'x';
           const lane = (p: Point[]) => p[p.length - 2]![across];
           const port = (p: Point[]) => p[p.length - 1]![along];
-          const swap = (p: Point[], q: Point[], stub: number): Point[] | undefined => {
+          // p takes q's lane, or port, or both.
+          const swap = (p: Point[], q: Point[], stub: number, lanes: boolean, ports: boolean): Point[] | undefined => {
             const n = p.length;
             const [before, corner] = [p[n - 4]!, p[n - 3]!];
             // The last stretch runs along the side's normal; the one before it along the side.
             if (p[n - 2]![along] !== p[n - 1]![along] || corner[across] !== p[n - 2]![across] || before[along] !== corner[along]) return undefined;
-            const moved = { ...corner, [across]: lane(q) };
+            const to = lanes ? lane(q) : lane(p);
+            const moved = { ...corner, [across]: to };
             // The piece before keeps its direction, and the end keeps room for its mark.
             if (Math.sign(moved[across] - before[across]) !== Math.sign(corner[across] - before[across])) return undefined;
-            const end = { ...p[n - 1]!, [along]: port(q) };
-            if (Math.abs(end[across] - lane(q)) < stub) return undefined;
-            return [...p.slice(0, n - 3), moved, { ...end, [across]: lane(q) }, end];
+            const end = { ...p[n - 1]!, [along]: ports ? port(q) : port(p) };
+            if (Math.abs(end[across] - to) < stub) return undefined;
+            return [...p.slice(0, n - 3), moved, { ...end, [across]: to }, end];
           };
-          const na = swap(pa, pb, a[ka].stub);
-          const nb = swap(pb, pa, b[kb].stub);
-          if (!na || !nb || hits(na, [a.from.node, a.to.node]) || hits(nb, [b.from.node, b.to.node]) || borders(na) + borders(nb) > borders(pa) + borders(pb)) continue;
           const was = [routes.get(a.id)!, routes.get(b.id)!];
-          const before = crossingsOf([a.id, b.id]);
-          routes.set(a.id, { points: simplify(ka === 'to' ? na : na.reverse()) });
-          routes.set(b.id, { points: simplify(kb === 'to' ? nb : nb.reverse()) });
-          if (crossingsOf([a.id, b.id]) >= before) routes.set(a.id, was[0]!), routes.set(b.id, was[1]!);
+          let best = crossingsOf([a.id, b.id]);
+          let kept: [PlacedEdge, PlacedEdge] = [was[0]!, was[1]!];
+          // Each the other's lane and port, or only the other's port (each keeps its lane), or only the other's lane.
+          for (const [lanes, ports] of one ? [[true, true], [false, true], [true, false]] : [[true, false]]) {
+            const na = swap(pa, pb, a[ka].stub, lanes!, ports!);
+            const nb = swap(pb, pa, b[kb].stub, lanes!, ports!);
+            if (!na || !nb || hits(na, [a.from.node, a.to.node]) || hits(nb, [b.from.node, b.to.node]) || borders(na) + borders(nb) > borders(pa) + borders(pb)) continue;
+            const tried: [PlacedEdge, PlacedEdge] = [{ points: simplify(ka === 'to' ? na : na.reverse()) }, { points: simplify(kb === 'to' ? nb : nb.reverse()) }];
+            routes.set(a.id, tried[0]).set(b.id, tried[1]);
+            const n = crossingsOf([a.id, b.id]);
+            if (n < best) [best, kept] = [n, tried];
+          }
+          routes.set(a.id, kept[0]).set(b.id, kept[1]);
         }
 }
 
