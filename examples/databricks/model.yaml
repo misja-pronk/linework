@@ -390,6 +390,7 @@ relations:
   - uc-weu.sales_prod.gold -> lakehouse.bi-warehouse: { style: data }
   - uc-weu.finance_prod.gold -> lakehouse.bi-warehouse: { style: data }
   - uc-weu.customers_prod.gold -> lakehouse.bi-warehouse: { style: data }
+  - uc-weu.webshop_prod.gold -> lakehouse.bi-warehouse: { style: data }
   - lakehouse.bi-warehouse -> power-bi: { label: DirectQuery, style: data }
   - power-bi -> analysts: { label: Reports, style: data }
   - lakehouse.bi-warehouse -> lakehouse.customer-360: { label: SQL, style: data }
