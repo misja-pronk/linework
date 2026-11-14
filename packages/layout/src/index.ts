@@ -853,7 +853,10 @@ function drawings(sized: Sized, spacing: Spacing, tuning: Tuning, name: string, 
     const straightened = straighten ? alignPorts(q, graph, sized.nodes, sized.groupHeader, spacing.groupPad) : q;
     const tidied = tuning.tidy === false ? straightened : tidy(straightened, graph, sized.groupHeader, spacing.groupPad, spacing.nodeGap, sized.groupMinWidth);
     const opened = graph.direction === 'down' && tuning.tidy !== false ? chimneys(tidied, sized) : tidied;
-    const start = landingRoom(tuning.tidy === false ? opened : alignLoners(evenGroups(opened, graph, spacing.groupPad), graph, spacing.layerGap), graph, spacing.groupPad);
+    const even = tuning.tidy === false ? opened : alignLoners(evenGroups(opened, graph, spacing.groupPad), graph, spacing.layerGap);
+    const landed = landingRoom(even, graph, spacing.groupPad);
+    // Room made in a group moves what it holds: what was straightened to those cards is again.
+    const start = straighten && landed !== even ? alignPorts(landed, graph, sized.nodes, sized.groupHeader, spacing.groupPad) : landed;
     // Ways of asking dot, mirrors, packing and straightening often come to the very same boxes:
     // those are routed once (routing is most of what a layout costs).
     const sig = boxesKey(start);
