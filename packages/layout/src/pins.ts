@@ -1,6 +1,6 @@
 // Manual tweaks from the sidecar: pinned nodes keep the position people dragged them to and groups
 // grow to keep holding their children. Runs before routing, so lines follow the moved nodes.
-import type { Box, Graph, LayoutSidecar } from '@cartography/core';
+import type { Box, Graph, LayoutSidecar } from '@linework/core';
 import type { Placement } from './dot.ts';
 
 export function applyPins(p: Placement, graph: Graph, sidecar: LayoutSidecar | undefined, header: number, pad: number, gap = 24): Placement & { nudged?: string[] } {

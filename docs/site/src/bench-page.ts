@@ -5,8 +5,8 @@ import { escape } from './highlight.ts';
 import type { Results, ToolId, ToolResult } from './bench.ts';
 
 const COLOR: Record<string, string> = {
-  cartography: 'var(--c-carto)',
-  'cartography-kept': 'var(--c-carto-kept)',
+  linework: 'var(--c-linework)',
+  'linework-kept': 'var(--c-linework-kept)',
   mermaid: 'var(--c-mermaid)',
   'd2-dagre': 'var(--c-dagre)',
   'd2-elk': 'var(--c-elk)',
@@ -69,7 +69,7 @@ function strip(title: string, note: string, r: Results, tools: Results['tools'],
           const n = seen.get(key) ?? 0;
           seen.set(key, n + 1);
           const dx = n * 9;
-          return `<circle cx="${(x(v) + dx).toFixed(1)}" cy="${y}" r="${t.id === 'cartography' ? 5.5 : 4.5}" fill="${COLOR[t.id]}"${t.id === 'cartography' ? ' stroke="var(--card)" stroke-width="1.5"' : ' opacity="0.9"'}><title>${escape(t.name)}: ${format(v)}</title></circle>`;
+          return `<circle cx="${(x(v) + dx).toFixed(1)}" cy="${y}" r="${t.id === 'linework' ? 5.5 : 4.5}" fill="${COLOR[t.id]}"${t.id === 'linework' ? ' stroke="var(--card)" stroke-width="1.5"' : ' opacity="0.9"'}><title>${escape(t.name)}: ${format(v)}</title></circle>`;
         })
         .join('');
       return `<line x1="${labelW + 10}" x2="${w - 20}" y1="${y}" y2="${y}" stroke="var(--line-soft)" stroke-dasharray="2 3"/><text x="0" y="${y + 4}" font-size="12.5">${escape(c.title)}</text>${dots}`;
@@ -92,18 +92,18 @@ export function benchmarkCharts(r: Results): string {
   const { tools, of } = totals(r);
   const series = (pick: (x: ToolResult) => number | undefined, agg: (v: number[]) => number) => tools.map((t) => ({ id: t.id, name: t.name, value: agg(of(t.id, pick)) }));
   const int = (v: number) => String(Math.round(v));
-  const disp = [...series((x) => (x.edit ? x.edit.mean * 100 : undefined), median), { id: 'cartography-kept', name: 'Cartography, kept', value: median(of('cartography', (x) => (x.editKept ? x.editKept.mean * 100 : undefined))) }];
-  const carto = r.cases.map((c) => c.results.cartography);
+  const disp = [...series((x) => (x.edit ? x.edit.mean * 100 : undefined), median), { id: 'linework-kept', name: 'Linework, kept', value: median(of('linework', (x) => (x.editKept ? x.editKept.mean * 100 : undefined))) }];
+  const linework = r.cases.map((c) => c.results.linework);
   const lostCrossings = r.cases.filter((c) => {
-    const mine = c.results.cartography?.metrics?.crossings;
-    const others = tools.filter((t) => t.id !== 'cartography').map((t) => c.results[t.id]?.metrics?.crossings).filter((v): v is number => v != null);
+    const mine = c.results.linework?.metrics?.crossings;
+    const others = tools.filter((t) => t.id !== 'linework').map((t) => c.results[t.id]?.metrics?.crossings).filter((v): v is number => v != null);
     return mine != null && others.length && mine > Math.min(...others);
   });
   const tiles = [
-    [int(sum(of('cartography', (x) => x.metrics?.crossings))), `crossings for Cartography over ${r.cases.length} diagrams; best other tool ${int(Math.min(...tools.filter((t) => t.id !== 'cartography').map((t) => sum(of(t.id, (x) => x.metrics?.crossings)))))}`],
+    [int(sum(of('linework', (x) => x.metrics?.crossings))), `crossings for Linework over ${r.cases.length} diagrams; best other tool ${int(Math.min(...tools.filter((t) => t.id !== 'linework').map((t) => sum(of(t.id, (x) => x.metrics?.crossings)))))}`],
     [String(lostCrossings.length), `diagrams where another tool crosses fewer lines: ${lostCrossings.map((c) => c.title).join(', ') || 'none'}`],
-    [`${median(carto.map((x) => (x?.editKept?.mean ?? 0) * 100)).toFixed(1)} %`, 'median movement after an edit when Cartography keeps the drawing before (from scratch: ' + `${median(carto.map((x) => (x?.edit?.mean ?? 0) * 100)).toFixed(1)} %)`],
-    [String(sum(of('cartography', (x) => (x.metrics ? x.metrics.labelOverlaps + x.metrics.throughShapes + x.metrics.touches : undefined)))), 'labels on shapes, lines through shapes and touching lines, Cartography, all diagrams'],
+    [`${median(linework.map((x) => (x?.editKept?.mean ?? 0) * 100)).toFixed(1)} %`, 'median movement after an edit when Linework keeps the drawing before (from scratch: ' + `${median(linework.map((x) => (x?.edit?.mean ?? 0) * 100)).toFixed(1)} %)`],
+    [String(sum(of('linework', (x) => (x.metrics ? x.metrics.labelOverlaps + x.metrics.throughShapes + x.metrics.touches : undefined)))), 'labels on shapes, lines through shapes and touching lines, Linework, all diagrams'],
   ];
   return `<div class="summary">${tiles.map(([b, s]) => `<div><b>${b}</b><small>${escape(s!)}</small></div>`).join('')}</div>
 <div class="bench-charts">
@@ -116,7 +116,7 @@ ${bars('White space', 'Median drawing area per shape area. Lower is tighter.', s
 ${bars('Movement after an edit', 'Median movement of the shapes that were there, % of the diagonal.', disp, (v) => `${v.toFixed(1)}%`)}
 </div>
 ${strip('Crossings per diagram', 'Each dot is a tool. Dots on the same value sit side by side.', r, tools, (x) => x.metrics?.crossings, (v) => String(Math.round(v)))}
-${strip('Movement after one edit, per diagram', 'Drawn from scratch by every tool, % of the diagonal. Cartography drawn knowing the drawing before is in the table below.', r, tools, (x) => (x.edit ? x.edit.mean * 100 : undefined), (v) => `${v.toFixed(0)}%`)}`;
+${strip('Movement after one edit, per diagram', 'Drawn from scratch by every tool, % of the diagonal. Linework drawn knowing the drawing before is in the table below.', r, tools, (x) => (x.edit ? x.edit.mean * 100 : undefined), (v) => `${v.toFixed(0)}%`)}`;
 }
 
 /** The drawings that were measured, case by case. */
@@ -135,20 +135,20 @@ export function benchmarkDrawings(r: Results, href: (file: string) => string): s
 /** Three numbers for the home page, with the losses next to the wins. */
 export function benchmarkTeaser(r: Results): string {
   const { tools, of } = totals(r);
-  const others = tools.filter((t) => t.id !== 'cartography');
-  const crossings = sum(of('cartography', (x) => x.metrics?.crossings));
+  const others = tools.filter((t) => t.id !== 'linework');
+  const crossings = sum(of('linework', (x) => x.metrics?.crossings));
   const bestOther = others.map((t) => ({ t, v: sum(of(t.id, (x) => x.metrics?.crossings)) })).sort((a, b) => a.v - b.v)[0];
   const lost = r.cases.filter((c) => {
-    const mine = c.results.cartography?.metrics?.crossings;
+    const mine = c.results.linework?.metrics?.crossings;
     const o = others.map((t) => c.results[t.id]?.metrics?.crossings).filter((v): v is number => v != null);
     return mine != null && o.length && mine > Math.min(...o);
   });
-  const kept = median(of('cartography', (x) => (x.editKept ? x.editKept.mean * 100 : undefined)));
-  const fresh = median(of('cartography', (x) => (x.edit ? x.edit.mean * 100 : undefined)));
+  const kept = median(of('linework', (x) => (x.editKept ? x.editKept.mean * 100 : undefined)));
+  const fresh = median(of('linework', (x) => (x.edit ? x.edit.mean * 100 : undefined)));
   return `<section class="band">
-  <div class="band-head"><p class="eyebrow">Measured, not claimed</p><h2>The same ${r.cases.length} diagrams, five layout engines</h2><p>Cartography against Mermaid and D2 (dagre, ELK, TALA), measured from each tool's own SVG. Including the cases where it loses.</p></div>
+  <div class="band-head"><p class="eyebrow">Measured, not claimed</p><h2>The same ${r.cases.length} diagrams, five layout engines</h2><p>Linework against Mermaid and D2 (dagre, ELK, TALA), measured from each tool's own SVG. Including the cases where it loses.</p></div>
   <div class="summary">
-    <div><b>${crossings}</b><small>line crossings in total for Cartography; ${bestOther ? `${escape(bestOther.t.name)}, the best of the others, ${bestOther.v}` : ''}</small></div>
+    <div><b>${crossings}</b><small>line crossings in total for Linework; ${bestOther ? `${escape(bestOther.t.name)}, the best of the others, ${bestOther.v}` : ''}</small></div>
     <div><b>${lost.length} of ${r.cases.length}</b><small>diagrams where another tool crosses fewer lines${lost.length ? `: ${escape(lost.map((c) => c.title).join(', '))}` : ''}</small></div>
     <div><b>${kept.toFixed(1)} %</b><small>median movement after adding one shape, when the editor keeps the drawing before (${fresh.toFixed(1)} % from scratch)</small></div>
   </div>

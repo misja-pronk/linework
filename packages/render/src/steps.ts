@@ -3,8 +3,8 @@
 // caption, the "3 / 7" marker and callouts take the same room at every step so nothing jumps.
 import { esc } from './paint.ts';
 import { BREAK } from './size.ts';
-import type { Box, Placed, Point, StepNote, StepState } from '@cartography/core';
-import { baselineOffset, hex, measureText, mix, parseColor, type Theme } from '@cartography/theme';
+import type { Box, Placed, Point, StepNote, StepState } from '@linework/core';
+import { baselineOffset, hex, measureText, mix, parseColor, type Theme } from '@linework/theme';
 
 export interface StepView {
   /** The step drawn, from 0. */

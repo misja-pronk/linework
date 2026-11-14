@@ -14,7 +14,7 @@ export interface TemplateChoice {
   keepLook?: boolean;
 }
 
-const DB = 'cartography-pptx';
+const DB = 'linework-pptx';
 const keyOf = (ws: Workspace | undefined) => (ws ? `folder:${ws.name}` : 'no-folder');
 
 function db(): Promise<IDBDatabase> {

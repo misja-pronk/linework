@@ -1,8 +1,8 @@
-name: Cartography diagrams
+name: Linework diagrams
 description: >-
   Shows what a pull request changes in your architecture diagrams, as a picture and in words,
   in one comment. On push it can draw every diagram to SVG or PNG. No Docker, no browser.
-author: Cartography
+author: Linework
 branding:
   icon: map
   color: blue
@@ -11,12 +11,12 @@ inputs:
   mode:
     description: >-
       auto: diff on pull requests, render on anything else. diff: compare with `base` and report.
-      render: draw every diagram. setup: only install, and put `carto` on the PATH for later steps.
+      render: draw every diagram. setup: only install, and put `linework` on the PATH for later steps.
     default: auto
   files:
     description: >-
       Which files may be diagrams: git globs, one per line or comma separated, "!" in front to leave
-      some out. Only YAML files with a `type:` Cartography draws are taken. Default: every YAML file.
+      some out. Only YAML files with a `type:` Linework draws are taken. Default: every YAML file.
     default: ''
   views:
     description: Also compare (diff) or draw (render) every view of a diagram.
@@ -34,7 +34,7 @@ inputs:
     default: auto
   image-branch:
     description: The branch that holds the pictures. It holds one commit, no history.
-    default: cartography-diffs
+    default: linework-diffs
   comment:
     description: 'diff: keep one comment on the pull request up to date (needs pull-requests: write).'
     default: 'true'
@@ -68,7 +68,7 @@ inputs:
     default: auto
   artifact-name:
     description: The name of that artifact.
-    default: cartography-diagrams
+    default: linework-diagrams
   fail-on-error:
     description: Fail the step when a diagram has errors.
     default: 'true'
@@ -111,12 +111,12 @@ runs:
         node-version: 24
 
     # The action runs from source: its own packages and what they need, nothing of your project.
-    - name: Install Cartography
+    - name: Install Linework
       shell: bash
       working-directory: ${{ github.action_path }}/../..
       run: |
         corepack enable pnpm 2>/dev/null || npm install --global pnpm@10
-        pnpm install --frozen-lockfile --prod --filter "@cartography/action..." --reporter=append-only
+        pnpm install --frozen-lockfile --prod --filter "@linework/action..." --reporter=append-only
         echo "${{ github.action_path }}/bin" >> "$GITHUB_PATH"
 
     # Inputs go in as environment variables, never pasted into the script: a branch or file name
@@ -143,8 +143,8 @@ runs:
         INPUT_ARTIFACT_NAME: ${{ inputs.artifact-name }}
         INPUT_FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
         INPUT_TOKEN: ${{ inputs.token }}
-        CARTO_ACTION: ${{ github.action_path }}
-      run: '"$CARTO_ACTION/node_modules/.bin/tsx" "$CARTO_ACTION/src/main.ts"'
+        LINEWORK_ACTION: ${{ github.action_path }}
+      run: '"$LINEWORK_ACTION/node_modules/.bin/tsx" "$LINEWORK_ACTION/src/main.ts"'
 
     - name: Upload the pictures
       if: >-

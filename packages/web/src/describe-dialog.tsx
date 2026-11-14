@@ -2,7 +2,7 @@
 // says it, to read here and to copy as text, as Markdown, or with the picture for Confluence and Notion.
 // T, M and C copy; Escape closes. The words come from the drawing on screen: its view, step and focus.
 import { useEffect, useState } from 'react';
-import type { Description, Item } from '@cartography/describe';
+import type { Description, Item } from '@linework/describe';
 import { Icon } from './icon.tsx';
 import { useModal } from './menu.tsx';
 import { t } from './i18n/index.ts';

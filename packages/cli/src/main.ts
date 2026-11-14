@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// carto render | deck | watch | validate | diff | new | export | share | icons | themes | types | describe | serve
+// linework render | deck | watch | validate | diff | new | export | share | icons | themes | types | describe | serve
 // The command line read once (args.ts), then the command it names (commands/), with its options and
 // the terminal (io.ts) passed in. run() is the whole CLI, so tests call it in-process.
 import fs from 'node:fs';
@@ -24,7 +24,7 @@ import pkg from '../package.json' with { type: 'json' };
 
 export type { Io } from './io.ts';
 
-/** carto with these arguments (without node and the script): the exit code. Writes only through `io`. */
+/** linework with these arguments (without node and the script): the exit code. Writes only through `io`. */
 export async function run(argv: string[], io: Io = processIo): Promise<number> {
   const langs = setLang(argv, io.env);
   const ctx = new Ctx(io, langs.explicit);
@@ -32,21 +32,21 @@ export async function run(argv: string[], io: Io = processIo): Promise<number> {
   const args = parse(argv);
   if ('error' in args) {
     // An unknown or malformed option: one line and how to see the right ones.
-    ctx.error(`carto: ${args.error}\n${args.command && h.has(args.command) ? t('Options: carto {command} --help', { command: args.command }) : t('Commands: carto --help')}`);
+    ctx.error(`linework: ${args.error}\n${args.command && h.has(args.command) ? t('Options: linework {command} --help', { command: args.command }) : t('Commands: linework --help')}`);
     return 1;
   }
   const { to } = args.values;
   if (args.typed === 'export' && to && !exportTo.includes(to)) {
-    const picture = ['svg', 'png', 'pptx', 'pdf'].includes(to) ? ` (a picture or deck: carto render <file> -o out.${to})` : '';
-    ctx.error(`carto: --to ${to} is not an export; use one of: ${exportTo.join(', ')}${picture}`);
+    const picture = ['svg', 'png', 'pptx', 'pdf'].includes(to) ? ` (a picture or deck: linework render <file> -o out.${to})` : '';
+    ctx.error(`linework: --to ${to} is not an export; use one of: ${exportTo.join(', ')}${picture}`);
     return 1;
   }
   try {
     return await dispatch(ctx, args, h, langs.bad);
   } catch (e) {
-    ctx.error(`carto: ${friendly(e)}`);
-    // The stack only when asked for: CARTO_DEBUG=1.
-    if (io.env.CARTO_DEBUG && !(e instanceof UsageError)) ctx.error((e as Error).stack);
+    ctx.error(`linework: ${friendly(e)}`);
+    // The stack only when asked for: LINEWORK_DEBUG=1.
+    if (io.env.LINEWORK_DEBUG && !(e instanceof UsageError)) ctx.error((e as Error).stack);
     return 1;
   }
 }
@@ -54,7 +54,7 @@ export async function run(argv: string[], io: Io = processIo): Promise<number> {
 async function dispatch(ctx: Ctx, { command, files, values }: Args, h: Help, badLang: string | undefined): Promise<number> {
   const unknown = (cmd: string) => (ctx.error(unknownCommand(cmd, h)), 1);
   if (badLang !== undefined) throw new UsageError(t('--lang is en or nl, not "{value}"', { value: badLang }));
-  if (values.version) return (ctx.log(`carto ${pkg.version}`), 0);
+  if (values.version) return (ctx.log(`linework ${pkg.version}`), 0);
   if (command === 'help') {
     const [what] = files;
     if (what === 'all') ctx.log(h.all);
@@ -104,10 +104,10 @@ async function dispatch(ctx: Ctx, { command, files, values }: Args, h: Help, bad
   }
 }
 
-// Run as a program (node carto.mjs, tsx main.ts, a bin link): the process's own arguments and terminal.
+// Run as a program (node linework.mjs, tsx main.ts, a bin link): the process's own arguments and terminal.
 const entry = process.argv[1] && fs.existsSync(process.argv[1]) ? fs.realpathSync(process.argv[1]) : undefined;
 if (entry && entry === fs.realpathSync(fileURLToPath(import.meta.url))) {
-  // A reader that stops early (carto render x.yaml -o - | head) wants no more: stop quietly, not with a stack.
+  // A reader that stops early (linework render x.yaml -o - | head) wants no more: stop quietly, not with a stack.
   process.stdout.on('error', (e: NodeJS.ErrnoException) => {
     if (e.code !== 'EPIPE') throw e;
     process.exit(0);

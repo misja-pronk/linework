@@ -1,11 +1,11 @@
 // Export and share: pictures, slides and pages, interactive HTML, a share link, copies for the
 // clipboard, the description in words. All from the document as it is in the editor now.
 import { useMemo } from 'react';
-import { SLIDE_MIN_PT } from '@cartography/engine';
-import { SHARE_LIMIT, shareLink, type LayoutSidecar } from '@cartography/core';
-import { themes } from '@cartography/theme';
+import { SLIDE_MIN_PT } from '@linework/engine';
+import { SHARE_LIMIT, shareLink, type LayoutSidecar } from '@linework/core';
+import { themes } from '@linework/theme';
 import { t, uiLang } from '../i18n/index.ts';
-import { listWords } from '@cartography/i18n';
+import { listWords } from '@linework/i18n';
 import { brand } from '../brand.ts';
 import { copyRich, describeResult } from '../describe.ts';
 import { folderBytes, useTemplateChoice } from '../pptx-template.tsx';

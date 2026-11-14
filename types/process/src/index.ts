@@ -18,7 +18,7 @@
 // task until `nodes:` says otherwise. A step without `in:` stands in the lane of the step before
 // it. The first line of `flow:` is the happy path: drawn straight and a little heavier, and what
 // a presentation walks when no steps are written.
-import { linksSchema, parseLinks, tones, type BuildContext, type DiagramType, type FlowForm, type FlowShape, type Graph, type GraphBeat, type GraphEdge, type GraphGroup, type GraphNode, type LegendItem, type PaletteItem, type Path, type Reference, type Tone } from '@cartography/core';
+import { linksSchema, parseLinks, tones, type BuildContext, type DiagramType, type FlowForm, type FlowShape, type Graph, type GraphBeat, type GraphEdge, type GraphGroup, type GraphNode, type LegendItem, type PaletteItem, type Path, type Reference, type Tone } from '@linework/core';
 import { flowLayout } from './layout.ts';
 
 interface Kind {
@@ -435,7 +435,7 @@ const node = {
 const flowText = '"a -> b -> c"; "a -yes-> b" with a label; "a --> b" for a message';
 const schema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography process',
+  title: 'Linework process',
   type: 'object',
   required: ['type'],
   properties: {

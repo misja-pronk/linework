@@ -1,9 +1,9 @@
 // Renders on every change, newest wins: a slow render never overwrites a newer one. The drawing is
 // made in a worker (render-client.ts): one that takes long says so, and can be stopped.
 import { useEffect, useRef, useState } from 'react';
-import type { LayoutAbout, RenderResult } from '@cartography/engine';
+import type { LayoutAbout, RenderResult } from '@linework/engine';
 import { Cancelled, draw } from './render-client.ts';
-import { viewPins, type LayoutMemory, type LayoutSidecar, type Point } from '@cartography/core';
+import { viewPins, type LayoutMemory, type LayoutSidecar, type Point } from '@linework/core';
 import { useBrand } from './brand.ts';
 import { useIconOptions } from './icon-packs.ts';
 import { registerThemeFonts } from './fonts.ts';

@@ -1,7 +1,7 @@
 // The drawing of the text: rendered a moment after typing stops (longer for slow diagrams), with the
 // pins of a drag on top while it lasts, and what the rest of the app reads from it.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { viewPins, withViewPins, type Diagnostic, type EdgeOverride, type LayoutSidecar, type Point } from '@cartography/core';
+import { viewPins, withViewPins, type Diagnostic, type EdgeOverride, type LayoutSidecar, type Point } from '@linework/core';
 import { useRender } from '../use-render.ts';
 import { entryRanges } from '../ranges.ts';
 import type { LayersOptions } from '../layers-control.tsx';
@@ -61,7 +61,7 @@ export function useDrawing({ text, theme, pins, load, docKey, viewName, docFile,
   const vpins = viewPins(pins, drawn?.view);
   /** How the drawing on screen was made and where things are before pins (stay.ts in the layout package). */
   const drawnLayout = drawn?.placed?.memory;
-  // Positions go into the sidecar once asked for (carto render --stable wrote them), and when the
+  // Positions go into the sidecar once asked for (linework render --stable wrote them), and when the
   // drawing was kept from an earlier one: the variant alone would not draw it again.
   const tracked = vpins?.layout?.at !== undefined;
   const locked = useMemo(() => new Set(vpins?.locked ?? []), [vpins?.locked]);

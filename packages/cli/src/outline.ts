@@ -3,9 +3,9 @@
 import fs from 'node:fs';
 import * as fontkit from 'fontkit';
 import wawoff2 from 'wawoff2';
-import { bundledFontFiles } from '@cartography/theme/node';
-import type { FontFace, Theme } from '@cartography/theme';
-import type { SafeSvgOptions, TextFont } from '@cartography/export/svg-safe';
+import { bundledFontFiles } from '@linework/theme/node';
+import type { FontFace, Theme } from '@linework/theme';
+import type { SafeSvgOptions, TextFont } from '@linework/export/svg-safe';
 
 interface Glyph {
   id: number;

@@ -11,7 +11,7 @@ import { Menu } from '../menu.tsx';
 import { keyHint } from '../keys.ts';
 import { ViewPicker } from '../view-picker.tsx';
 import type { useCraftPrefs } from '../craft-actions.tsx';
-import type { RenderResult } from '@cartography/engine';
+import type { RenderResult } from '@linework/engine';
 
 /** What the bar has in both modes. */
 interface Common {

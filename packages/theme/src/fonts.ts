@@ -1,4 +1,4 @@
-// The font families Cartography ships with: their metrics (so text is measured the same everywhere,
+// The font families Linework ships with: their metrics (so text is measured the same everywhere,
 // each face by its own advance widths) and the woff2 data embedded in exported SVGs.
 // Inter, Instrument Sans and Geist Mono are always there; Barlow, IBM Plex and Kalam load on first use.
 import { embeddedFonts } from './generated/fonts.ts';

@@ -5,9 +5,9 @@
 It answers "which states are there, and how do you get from one to another". Who does what in which order is a [process](process.md); who calls whom is a sequence diagram.
 
 ```sh
-carto new states order.yaml                    # a starter with a composite state
-carto render order.yaml --format png           # svg, png, pdf, pptx
-carto render order.yaml --all-steps --format pptx    # one slide per state on the way from start to end
+linework new states order.yaml                 # a starter with a composite state
+linework render order.yaml --format png        # svg, png, pdf, pptx
+linework render order.yaml --all-steps --format pptx  # one slide per state on the way from start to end
 ```
 
 ## The YAML reads like the machine
@@ -89,7 +89,7 @@ A state can also have:
 
 ## What it tells you
 
-Problems come with a line and column, in the editor and from `carto validate`:
+Problems come with a line and column, in the editor and from `linework validate`:
 
 - an item that is no transition; a state written twice; `start` or `end` used as the name of a state; a kind that is none; `start -> end` (errors)
 - no start; a state that is in no transition, or that the machine cannot reach from its start

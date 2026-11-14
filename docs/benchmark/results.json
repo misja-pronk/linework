@@ -1,15 +1,15 @@
 {
   "generated": "2026-11-10",
   "versions": {
-    "cartography": "this commit",
+    "linework": "this commit",
     "mermaid": "12.3.0",
     "d2": "v0.9.0"
   },
   "tools": [
     {
-      "id": "cartography",
-      "name": "Cartography",
-      "note": "The Mermaid source converted to YAML once, untouched (`docs/benchmark/cartography`), default theme, no hand-tuning"
+      "id": "linework",
+      "name": "Linework",
+      "note": "The Mermaid source converted to YAML once, untouched (`docs/benchmark/linework`), default theme, no hand-tuning"
     },
     {
       "id": "mermaid",
@@ -45,7 +45,7 @@
         "comparison/src/microservices.d2"
       ],
       "results": {
-        "cartography": {
+        "linework": {
           "metrics": {
             "nodes": 15,
             "lines": 15,
@@ -161,7 +161,7 @@
         "comparison/src/data-platform.d2"
       ],
       "results": {
-        "cartography": {
+        "linework": {
           "metrics": {
             "nodes": 12,
             "lines": 12,
@@ -277,7 +277,7 @@
         "comparison/src/leave-request.d2"
       ],
       "results": {
-        "cartography": {
+        "linework": {
           "metrics": {
             "nodes": 8,
             "lines": 9,
@@ -393,7 +393,7 @@
         "comparison/src/login-flow.d2"
       ],
       "results": {
-        "cartography": {
+        "linework": {
           "metrics": {
             "nodes": 9,
             "lines": 11,
@@ -509,7 +509,7 @@
         "comparison/src/serverless.d2"
       ],
       "results": {
-        "cartography": {
+        "linework": {
           "metrics": {
             "nodes": 8,
             "lines": 9,
@@ -625,7 +625,7 @@
         "comparison/src/shop-schema.d2"
       ],
       "results": {
-        "cartography": {
+        "linework": {
           "metrics": {
             "nodes": 6,
             "lines": 5,
@@ -741,7 +741,7 @@
         "benchmark/src/order-states.d2"
       ],
       "results": {
-        "cartography": {
+        "linework": {
           "metrics": {
             "nodes": 10,
             "lines": 13,
@@ -857,7 +857,7 @@
         "benchmark/src/event-mesh.d2"
       ],
       "results": {
-        "cartography": {
+        "linework": {
           "metrics": {
             "nodes": 12,
             "lines": 16,
@@ -973,7 +973,7 @@
         "benchmark/src/cloud-platform.d2"
       ],
       "results": {
-        "cartography": {
+        "linework": {
           "metrics": {
             "nodes": 13,
             "lines": 14,
@@ -1089,7 +1089,7 @@
         "benchmark/src/ci-pipeline.d2"
       ],
       "results": {
-        "cartography": {
+        "linework": {
           "metrics": {
             "nodes": 13,
             "lines": 16,

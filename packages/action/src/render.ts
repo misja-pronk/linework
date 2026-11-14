@@ -2,11 +2,11 @@
 // committed back, so the pictures in the repository are never older than the YAML.
 import fs from 'node:fs';
 import path from 'node:path';
-import { pictureName, type Diagnostic } from '@cartography/core';
-import { ttfFiles } from '@cartography/cli/fonts';
-import { toPng } from '@cartography/cli/png';
-import { git, versionOnDisk } from '@cartography/diff/node';
-import { render, type RenderResult } from '@cartography/engine';
+import { pictureName, type Diagnostic } from '@linework/core';
+import { ttfFiles } from '@linework/cli/fonts';
+import { toPng } from '@linework/cli/png';
+import { git, versionOnDisk } from '@linework/diff/node';
+import { render, type RenderResult } from '@linework/engine';
 import { diagrams } from './plan.ts';
 
 export type Format = 'svg' | 'png';

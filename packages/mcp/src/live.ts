@@ -1,8 +1,8 @@
 // get_context and propose: the agent's side of the live link (core's live.ts). The link is the
-// editor's own when the server runs inside carto serve; otherwise the host found through discovery.ts.
+// editor's own when the server runs inside linework serve; otherwise the host found through discovery.ts.
 import path from 'node:path';
-import type { LiveCall, LiveContext, Proposal, ProposalResult } from '@cartography/core';
-import { render } from '@cartography/engine';
+import type { LiveCall, LiveContext, Proposal, ProposalResult } from '@linework/core';
+import { render } from '@linework/engine';
 import { endpointFor, endpoints, type LiveEndpoint } from './discovery.ts';
 import { applyEdits } from './edit.ts';
 import { load, problems, reader, resolvePath, type Problem } from './tools.ts';
@@ -59,5 +59,5 @@ export async function proposeChange(link: LiveLink, req: { file: string; edits: 
   const r = await render(applied.text, { fonts: 'none', load: reader(src.dir), sidecar: src.sidecar });
   if (!r.svg || r.diagnostics.some((d) => d.severity === 'error')) return { outcome: 'invalid', message: 'The change does not validate; nothing was shown.', problems: problems(r.diagnostics, applied.text, r.type) };
   const out = await link.propose({ file, edits: req.edits as Proposal['edits'], ...(req.summary ? { summary: req.summary } : {}) });
-  return out ?? { outcome: 'no-editor', message: 'No editor has the live link open (VS Code with the Cartography extension, or carto serve). Use edit_diagram to change the file instead.' };
+  return out ?? { outcome: 'no-editor', message: 'No editor has the live link open (VS Code with the Linework extension, or linework serve). Use edit_diagram to change the file instead.' };
 }

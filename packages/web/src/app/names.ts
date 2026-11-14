@@ -1,6 +1,6 @@
 // How the app names what is drawn: an element's label and icon, a kind from its YAML path, the counts
 // in the status bar.
-import type { GraphNode, Path } from '@cartography/core';
+import type { GraphNode, Path } from '@linework/core';
 import { t, type Message } from '../i18n/index.ts';
 
 export const count = (n: number, what: Message) => t(what, { count: n });

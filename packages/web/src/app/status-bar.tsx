@@ -1,7 +1,7 @@
 // The status bar, drawn as a map's title block: the sheet, its type and what is on it, problems, pins,
 // where a dragged element is while it moves, the selection, the keys, and light or dark to switch.
 import './status-bar.css';
-import type { GraphNode } from '@cartography/core';
+import type { GraphNode } from '@linework/core';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import type { Selection } from '../preview.tsx';

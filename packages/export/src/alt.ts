@@ -1,8 +1,8 @@
 // The alt text a slide or PDF page gives its drawing: the caller's, or the drawing told in words.
-import { altText, describe } from '@cartography/describe';
-import type { StepView } from '@cartography/render';
+import { altText, describe } from '@linework/describe';
+import type { StepView } from '@linework/render';
 import type { Drawing } from './pptx.ts';
-import { tr } from '@cartography/i18n/drawing';
+import { tr } from '@linework/i18n/drawing';
 
 /**
  * At most `max` characters, whole sentences: an alt text is read in one go. A page that shows one

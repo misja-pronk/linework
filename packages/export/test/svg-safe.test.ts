@@ -2,8 +2,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { render, type RenderResult } from '@cartography/engine';
-import type { GraphNode } from '@cartography/core';
+import { render, type RenderResult } from '@linework/engine';
+import type { GraphNode } from '@linework/core';
 import { parseXml } from '../src/template/xml.ts';
 import { toSafeSvg, unsafeConstructs } from '../src/svg-safe.ts';
 

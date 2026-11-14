@@ -1,6 +1,6 @@
 // The bundles as a user runs them: copied to a temporary folder outside the repo (no node_modules,
 // no tsx), run with plain node. Renders an example to SVG, PNG, PDF and PowerPoint, validates it,
-// lists the MCP server's tools over stdio, and fetches the editor from carto serve.
+// lists the MCP server's tools over stdio, and fetches the editor from linework serve.
 //   pnpm build && pnpm smoke
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -8,17 +8,17 @@ import os from 'node:os';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
-const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'carto-smoke-')));
+const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'linework-smoke-')));
 const work = path.join(tmp, 'work');
-for (const [from, to] of [['packages/cli/dist', 'carto'], ['packages/mcp/dist', 'mcp']]) {
+for (const [from, to] of [['packages/cli/dist', 'linework'], ['packages/mcp/dist', 'mcp']]) {
   if (!fs.existsSync(path.join(root, from))) throw new Error(`${from} is not built: pnpm build`);
   fs.cpSync(path.join(root, from), path.join(tmp, to), { recursive: true });
 }
 fs.mkdirSync(work);
 fs.copyFileSync(path.join(root, 'examples/systems/web-shop.yaml'), path.join(work, 'shop.yaml'));
 // Its own config folder and home: the serve token and icon packs stay in here.
-const env = { PATH: process.env.PATH, HOME: tmp, CARTO_CONFIG_DIR: path.join(tmp, 'config'), CARTO_LANG: 'en' };
-const carto = path.join(tmp, 'carto/carto.mjs');
+const env = { PATH: process.env.PATH, HOME: tmp, LINEWORK_CONFIG_DIR: path.join(tmp, 'config'), LINEWORK_LANG: 'en' };
+const linework = path.join(tmp, 'linework/linework.mjs');
 const server = path.join(tmp, 'mcp/server.mjs');
 
 let failed = 0;
@@ -31,17 +31,17 @@ async function check(name, fn) {
     console.log(`FAIL  ${name}\n      ${String(e.stack ?? e).split('\n').join('\n      ')}`);
   }
 }
-const run = (...args) => execFileSync(process.execPath, [carto, ...args], { cwd: work, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+const run = (...args) => execFileSync(process.execPath, [linework, ...args], { cwd: work, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 const head = (file, n) => fs.readFileSync(path.join(work, file)).subarray(0, n).toString('latin1');
 const expect = (ok, what) => {
   if (!ok) throw new Error(what);
 };
 
-await check('carto --help', () => expect(/^Draw {4}render/m.test(run('--help')), 'no command list'));
-await check('carto through a symlink on the PATH, by its shebang', () => {
+await check('linework --help', () => expect(/^Draw {4}render/m.test(run('--help')), 'no command list'));
+await check('linework through a symlink on the PATH, by its shebang', () => {
   fs.mkdirSync(path.join(tmp, 'bin'));
-  fs.symlinkSync(carto, path.join(tmp, 'bin/carto'));
-  const out = execFileSync('carto', ['themes'], { cwd: work, env: { ...env, PATH: `${path.join(tmp, 'bin')}${path.delimiter}${path.dirname(process.execPath)}${path.delimiter}${env.PATH}` }, encoding: 'utf8' });
+  fs.symlinkSync(linework, path.join(tmp, 'bin/linework'));
+  const out = execFileSync('linework', ['themes'], { cwd: work, env: { ...env, PATH: `${path.join(tmp, 'bin')}${path.delimiter}${path.dirname(process.execPath)}${path.delimiter}${env.PATH}` }, encoding: 'utf8' });
   expect(out.includes('survey'), out);
 });
 await check('render to SVG', () => (run('render', 'shop.yaml', '-o', 'shop.svg'), expect(head('shop.svg', 5) === '<svg ', 'not an SVG')));
@@ -96,8 +96,8 @@ await check('MCP server over stdio: initialize, tools/list, get_schema with its 
   }
 });
 
-await check('carto serve: the editor at /', async () => {
-  const p = spawn(process.execPath, [carto, 'serve', work, '--port', '0'], { cwd: work, env, stdio: ['ignore', 'pipe', 'pipe'] });
+await check('linework serve: the editor at /', async () => {
+  const p = spawn(process.execPath, [linework, 'serve', work, '--port', '0'], { cwd: work, env, stdio: ['ignore', 'pipe', 'pipe'] });
   try {
     const url = await new Promise((resolve, reject) => {
       let out = '';
@@ -112,7 +112,7 @@ await check('carto serve: the editor at /', async () => {
     const res = await fetch(`${url}/`);
     const html = await res.text();
     expect(res.status === 200, `GET / ${res.status}`);
-    expect(html.includes('name="carto-serve"') && /<script[^>]+src=/.test(html), 'not the editor page');
+    expect(html.includes('name="linework-serve"') && /<script[^>]+src=/.test(html), 'not the editor page');
     const js = /<script[^>]+src="([^"]+)"/.exec(html)[1];
     expect((await fetch(new URL(js, `${url}/`))).status === 200, `GET ${js}`);
   } finally {

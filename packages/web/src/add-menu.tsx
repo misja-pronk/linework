@@ -1,12 +1,12 @@
 // The type's palette (requirement B2): search with the keyboard, click to add, or drag onto the canvas.
 import './add-menu.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { PaletteItem } from '@cartography/core';
+import type { PaletteItem } from '@linework/core';
 import { Icon } from './icon.tsx';
 import { score } from './palette.tsx';
 import { say, t } from './i18n/index.ts';
 
-export const PALETTE_MIME = 'application/x-cartography-palette';
+export const PALETTE_MIME = 'application/x-linework-palette';
 
 const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, ' ');
 

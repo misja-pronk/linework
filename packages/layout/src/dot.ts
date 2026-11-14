@@ -2,7 +2,7 @@
 // together, so a node outside a group can sit beside it in the same column. (ELK, tried first,
 // lays out each group as one block, which reverses lines that go into a group, out and back in.)
 import { Graphviz } from '@hpcc-js/wasm-graphviz';
-import type { Box, Graph, GraphEdge, NodeSize, Sized } from '@cartography/core';
+import type { Box, Graph, GraphEdge, NodeSize, Sized } from '@linework/core';
 
 export interface Spacing {
   nodeGap: number;

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import YAML from 'yaml';
-import type { BlockShape, GraphNode } from '@cartography/core';
+import type { BlockShape, GraphNode } from '@linework/core';
 import { render } from '../../../packages/engine/src/index.ts';
 import { moved } from '../../../packages/engine/test/stability.ts';
 import { bigOrg } from '../../../packages/tree/test/fixtures.ts';

@@ -1,19 +1,19 @@
 // Renders docs/comparison/src/<name>.mmd with Mermaid itself (in headless Chromium), <name>.d2 with D2
-// when the d2 binary is installed, and the same diagram in Cartography, side by side in png/.
-// Cartography's YAML in cartography/ was converted from the Mermaid once and is not hand-tuned (the card payment's dividers aside).
+// when the d2 binary is installed, and the same diagram in Linework, side by side in png/.
+// Linework's YAML in linework/ was converted from the Mermaid once and is not hand-tuned (the card payment's dividers aside).
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { chromium, type Page } from '@playwright/test';
-import { render } from '@cartography/engine';
+import { render } from '@linework/engine';
 import { toPng } from './png.ts';
 
 const SCALE = 1.5;
 const root = path.resolve(import.meta.dirname, '../../..');
 const dir = path.join(root, 'docs/comparison');
 const png = path.join(dir, 'png');
-const yamlDir = path.join(dir, 'cartography');
+const yamlDir = path.join(dir, 'linework');
 fs.mkdirSync(png, { recursive: true });
 
 const mermaidJs = createRequire(import.meta.url).resolve('mermaid/dist/mermaid.min.js');
@@ -63,7 +63,7 @@ for (const file of fs.readdirSync(path.join(dir, 'src')).filter((f) => f.endsWit
 
   const r = await render(fs.readFileSync(path.join(yamlDir, `${name}.yaml`), 'utf8'), { fonts: 'none' });
   for (const d of r.diagnostics) console.error(`${name}: ${d.message}`);
-  fs.writeFileSync(path.join(png, `${name}-cartography.png`), toPng(r.svg!, SCALE));
+  fs.writeFileSync(path.join(png, `${name}-linework.png`), toPng(r.svg!, SCALE));
   console.log(name);
 }
 

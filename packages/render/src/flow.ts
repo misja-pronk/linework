@@ -5,9 +5,9 @@
 // a thin ring, an end event a heavy one, a parallel gateway carries a plus. Everything is laid out
 // as plain marks first (the journey's kind), so the slide writer places the same marks as native,
 // editable shapes.
-import type { Box, FlowShape, GraphGroup, NodeSize, Point } from '@cartography/core';
-import { baselineOffset, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, type Theme } from '@cartography/theme';
-import { icon } from '@cartography/icons';
+import type { Box, FlowShape, GraphGroup, NodeSize, Point } from '@linework/core';
+import { baselineOffset, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, type Theme } from '@linework/theme';
+import { icon } from '@linework/icons';
 import type { JourneyMark, JourneySeg } from './journey.ts';
 import { cardStroke, esc } from './paint.ts';
 import { wrapText } from './size.ts';

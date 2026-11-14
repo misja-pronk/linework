@@ -11,7 +11,7 @@ const wait = (ms = 300) => page.waitForTimeout(ms);
 // The pins as the app keeps them (saved to the browser shortly after each change).
 const pins = async () => {
   await wait(450);
-  return page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}').pins ?? {});
+  return page.evaluate(() => JSON.parse(localStorage.getItem('linework:doc') ?? '{}').pins ?? {});
 };
 const rect = (id) => page.locator(`.drawing [data-node="${id}"] > rect`).first().boundingBox();
 const zoom = () => page.locator('.zoom-level').innerText();
@@ -36,9 +36,9 @@ await page.addInitScript((text) => {
   if (sessionStorage.getItem('seeded')) return;
   sessionStorage.setItem('seeded', '1');
   localStorage.clear();
-  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name: 'craft.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name: 'craft.yaml' } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
 }, text);
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.waitForSelector('.drawing [data-node="d"]', { timeout: 10000 }).catch(async (e) => {
   await page.screenshot({ path: `${out}/c0-failed.png` });
   throw e;

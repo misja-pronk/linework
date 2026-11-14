@@ -1,11 +1,11 @@
 {
-  "name": "@cartography/vscode",
-  "displayName": "Cartography",
+  "name": "@linework/vscode",
+  "displayName": "Linework",
   "description": "Architecture diagrams as YAML: live preview, problems and quick fixes, and export",
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "publisher": "cartography",
+  "publisher": "linework",
   "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.101.0"
@@ -23,8 +23,8 @@
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:yaml",
-    "onWebviewPanel:cartography.preview",
-    "onMcpCollection:cartography.mcp"
+    "onWebviewPanel:linework.preview",
+    "onMcpCollection:linework.mcp"
   ],
   "scripts": {
     "build": "node build.mjs",
@@ -34,160 +34,160 @@
   "contributes": {
     "commands": [
       {
-        "command": "cartography.showPreview",
+        "command": "linework.showPreview",
         "title": "Open Preview to the Side",
-        "category": "Cartography",
+        "category": "Linework",
         "icon": "$(open-preview)"
       },
       {
-        "command": "cartography.present",
+        "command": "linework.present",
         "title": "Present",
-        "category": "Cartography",
+        "category": "Linework",
         "icon": "$(play)"
       },
       {
-        "command": "cartography.newDiagram",
+        "command": "linework.newDiagram",
         "title": "New Diagram from Template…",
-        "category": "Cartography"
+        "category": "Linework"
       },
       {
-        "command": "cartography.exportSvg",
+        "command": "linework.exportSvg",
         "title": "Export as SVG…",
-        "category": "Cartography"
+        "category": "Linework"
       },
       {
-        "command": "cartography.exportPng",
+        "command": "linework.exportPng",
         "title": "Export as PNG…",
-        "category": "Cartography"
+        "category": "Linework"
       },
       {
-        "command": "cartography.exportPptx",
+        "command": "linework.exportPptx",
         "title": "Export as PowerPoint (.pptx)…",
-        "category": "Cartography"
+        "category": "Linework"
       },
       {
-        "command": "cartography.copyShareLink",
+        "command": "linework.copyShareLink",
         "title": "Copy Share Link",
-        "category": "Cartography"
+        "category": "Linework"
       },
       {
-        "command": "cartography.openInEditor",
-        "title": "Open in Cartography Editor",
-        "category": "Cartography"
+        "command": "linework.openInEditor",
+        "title": "Open in Linework Editor",
+        "category": "Linework"
       },
       {
-        "command": "cartography.clearPins",
+        "command": "linework.clearPins",
         "title": "Clear Pins of This View",
-        "category": "Cartography"
+        "category": "Linework"
       }
     ],
     "mcpServerDefinitionProviders": [
       {
-        "id": "cartography.mcp",
-        "label": "Cartography"
+        "id": "linework.mcp",
+        "label": "Linework"
       }
     ],
     "menus": {
       "editor/title": [
         {
-          "command": "cartography.showPreview",
-          "when": "cartography.isDiagram",
+          "command": "linework.showPreview",
+          "when": "linework.isDiagram",
           "group": "navigation"
         }
       ],
       "editor/title/context": [
         {
-          "command": "cartography.showPreview",
-          "when": "cartography.isDiagram"
+          "command": "linework.showPreview",
+          "when": "linework.isDiagram"
         }
       ],
       "explorer/context": [
         {
-          "command": "cartography.showPreview",
-          "when": "resourceFilename =~ /\\.carto\\.ya?ml$/",
+          "command": "linework.showPreview",
+          "when": "resourceFilename =~ /\\.linework\\.ya?ml$/",
           "group": "navigation@91"
         }
       ],
       "commandPalette": [
         {
-          "command": "cartography.showPreview",
-          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+          "command": "linework.showPreview",
+          "when": "linework.isDiagram || activeWebviewPanelId == 'linework.preview'"
         },
         {
-          "command": "cartography.present",
-          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+          "command": "linework.present",
+          "when": "linework.isDiagram || activeWebviewPanelId == 'linework.preview'"
         },
         {
-          "command": "cartography.exportSvg",
-          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+          "command": "linework.exportSvg",
+          "when": "linework.isDiagram || activeWebviewPanelId == 'linework.preview'"
         },
         {
-          "command": "cartography.exportPng",
-          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+          "command": "linework.exportPng",
+          "when": "linework.isDiagram || activeWebviewPanelId == 'linework.preview'"
         },
         {
-          "command": "cartography.exportPptx",
-          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+          "command": "linework.exportPptx",
+          "when": "linework.isDiagram || activeWebviewPanelId == 'linework.preview'"
         },
         {
-          "command": "cartography.copyShareLink",
-          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+          "command": "linework.copyShareLink",
+          "when": "linework.isDiagram || activeWebviewPanelId == 'linework.preview'"
         },
         {
-          "command": "cartography.openInEditor",
-          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+          "command": "linework.openInEditor",
+          "when": "linework.isDiagram || activeWebviewPanelId == 'linework.preview'"
         },
         {
-          "command": "cartography.clearPins",
-          "when": "cartography.isDiagram || activeWebviewPanelId == 'cartography.preview'"
+          "command": "linework.clearPins",
+          "when": "linework.isDiagram || activeWebviewPanelId == 'linework.preview'"
         }
       ]
     },
     "keybindings": [
       {
-        "command": "cartography.showPreview",
+        "command": "linework.showPreview",
         "key": "ctrl+k v",
         "mac": "cmd+k v",
-        "when": "editorTextFocus && cartography.isDiagram"
+        "when": "editorTextFocus && linework.isDiagram"
       }
     ],
     "configuration": {
-      "title": "Cartography",
+      "title": "Linework",
       "properties": {
-        "cartography.preview.theme": {
+        "linework.preview.theme": {
           "type": "string",
           "default": "auto",
-          "markdownDescription": "The look of the preview. `auto`: the diagram's own `theme:`, else light or dark as VS Code is. Any other name wins over the diagram's theme: `light`, `dark`, or a built-in theme (`carto themes` lists them)."
+          "markdownDescription": "The look of the preview. `auto`: the diagram's own `theme:`, else light or dark as VS Code is. Any other name wins over the diagram's theme: `light`, `dark`, or a built-in theme (`linework themes` lists them)."
         },
-        "cartography.preview.debounce": {
+        "linework.preview.debounce": {
           "type": "number",
           "default": 250,
           "minimum": 0,
           "description": "Milliseconds to wait after typing before the preview and the problems are drawn again."
         },
-        "cartography.diagnostics.enabled": {
+        "linework.diagnostics.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Show the engine's problems (the same as `carto validate`) in the Problems panel, with quick fixes where the message names the fix."
+          "description": "Show the engine's problems (the same as `linework validate`) in the Problems panel, with quick fixes where the message names the fix."
         },
-        "cartography.yamlSchemas": {
+        "linework.yamlSchemas": {
           "type": "boolean",
           "default": true,
-          "markdownDescription": "Give each diagram's type schema to the YAML extension (`redhat.vscode-yaml`), when it is installed, for completion and hover. Unknown and missing keys are left to Cartography's own problems, so each is reported once."
+          "markdownDescription": "Give each diagram's type schema to the YAML extension (`redhat.vscode-yaml`), when it is installed, for completion and hover. Unknown and missing keys are left to Linework's own problems, so each is reported once."
         },
-        "cartography.shareBase": {
+        "linework.shareBase": {
           "type": "string",
           "default": "http://localhost:5178/",
-          "markdownDescription": "The address of the Cartography web editor that share links and **Open in Cartography Editor** point at (`pnpm web` serves it at the default). The diagram travels in the link's `#fragment`, which a browser never sends to the server."
+          "markdownDescription": "The address of the Linework web editor that share links and **Open in Linework Editor** point at (`pnpm web` serves it at the default). The diagram travels in the link's `#fragment`, which a browser never sends to the server."
         },
-        "cartography.export.pngScale": {
+        "linework.export.pngScale": {
           "type": "number",
           "default": 2,
           "minimum": 0.5,
           "maximum": 8,
           "description": "Pixels per drawing unit in PNG exports (2 is sharp on most screens and slides)."
         },
-        "cartography.present.fullScreen": {
+        "linework.present.fullScreen": {
           "type": "boolean",
           "default": false,
           "description": "Present also turns VS Code full screen (and back when the presentation closes)."
@@ -196,12 +196,12 @@
     }
   },
   "devDependencies": {
-    "@cartography/core": "workspace:*",
-    "@cartography/diff": "workspace:*",
-    "@cartography/engine": "workspace:*",
-    "@cartography/export": "workspace:*",
-    "@cartography/mcp": "workspace:*",
-    "@cartography/theme": "workspace:*",
+    "@linework/core": "workspace:*",
+    "@linework/diff": "workspace:*",
+    "@linework/engine": "workspace:*",
+    "@linework/export": "workspace:*",
+    "@linework/mcp": "workspace:*",
+    "@linework/theme": "workspace:*",
     "@playwright/test": "^1.65.0",
     "@types/vscode": "1.101.0",
     "ajv": "^8.20.0",

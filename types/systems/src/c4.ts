@@ -32,7 +32,7 @@ import {
   type ModelContext,
   type ModelElement,
   type PaletteItem,
-} from '@cartography/core';
+} from '@linework/core';
 
 /** C4 names the type in each card: [Person], [Software System], [Container: tech], [Component: tech]. */
 type Level = 'Person' | 'Software System' | 'Container' | 'Component' | 'Infrastructure Node' | 'Deployment Node' | 'Enterprise' | undefined;
@@ -220,7 +220,7 @@ export const c4: DiagramType<GraphSource> = {
     'person',
     'software system',
   ],
-  schema: graphSchema('c4', c4Config, 'Cartography C4 model'),
+  schema: graphSchema('c4', c4Config, 'Linework C4 model'),
   palette,
   // "Places orders [JSON/HTTPS]" is longer than most labels: the columns make room for it.
   tuning: { labelRoom: 'fit' },

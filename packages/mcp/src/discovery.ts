@@ -1,4 +1,4 @@
-// Where the live hosts are: each editor that answers live calls (the VS Code extension, carto serve)
+// Where the live hosts are: each editor that answers live calls (the VS Code extension, linework serve)
 // writes a small file into a folder of the user's temp directory while it runs, readable by the user
 // only. An MCP server picks the host whose folders hold the diagram (or its own working directory).
 // Node only, no other imports: the VS Code extension bundles this file.
@@ -19,7 +19,7 @@ export interface LiveEndpoint {
   since: number;
 }
 
-export const discoveryDir = () => path.join(os.tmpdir(), 'cartography-live');
+export const discoveryDir = () => path.join(os.tmpdir(), 'linework-live');
 
 export function announce(e: Omit<LiveEndpoint, 'pid' | 'since'>): () => void {
   const entry: LiveEndpoint = { ...e, pid: process.pid, since: Date.now() };

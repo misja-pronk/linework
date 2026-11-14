@@ -3,9 +3,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { LayoutMemory } from '@cartography/core';
-import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, slideReadability, throughVia, touchedLabels, type RouteRequest } from '@cartography/layout';
-import { endsRoom } from '@cartography/render';
+import type { LayoutMemory } from '@linework/core';
+import { boxOverlaps, disorder, falseJoins, labelMetrics, measure, routeEdges, slideReadability, throughVia, touchedLabels, type RouteRequest } from '@linework/layout';
+import { endsRoom } from '@linework/render';
 import { readableArea, render, SLIDE_MIN_PT, slideTextPt } from '../src/index.ts';
 import { big, budget, race, timed } from './perf.ts';
 

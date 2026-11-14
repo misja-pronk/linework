@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`templates > access renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1270" height="903" viewBox="0 0 1270 903" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-1yppqvy1539-title" aria-describedby="carto-1yppqvy1539-desc" lang="en" xml:lang="en"><title id="carto-1yppqvy1539-title">Engineering access</title><desc id="carto-1yppqvy1539-desc">Roles, groups and access packages diagram: Entra ID access packages and Azure roles. 14 elements in 2 groups, with 14 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1270" height="903" viewBox="0 0 1270 903" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-1yppqvy1539-title" aria-describedby="linework-1yppqvy1539-desc" lang="en" xml:lang="en"><title id="linework-1yppqvy1539-title">Engineering access</title><desc id="linework-1yppqvy1539-desc">Roles, groups and access packages diagram: Entra ID access packages and Azure roles. 14 elements in 2 groups, with 14 connections.
 
 Groups and elements
 - Engineering (department = Engineering)
@@ -42,7 +42,7 @@ Key
 `;
 
 exports[`templates > azure renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1478" height="632" viewBox="0 0 1478 632" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-hayhp8787-title" aria-describedby="carto-hayhp8787-desc" lang="en" xml:lang="en"><title id="carto-hayhp8787-title">Web shop</title><desc id="carto-hayhp8787-desc">Azure infrastructure diagram: Production. 6 elements in 5 groups, with 5 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1478" height="632" viewBox="0 0 1478 632" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-hayhp8787-title" aria-describedby="linework-hayhp8787-desc" lang="en" xml:lang="en"><title id="linework-hayhp8787-title">Web shop</title><desc id="linework-hayhp8787-desc">Azure infrastructure diagram: Production. 6 elements in 5 groups, with 5 connections.
 
 Groups and elements
 - Users
@@ -70,7 +70,7 @@ Key
 `;
 
 exports[`templates > c4 renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="612" height="627" viewBox="0 0 612 627" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-1osh1sf755-title" aria-describedby="carto-1osh1sf755-desc" lang="en" xml:lang="en"><title id="carto-1osh1sf755-title">Web shop — system context</title><desc id="carto-1osh1sf755-desc">C4 model. 5 elements, with 4 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="612" height="627" viewBox="0 0 612 627" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-1osh1sf755-title" aria-describedby="linework-1osh1sf755-desc" lang="en" xml:lang="en"><title id="linework-1osh1sf755-title">Web shop — system context</title><desc id="linework-1osh1sf755-desc">C4 model. 5 elements, with 4 connections.
 
 Elements
 - Customer (Person): Buys products online
@@ -92,7 +92,7 @@ Key
 `;
 
 exports[`templates > capabilities renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="842" height="414" viewBox="0 0 842 414" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-1kezibg514-title" aria-describedby="carto-1kezibg514-desc" lang="en" xml:lang="en"><title id="carto-1kezibg514-title">Business capability map</title><desc id="carto-1kezibg514-desc">Capability map: Maturity per capability, 2026 baseline. 4 areas and 10 capabilities.
+"<svg xmlns="http://www.w3.org/2000/svg" width="842" height="414" viewBox="0 0 842 414" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-1kezibg514-title" aria-describedby="linework-1kezibg514-desc" lang="en" xml:lang="en"><title id="linework-1kezibg514-title">Business capability map</title><desc id="linework-1kezibg514-desc">Capability map: Maturity per capability, 2026 baseline. 4 areas and 10 capabilities.
 
 Areas and capabilities
 - Customer
@@ -118,7 +118,7 @@ Key
 `;
 
 exports[`templates > class renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1367" height="548" viewBox="0 0 1367 548" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-1tinvcm1129-title" aria-describedby="carto-1tinvcm1129-desc" lang="en" xml:lang="en"><title id="carto-1tinvcm1129-title">Order aggregate</title><desc id="carto-1tinvcm1129-desc">Class diagram: Ordering context, domain layer. 5 classes, with 4 relations.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1367" height="548" viewBox="0 0 1367 548" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-1tinvcm1129-title" aria-describedby="linework-1tinvcm1129-desc" lang="en" xml:lang="en"><title id="linework-1tinvcm1129-title">Order aggregate</title><desc id="linework-1tinvcm1129-desc">Class diagram: Ordering context, domain layer. 5 classes, with 4 relations.
 
 Classes
 - Order (aggregate root)
@@ -159,7 +159,7 @@ Key
 `;
 
 exports[`templates > cloud renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1158" height="843" viewBox="0 0 1158 843" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-jtfs801265-title" aria-describedby="carto-jtfs801265-desc" lang="en" xml:lang="en"><title id="carto-jtfs801265-title">Web shop on AWS</title><desc id="carto-jtfs801265-desc">AWS and Google Cloud diagram: Production, two availability zones. 8 elements in 8 groups, with 7 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1158" height="843" viewBox="0 0 1158 843" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-jtfs801265-title" aria-describedby="linework-jtfs801265-desc" lang="en" xml:lang="en"><title id="linework-jtfs801265-title">Web shop on AWS</title><desc id="linework-jtfs801265-desc">AWS and Google Cloud diagram: Production, two availability zones. 8 elements in 8 groups, with 7 connections.
 
 Groups and elements
 - Users
@@ -193,7 +193,7 @@ Key
 `;
 
 exports[`templates > context-map renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1110" height="665" viewBox="0 0 1110 665" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-1ieyvj21110-title" aria-describedby="carto-1ieyvj21110-desc" lang="en" xml:lang="en"><title id="carto-1ieyvj21110-title">E-commerce context map</title><desc id="carto-1ieyvj21110-desc">Context map: Bounded contexts and how they integrate. 7 elements in 2 groups, with 6 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1110" height="665" viewBox="0 0 1110 665" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-1ieyvj21110-title" aria-describedby="linework-1ieyvj21110-desc" lang="en" xml:lang="en"><title id="linework-1ieyvj21110-title">E-commerce context map</title><desc id="linework-1ieyvj21110-desc">Context map: Bounded contexts and how they integrate. 7 elements in 2 groups, with 6 connections.
 
 Groups and elements
 - Sales (Domain)
@@ -227,7 +227,7 @@ Key
 `;
 
 exports[`templates > data-products renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1382" height="463" viewBox="0 0 1382 463" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-1etyhjg922-title" aria-describedby="carto-1etyhjg922-desc" lang="en" xml:lang="en"><title id="carto-1etyhjg922-title">Customer data products</title><desc id="carto-1etyhjg922-desc">Data products diagram: From operational systems to fit-for-purpose products. 8 elements in 3 groups, with 8 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1382" height="463" viewBox="0 0 1382 463" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-1etyhjg922-title" aria-describedby="linework-1etyhjg922-desc" lang="en" xml:lang="en"><title id="linework-1etyhjg922-title">Customer data products</title><desc id="linework-1etyhjg922-desc">Data products diagram: From operational systems to fit-for-purpose products. 8 elements in 3 groups, with 8 connections.
 
 Groups and elements
 - Sales (Domain · Sales engineering)
@@ -258,7 +258,7 @@ Key
 `;
 
 exports[`templates > erd renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="946" height="512" viewBox="0 0 946 512" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-edcjm91146-title" aria-describedby="carto-edcjm91146-desc" lang="en" xml:lang="en"><title id="carto-edcjm91146-title">Orders</title><desc id="carto-edcjm91146-desc">Database design. 4 tables, with 3 relations.
+"<svg xmlns="http://www.w3.org/2000/svg" width="946" height="512" viewBox="0 0 946 512" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-edcjm91146-title" aria-describedby="linework-edcjm91146-desc" lang="en" xml:lang="en"><title id="linework-edcjm91146-title">Orders</title><desc id="linework-edcjm91146-desc">Database design. 4 tables, with 3 relations.
 
 Tables
 - customers
@@ -293,7 +293,7 @@ Key
 `;
 
 exports[`templates > gitflow renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1091" height="552" viewBox="0 0 1091 552" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-4oc9o61159-title" aria-describedby="carto-4oc9o61159-desc" lang="en" xml:lang="en"><title id="carto-4oc9o61159-title">Our branching strategy</title><desc id="carto-4oc9o61159-desc">Git branching diagram. 7 branches and 19 commits.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1091" height="552" viewBox="0 0 1091 552" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-4oc9o61159-title" aria-describedby="linework-4oc9o61159-desc" lang="en" xml:lang="en"><title id="linework-4oc9o61159-title">Our branching strategy</title><desc id="linework-4oc9o61159-desc">Git branching diagram. 7 branches and 19 commits.
 
 Branches
 - main (long-lived, 3 commits)
@@ -328,7 +328,7 @@ Oldest first.
 `;
 
 exports[`templates > github renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1523" height="763" viewBox="0 0 1523 763" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-1pldfsv1074-title" aria-describedby="carto-1pldfsv1074-desc" lang="en" xml:lang="en"><title id="carto-1pldfsv1074-title">GitHub setup</title><desc id="carto-1pldfsv1074-desc">GitHub design: Teams, repositories and deployments. 9 elements in 3 groups, with 7 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1523" height="763" viewBox="0 0 1523 763" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-1pldfsv1074-title" aria-describedby="linework-1pldfsv1074-desc" lang="en" xml:lang="en"><title id="linework-1pldfsv1074-title">GitHub setup</title><desc id="linework-1pldfsv1074-desc">GitHub design: Teams, repositories and deployments. 9 elements in 3 groups, with 7 connections.
 
 Groups and elements
 - acme (Organisation)
@@ -361,7 +361,7 @@ Key
 `;
 
 exports[`templates > journey renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1382" height="803" viewBox="0 0 1382 803" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-wxldp61111-title" aria-describedby="carto-wxldp61111-desc" lang="en" xml:lang="en"><title id="carto-wxldp61111-title">A developer's first week</title><desc id="carto-wxldp61111-desc">Journey map. Dana's journey through 3 phases and 5 steps.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1382" height="803" viewBox="0 0 1382 803" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-wxldp61111-title" aria-describedby="linework-wxldp61111-desc" lang="en" xml:lang="en"><title id="linework-wxldp61111-title">A developer's first week</title><desc id="linework-wxldp61111-desc">Journey map. Dana's journey through 3 phases and 5 steps.
 
 Persona: Dana
 - Role: New backend developer
@@ -400,7 +400,7 @@ Metrics
 `;
 
 exports[`templates > kubernetes renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1399" height="668" viewBox="0 0 1399 668" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-114k3er930-title" aria-describedby="carto-114k3er930-desc" lang="en" xml:lang="en"><title id="carto-114k3er930-title">Web shop</title><desc id="carto-114k3er930-desc">Kubernetes diagram: Production cluster. 7 elements in 2 groups, with 11 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1399" height="668" viewBox="0 0 1399 668" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-114k3er930-title" aria-describedby="linework-114k3er930-desc" lang="en" xml:lang="en"><title id="linework-114k3er930-title">Web shop</title><desc id="linework-114k3er930-desc">Kubernetes diagram: Production cluster. 7 elements in 2 groups, with 11 connections.
 
 Groups and elements
 - Users
@@ -428,7 +428,7 @@ Key
 `;
 
 exports[`templates > matrix renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="974" height="662" viewBox="0 0 974 662" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-mj673k1494-title" aria-describedby="carto-mj673k1494-desc" lang="en" xml:lang="en"><title id="carto-mj673k1494-title">Platform migration — RACI</title><desc id="carto-mj673k1494-desc">Matrix: Who does what in the move to the new platform. A table of 7 rows by 6 columns.
+"<svg xmlns="http://www.w3.org/2000/svg" width="974" height="662" viewBox="0 0 974 662" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-mj673k1494-title" aria-describedby="linework-mj673k1494-desc" lang="en" xml:lang="en"><title id="linework-mj673k1494-title">Platform migration — RACI</title><desc id="linework-mj673k1494-desc">Matrix: Who does what in the move to the new platform. A table of 7 rows by 6 columns.
 
 By row (Activity by role)
 Columns: Business (Sponsor, Programme manager); IT (Architect, Platform team, App teams); Risk (Security officer).
@@ -452,7 +452,7 @@ Key
 `;
 
 exports[`templates > mindmap renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="994" height="494" viewBox="0 0 994 494" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-11h11qw651-title" aria-describedby="carto-11h11qw651-desc" lang="en" xml:lang="en"><title id="carto-11h11qw651-title">Which event store?</title><desc id="carto-11h11qw651-desc">Mind map: Architecture decision brainstorm, before the ADR. Around Event store for Orders, 5 branches and 20 topics in all.
+"<svg xmlns="http://www.w3.org/2000/svg" width="994" height="494" viewBox="0 0 994 494" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-11h11qw651-title" aria-describedby="linework-11h11qw651-desc" lang="en" xml:lang="en"><title id="linework-11h11qw651-title">Which event store?</title><desc id="linework-11h11qw651-desc">Mind map: Architecture decision brainstorm, before the ADR. Around Event store for Orders, 5 branches and 20 topics in all.
 
 Topics
 - Options
@@ -477,7 +477,7 @@ Topics
 `;
 
 exports[`templates > network renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1136" height="763" viewBox="0 0 1136 763" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-hteu38771-title" aria-describedby="carto-hteu38771-desc" lang="en" xml:lang="en"><title id="carto-hteu38771-title">Office network</title><desc id="carto-hteu38771-desc">Network diagram: Amsterdam. 6 elements in 4 groups, with 5 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1136" height="763" viewBox="0 0 1136 763" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-hteu38771-title" aria-describedby="linework-hteu38771-desc" lang="en" xml:lang="en"><title id="linework-hteu38771-title">Office network</title><desc id="linework-hteu38771-desc">Network diagram: Amsterdam. 6 elements in 4 groups, with 5 connections.
 
 Groups and elements
 - Internet
@@ -505,7 +505,7 @@ Key
 `;
 
 exports[`templates > process renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1111" height="506" viewBox="0 0 1111 506" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-p6mspt904-title" aria-describedby="carto-p6mspt904-desc" lang="en" xml:lang="en"><title id="carto-p6mspt904-title">Access request</title><desc id="carto-p6mspt904-desc">Process diagram: From request to access, approved by the line manager. 9 elements in 3 lanes, with 8 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1111" height="506" viewBox="0 0 1111 506" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-p6mspt904-title" aria-describedby="linework-p6mspt904-desc" lang="en" xml:lang="en"><title id="linework-p6mspt904-title">Access request</title><desc id="linework-p6mspt904-desc">Process diagram: From request to access, approved by the line manager. 9 elements in 3 lanes, with 8 connections.
 
 Lanes and steps
 - Employee (lane)
@@ -545,7 +545,7 @@ Key
 `;
 
 exports[`templates > roadmap renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1422" height="500" viewBox="0 0 1422 500" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-1nmm2l2506-title" aria-describedby="carto-1nmm2l2506-desc" lang="en" xml:lang="en"><title id="carto-1nmm2l2506-title">Platform roadmap 2026</title><desc id="carto-1nmm2l2506-desc">Roadmap &amp; timeline. 4 items and 1 milestone in 3 lanes, Jan to Dec 2026.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1422" height="500" viewBox="0 0 1422 500" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-1nmm2l2506-title" aria-describedby="linework-1nmm2l2506-desc" lang="en" xml:lang="en"><title id="linework-1nmm2l2506-title">Platform roadmap 2026</title><desc id="linework-1nmm2l2506-desc">Roadmap &amp; timeline. 4 items and 1 milestone in 3 lanes, Jan to Dec 2026.
 
 By lane
 - Platform
@@ -566,7 +566,7 @@ Marked: Today · 15 Apr 2026.</desc><defs></defs><rect width="1422" height="500"
 `;
 
 exports[`templates > sequence renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="771" height="784" viewBox="0 0 771 784" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-69qk2a738-title" aria-describedby="carto-69qk2a738-desc" lang="en" xml:lang="en"><title id="carto-69qk2a738-title">Checkout</title><desc id="carto-69qk2a738-desc">Sequence diagram. 4 participants and 9 messages.
+"<svg xmlns="http://www.w3.org/2000/svg" width="771" height="784" viewBox="0 0 771 784" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-69qk2a738-title" aria-describedby="linework-69qk2a738-desc" lang="en" xml:lang="en"><title id="linework-69qk2a738-title">Checkout</title><desc id="linework-69qk2a738-desc">Sequence diagram. 4 participants and 9 messages.
 
 Participants
 - Person
@@ -595,7 +595,7 @@ Key
 `;
 
 exports[`templates > states renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="715" height="662" viewBox="0 0 715 662" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-1viwlwy965-title" aria-describedby="carto-1viwlwy965-desc" lang="en" xml:lang="en"><title id="carto-1viwlwy965-title">Order lifecycle</title><desc id="carto-1viwlwy965-desc">States diagram: The states an order can be in, and what moves it on. 9 states in 1 group, with 10 transitions.
+"<svg xmlns="http://www.w3.org/2000/svg" width="715" height="662" viewBox="0 0 715 662" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-1viwlwy965-title" aria-describedby="linework-1viwlwy965-desc" lang="en" xml:lang="en"><title id="linework-1viwlwy965-title">Order lifecycle</title><desc id="linework-1viwlwy965-desc">States diagram: The states an order can be in, and what moves it on. 9 states in 1 group, with 10 transitions.
 
 Groups and elements
 - Start
@@ -629,7 +629,7 @@ Transitions
 `;
 
 exports[`templates > systems renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="1398" height="692" viewBox="0 0 1398 692" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-ioelkg757-title" aria-describedby="carto-ioelkg757-desc" lang="en" xml:lang="en"><title id="carto-ioelkg757-title">Web shop</title><desc id="carto-ioelkg757-desc">Architecture diagram: How an order flows through the system. 8 elements in 2 groups, with 7 connections.
+"<svg xmlns="http://www.w3.org/2000/svg" width="1398" height="692" viewBox="0 0 1398 692" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-ioelkg757-title" aria-describedby="linework-ioelkg757-desc" lang="en" xml:lang="en"><title id="linework-ioelkg757-title">Web shop</title><desc id="linework-ioelkg757-desc">Architecture diagram: How an order flows through the system. 8 elements in 2 groups, with 7 connections.
 
 Groups and elements
 - Users
@@ -658,7 +658,7 @@ Key
 `;
 
 exports[`templates > teams renders without problems 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="541" height="535" viewBox="0 0 541 535" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-1qxyqrv646-title" aria-describedby="carto-1qxyqrv646-desc" lang="en" xml:lang="en"><title id="carto-1qxyqrv646-title">Product and technology</title><desc id="carto-1qxyqrv646-desc">Org chart: Org chart and team topology, Q3. 6 people and 1 open role, led by Anna de Vries.
+"<svg xmlns="http://www.w3.org/2000/svg" width="541" height="535" viewBox="0 0 541 535" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-1qxyqrv646-title" aria-describedby="linework-1qxyqrv646-desc" lang="en" xml:lang="en"><title id="linework-1qxyqrv646-title">Product and technology</title><desc id="linework-1qxyqrv646-desc">Org chart: Org chart and team topology, Q3. 6 people and 1 open role, led by Anna de Vries.
 
 Who reports to whom
 Each person, with the people who report to them under them.

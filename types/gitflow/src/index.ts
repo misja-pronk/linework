@@ -31,7 +31,7 @@ import {
   type Reference,
   type Tone,
   tones,
-} from '@cartography/core';
+} from '@linework/core';
 import { presetNames, presets, type PresetName } from './presets.ts';
 
 export { presets, presetNames, type PresetName };
@@ -364,7 +364,7 @@ const pipelineStep = {
 
 const schema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography git branching diagram',
+  title: 'Linework git branching diagram',
   type: 'object',
   required: ['type'],
   properties: {

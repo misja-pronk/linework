@@ -2,8 +2,8 @@
 // schemas handed to the YAML extension when it is installed, for completion and hover.
 import fs from 'node:fs';
 import * as vscode from 'vscode';
-import type { Diagnostic } from '@cartography/core';
-import { render } from '@cartography/engine';
+import type { Diagnostic } from '@linework/core';
+import { render } from '@linework/engine';
 import { isDiagram, typeLine } from './detect.ts';
 import { allDiagnostics, renderOptions, type DrawAsk } from './draw.ts';
 import { toProblems, type Problem } from './problems.ts';
@@ -16,7 +16,7 @@ export const isDiagramDoc = (doc: vscode.TextDocument) => (doc.languageId === 'y
 
 export class Language implements vscode.CodeActionProvider {
   static readonly kinds = [vscode.CodeActionKind.QuickFix];
-  readonly collection = vscode.languages.createDiagnosticCollection('cartography');
+  readonly collection = vscode.languages.createDiagnosticCollection('linework');
   private problems = new Map<string, Problem[]>();
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private generation = new Map<string, number>();
@@ -64,7 +64,7 @@ export class Language implements vscode.CodeActionProvider {
       doc.uri,
       problems.map((p) => {
         const d = new vscode.Diagnostic(new vscode.Range(p.start.line, p.start.character, p.end.line, p.end.character), p.message, p.severity === 'error' ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Warning);
-        d.source = 'cartography';
+        d.source = 'linework';
         return d;
       }),
     );
@@ -79,7 +79,7 @@ export class Language implements vscode.CodeActionProvider {
     const problems = this.problems.get(doc.uri.toString()) ?? [];
     const out: vscode.CodeAction[] = [];
     for (const d of ctx.diagnostics) {
-      if (d.source !== 'cartography') continue;
+      if (d.source !== 'linework') continue;
       const p = problems.find((x) => x.message === d.message && x.start.line === d.range.start.line && x.start.character === d.range.start.character);
       for (const f of p?.fixes ?? []) {
         const a = new vscode.CodeAction(f.title, vscode.CodeActionKind.QuickFix);
@@ -123,7 +123,7 @@ export async function registerYamlSchemas(): Promise<boolean> {
   };
   const cache = new Map<string, string>();
   return api.registerContributor(
-    'cartography',
+    'linework',
     (resource) => {
       if (!settings().yamlSchemas) return undefined;
       const f = textOf(resource);
@@ -142,6 +142,6 @@ export async function registerYamlSchemas(): Promise<boolean> {
       }
       return s;
     },
-    'Cartography',
+    'Linework',
   );
 }

@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { icon } from '@cartography/icons';
-import { render } from '@cartography/engine';
-import { measureText, themes, themeTextFonts, withTextFonts } from '@cartography/theme';
-import { JOURNEY_ROWS, journeyAvatarNames, journeyScene, type JourneyMark, type JourneyScene } from '@cartography/render';
-import { journeyAvatars, journeyBeats, journeyMood, type JourneyShape } from '@cartography/core';
+import { icon } from '@linework/icons';
+import { render } from '@linework/engine';
+import { measureText, themes, themeTextFonts, withTextFonts } from '@linework/theme';
+import { JOURNEY_ROWS, journeyAvatarNames, journeyScene, type JourneyMark, type JourneyScene } from '@linework/render';
+import { journeyAvatars, journeyBeats, journeyMood, type JourneyShape } from '@linework/core';
 import { journey, journeyReferences, journeyScale, journeyViewsOf, parseFeel, stepShorthand, touchpointIcon } from '../src/index.ts';
 
 // Text is measured in the faces of the look the drawing is made in, as the engine does.

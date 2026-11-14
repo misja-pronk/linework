@@ -1,14 +1,14 @@
 {
-  "name": "@cartography/capabilities",
+  "name": "@linework/capabilities",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
   "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@cartography/core": "workspace:*", "@cartography/tree": "workspace:*" },
+  "dependencies": { "@linework/core": "workspace:*", "@linework/tree": "workspace:*" },
   "devDependencies": {
-    "@cartography/engine": "workspace:*",
-    "@cartography/render": "workspace:*",
-    "@cartography/theme": "workspace:*",
+    "@linework/engine": "workspace:*",
+    "@linework/render": "workspace:*",
+    "@linework/theme": "workspace:*",
     "yaml": "^2.9.1"
   }
 }

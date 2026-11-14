@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { icon } from '@cartography/icons';
-import { matchTypes } from '@cartography/core';
-import { render, types } from '@cartography/engine';
+import { icon } from '@linework/icons';
+import { matchTypes } from '@linework/core';
+import { render, types } from '@linework/engine';
 import { azureKind, cloud, config, configFor, countKinds, range } from '../src/index.ts';
 
 const draw = (yaml: string) => render(yaml, { fonts: 'none' });

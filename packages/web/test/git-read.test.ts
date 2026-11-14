@@ -24,7 +24,7 @@ const filesOf = (root: string): GitFiles => ({
 const version = (n: number) => `type: azure\ntitle: Shop\nnodes:\n${Array.from({ length: n }, (_, i) => `  n${i}: { kind: app-service, label: Service number ${i} with a longer label }`).join('\n')}\n`;
 
 beforeAll(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-git-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'linework-git-'));
   git('init', '-q', '-b', 'main');
   fs.mkdirSync(path.join(dir, 'docs'));
   for (let n = 1; n <= 6; n++) {

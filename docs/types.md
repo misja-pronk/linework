@@ -5,16 +5,16 @@ Every diagram starts with `type:`. The type decides what you can put in it (the 
 The same guidance is in the editor (New → *What do you want to draw?*, or click the type pill in the top bar) and on the command line:
 
 ```sh
-carto types                    # every type, what it is for, what it is not for
-carto types who has access     # the types that match your words, best first
-carto new erd orders.yaml      # start from a type's template
+linework types                 # every type, what it is for, what it is not for
+linework types who has access  # the types that match your words, best first
+linework new erd orders.yaml   # start from a type's template
 ```
 
 Whatever the type, a drawing can be told in parts for an audience: `steps:` says what is shown and what stands out at each step, for the presenter in the editor and for one slide per step in PowerPoint. See [steps.md](steps.md).
 
 In PowerPoint every type is drawn as native shapes you can edit, except three: a sequence diagram, git branching and a roadmap go on the slide as one picture (SVG, with a PNG for older apps). The export says so in a warning.
 
-A big drawing of boxes and lines can be cut down to one thing and what is around it: `focus: orders` in the YAML, `carto render --focus orders --hops 2`, or `F` on a selection in the editor. See [the focus view](data-products.md#the-focus-view).
+A big drawing of boxes and lines can be cut down to one thing and what is around it: `focus: orders` in the YAML, `linework render --focus orders --hops 2`, or `F` on a selection in the editor. See [the focus view](data-products.md#the-focus-view).
 
 ## Decision table
 
@@ -163,7 +163,7 @@ Use it for a VPC across availability zones with its subnet tiers, a data platfor
 - **Lines**: `public`, `private`, `data`, `identity`, `peering`, `vpn` and `management`; a line without a style is a plain connection.
 - **Checks**, as warnings: address ranges that overlap or fall outside their VPC (also between VPCs joined by peering, a VPN or a transit gateway), something marked `exposure: public` or a NAT gateway in a private subnet, public traffic straight into a private subnet, and a zonal resource (EC2, a disk) outside every zone once zones are drawn.
 - **Model kinds** (`database`, `queue`, `api`, …) become the service that usually hosts them: RDS, SQS and ECS for `provider: aws`; Cloud SQL, Pub/Sub and Cloud Run for `gcp`. `of:` places a model's containers on the infrastructure, per environment; see [model.md](model.md#deployments-of-what-a-resource-runs).
-- **Official icons** are bring-your-own, as for Azure: `carto icons import <download>` (AWS and Google Cloud are told apart by their files), then `icons: official`. In a mixed diagram each shape takes its icon from its own provider's set. See [icons.md](icons.md).
+- **Official icons** are bring-your-own, as for Azure: `linework icons import <download>` (AWS and Google Cloud are told apart by their files), then `icons: official`. In a mixed diagram each shape takes its icon from its own provider's set. See [icons.md](icons.md).
 
 Not for: an estate that is only Azure (use `azure`), a cloud-neutral overview (use `systems`), pods and services inside a cluster (use `kubernetes`), devices, cabling and an IP plan (use `network`).
 
@@ -270,7 +270,7 @@ policies:
   mask-pii: { kind: column-mask, label: mask_pii, tag: pii, on: customers_prod, excludes: [customers-team, sp-lakehouse-prod] }
 ```
 
-**Where a role applies.** A permission that is only granted on some kinds of scope says so with `on:` (Unity Catalog's `USE CATALOG` on a catalog, `USE SCHEMA` on a catalog or schema), and a whole role can say it too (an Azure role made for key vaults, an Entra role for administrative units). Granted on another kind, directly or through a role it inherits, `carto validate` warns: `read holds USE CATALOG (on catalog), and gold is a schema`. The roles table and the matrix name the permissions as ever.
+**Where a role applies.** A permission that is only granted on some kinds of scope says so with `on:` (Unity Catalog's `USE CATALOG` on a catalog, `USE SCHEMA` on a catalog or schema), and a whole role can say it too (an Azure role made for key vaults, an Entra role for administrative units). Granted on another kind, directly or through a role it inherits, `linework validate` warns: `read holds USE CATALOG (on catalog), and gold is a schema`. The roles table and the matrix name the permissions as ever.
 
 ```yaml
 roles:
@@ -360,7 +360,7 @@ Examples: [examples/github](../examples/github)
 
 `type: data-products` · data mesh: domains, products, their ports, contracts and consumers.
 
-Use it to show which data products feed which through which input and output ports, to link data contracts (ODCS files next to the diagram) to the ports they describe, to map who consumes a product (reports, models, apps), or to draw a folder of ODPS and ODCS files as one data mesh map: `carto render <folder>`.
+Use it to show which data products feed which through which input and output ports, to link data contracts (ODCS files next to the diagram) to the ports they describe, to map who consumes a product (reports, models, apps), or to draw a folder of ODPS and ODCS files as one data mesh map: `linework render <folder>`.
 
 Not for: the tables inside one database (use `erd`), ETL jobs and services as boxes (use `systems`).
 
@@ -417,9 +417,9 @@ Activations follow the calls: a call opens one on the receiver and its reply clo
 
 Labels never collide: every message has its own row, a long label wraps, and each gap between lifelines is as wide as its widest label. Built on the lanes engine (`packages/lanes`), which also carries git branching and roadmaps.
 
-Phases: a `divider:` at the top level of `messages:` starts a phase, and what comes before the first divider is the phase `Start`. The drawing is the whole sequence, as written; with two or more phases each one is also a view of its own, named after its divider (`phase-payment` for `divider: Payment`, titled *Payment*; `whole` is the whole sequence again). Pick one in the editor's view switcher or with `carto render checkout.yaml --view phase-payment` (`--all-views` for all of them). A phase view draws only that phase's messages, with the participants that take part in it; the numbers stay those of the whole sequence, so step 7 is 7 in its phase too, and an activation still open from an earlier phase runs from the top of the phase. A divider inside a frame (an `alt`, a `loop`) does not cut: a phase never starts or ends halfway a frame. About 12 messages fit a 16:9 slide; a longer sequence goes on slides per phase. `carto validate` then checks the phases for slides, and for the whole only says, as a hint, that it is presented per phase. A phase of a sequence without a `title:` takes the phase as its title, so a slide always says which phase it is (with a title, the phase is the subtitle). In the editor the page frame (⇧P) on the whole sequence says which phases put it on slides instead of flagging its text; PowerPoint and PDF give the whole first and then a slide or page per phase, and the message after the export offers *Leave it out* for a deck of only the phases.
+Phases: a `divider:` at the top level of `messages:` starts a phase, and what comes before the first divider is the phase `Start`. The drawing is the whole sequence, as written; with two or more phases each one is also a view of its own, named after its divider (`phase-payment` for `divider: Payment`, titled *Payment*; `whole` is the whole sequence again). Pick one in the editor's view switcher or with `linework render checkout.yaml --view phase-payment` (`--all-views` for all of them). A phase view draws only that phase's messages, with the participants that take part in it; the numbers stay those of the whole sequence, so step 7 is 7 in its phase too, and an activation still open from an earlier phase runs from the top of the phase. A divider inside a frame (an `alt`, a `loop`) does not cut: a phase never starts or ends halfway a frame. About 12 messages fit a 16:9 slide; a longer sequence goes on slides per phase. `linework validate` then checks the phases for slides, and for the whole only says, as a hint, that it is presented per phase. A phase of a sequence without a `title:` takes the phase as its title, so a slide always says which phase it is (with a title, the phase is the subtitle). In the editor the page frame (⇧P) on the whole sequence says which phases put it on slides instead of flagging its text; PowerPoint and PDF give the whole first and then a slide or page per phase, and the message after the export offers *Leave it out* for a deck of only the phases.
 
-Presenting: a sequence diagram steps through its messages by itself, one at a time (`P` in the editor, `carto render checkout.yaml --all-steps`); a phase view steps through its own messages. A sequence with phases is presented as the whole on one slide, as an overview, and then phase by phase, message by message: each message is told once. See [steps.md](steps.md).
+Presenting: a sequence diagram steps through its messages by itself, one at a time (`P` in the editor, `linework render checkout.yaml --all-steps`); a phase view steps through its own messages. A sequence with phases is presented as the whole on one slide, as an overview, and then phase by phase, message by message: each message is told once. See [steps.md](steps.md).
 
 Examples: [examples/sequence](../examples/sequence)
 
@@ -580,7 +580,7 @@ Four views of the same steps, picked with `view:`, `--view` or the view menu:
 
 The feeling curve is not colour-only: every point is a face, the lowest and highest are called out, and a dashed line marks neutral. A score outside the scale is drawn at the edge, with a warning. The drawing picks its column width (or cards per row) to come close to 16:9, so it fills a slide.
 
-Presenting tells the journey one step at a time: the step in focus is outlined, the rest is quiet and the curve is drawn up to that point; the caption is the step's thought. A comparison is told phase by phase. `carto render --all-steps` gives the same as slides or pages. In PowerPoint the journey is native shapes and text boxes (the curve an editable freeform), not a picture.
+Presenting tells the journey one step at a time: the step in focus is outlined, the rest is quiet and the curve is drawn up to that point; the caption is the step's thought. A comparison is told phase by phase. `linework render --all-steps` gives the same as slides or pages. In PowerPoint the journey is native shapes and text boxes (the curve an editable freeform), not a picture.
 
 Import: Mermaid `journey` (sections become phases, tasks steps with their score; the actor in most tasks becomes the persona, the others go to `with:`).
 
@@ -787,4 +787,4 @@ Guide: [mindmap.md](mindmap.md). Examples: [examples/mindmap](../examples/mindma
 
 ## Adding a type
 
-A type describes itself with a few optional fields on its `DiagramType` (`packages/core/src/diagram-type.ts`): `icon`, `tagline`, `useWhen`, `notFor` (with `use` pointing at a better type id) and `keywords` for the search box. The start dialog, `carto types` and the editor pick them up; add a section and a row to this page too.
+A type describes itself with a few optional fields on its `DiagramType` (`packages/core/src/diagram-type.ts`): `icon`, `tagline`, `useWhen`, `notFor` (with `use` pointing at a better type id) and `keywords` for the search box. The start dialog, `linework types` and the editor pick them up; add a section and a row to this page too.

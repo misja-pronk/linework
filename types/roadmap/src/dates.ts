@@ -2,7 +2,7 @@
 // zone. A written date is a range: "2026" a year, "2026-03" a month, "2026-Q2" a quarter, "2026-W14"
 // an ISO week, "2026-03-15" a day.
 
-import { english, type Word } from '@cartography/core';
+import { english, type Word } from '@linework/core';
 
 export type Unit = 'week' | 'month' | 'quarter';
 

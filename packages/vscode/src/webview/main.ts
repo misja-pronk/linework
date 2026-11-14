@@ -21,7 +21,7 @@ interface Saved {
 }
 
 const vscode = acquireVsCodeApi();
-const config = ((window as unknown as { cartoConfig?: ViewConfig }).cartoConfig ?? { mode: 'preview' }) as ViewConfig;
+const config = ((window as unknown as { lineworkConfig?: ViewConfig }).lineworkConfig ?? { mode: 'preview' }) as ViewConfig;
 const present = config.mode === 'present';
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const bar = $('bar');
@@ -80,8 +80,8 @@ new ResizeObserver(placeStage).observe(bar);
 const selector = (kind: Kind, id: string) => `[data-${kind}="${CSS.escape(id)}"]`;
 
 function paintHighlight() {
-  for (const el of paper.querySelectorAll('.carto-hl')) el.classList.remove('carto-hl');
-  for (const h of highlighted) for (const el of paper.querySelectorAll(selector(h.kind, h.id))) el.classList.add('carto-hl');
+  for (const el of paper.querySelectorAll('.linework-hl')) el.classList.remove('linework-hl');
+  for (const h of highlighted) for (const el of paper.querySelectorAll(selector(h.kind, h.id))) el.classList.add('linework-hl');
 }
 
 function showProblems(errors: number, warnings: number, message?: string, isStale = false) {
@@ -131,10 +131,10 @@ function showControls(p: Picture) {
 function show(m: Extract<ToView, { type: 'picture' }>) {
   if (m.fontCss !== undefined && m.picture.fonts !== fontsKey) {
     fontsKey = m.picture.fonts;
-    let style = document.getElementById('carto-fonts');
+    let style = document.getElementById('linework-fonts');
     if (!style) {
       style = document.createElement('style');
-      style.id = 'carto-fonts';
+      style.id = 'linework-fonts';
       document.head.append(style);
     }
     style.textContent = m.fontCss;
@@ -147,7 +147,7 @@ function show(m: Extract<ToView, { type: 'picture' }>) {
   docKey = m.docKey;
   paper.innerHTML = m.picture.svg;
   paper.classList.toggle('pinnable', pinnable);
-  if (m.picture.canvas) document.body.style.setProperty('--carto-canvas', m.picture.canvas);
+  if (m.picture.canvas) document.body.style.setProperty('--linework-canvas', m.picture.canvas);
   empty.hidden = true;
   showControls(m.picture);
   showProblems(m.errors, m.warnings, m.message, false);
@@ -332,7 +332,7 @@ stage.addEventListener('pointermove', (e) => {
   const t = d.target;
   // Only a node is dragged to a pin (in present mode nothing moves); anything else pans.
   if (t && t.kind === 'node' && pinnable && !present && picture?.nodes[t.id]) {
-    t.el.classList.add('carto-dragging');
+    t.el.classList.add('linework-dragging');
     t.el.setAttribute('transform', `translate(${dx / view.scale} ${dy / view.scale})${t.transform ? ' ' + t.transform : ''}`);
     return;
   }
@@ -365,7 +365,7 @@ const end = (e: PointerEvent) => {
     const y = Math.round(box.y + s.y + (e.clientY - d.y) / view.scale);
     send({ type: 'pin', kind: 'node', id: t.id, x, y });
   } else if (t) {
-    t.el.classList.remove('carto-dragging');
+    t.el.classList.remove('linework-dragging');
     if (t.transform) t.el.setAttribute('transform', t.transform);
     else if (t.kind === 'node') t.el.removeAttribute('transform');
   }

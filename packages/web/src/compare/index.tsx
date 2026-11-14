@@ -3,8 +3,8 @@
 // one. The app hands in what it knows about the document and places what this returns.
 import { is, keyHint } from '../keys.ts';
 import { useEffect, useRef, useState } from 'react';
-import type { LayoutSidecar } from '@cartography/core';
-import type { ItemDiff } from '@cartography/diff';
+import type { LayoutSidecar } from '@linework/core';
+import type { ItemDiff } from '@linework/diff';
 import { Palette, type Command } from '../palette.tsx';
 import { Icon } from '../icon.tsx';
 import { useModal } from '../menu.tsx';
@@ -50,7 +50,7 @@ const stamp = () => {
 async function pickYaml(): Promise<{ name: string; text: string } | undefined> {
   if ('showOpenFilePicker' in window) {
     try {
-      const [h] = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({ types: [{ description: t('Cartography diagram'), accept: { 'text/yaml': ['.yaml', '.yml'] } }] });
+      const [h] = await (window as unknown as { showOpenFilePicker(o: object): Promise<FileSystemFileHandle[]> }).showOpenFilePicker({ types: [{ description: t('Linework diagram'), accept: { 'text/yaml': ['.yaml', '.yml'] } }] });
       const f = await h!.getFile();
       return { name: f.name, text: await f.text() };
     } catch {
@@ -325,7 +325,7 @@ function SnapshotDialog(p: { suggested: string; folderPath?: string; used(): Pro
           <label className="check">
             <input type="checkbox" checked={toFolder} onChange={(e) => setToFolder(e.target.checked)} />
             <span>
-              {t('Also in the folder, as')} <code>{snapshotPath(p.folderPath, final)}</code>{t(': a plain file git can keep, and')} <code>carto diff --snapshot</code> {t('reads')}
+              {t('Also in the folder, as')} <code>{snapshotPath(p.folderPath, final)}</code>{t(': a plain file git can keep, and')} <code>linework diff --snapshot</code> {t('reads')}
             </span>
           </label>
         )}

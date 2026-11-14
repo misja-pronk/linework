@@ -1,5 +1,5 @@
-import { parseLink, safeHref as coreSafeHref } from '@cartography/core';
-import { render } from '@cartography/engine';
+import { parseLink, safeHref as coreSafeHref } from '@linework/core';
+import { render } from '@linework/engine';
 import { describe, expect, it } from 'vitest';
 import { describe as describeGraph, diagnosticText, escapeHtml, linkTarget, linkText, safeAttribute, safeHref } from '../src/shared.ts';
 

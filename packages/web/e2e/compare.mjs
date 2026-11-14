@@ -34,7 +34,7 @@ process.on('uncaughtException', async (e) => {
 });
 const wait = (ms = 300) => page.waitForTimeout(ms);
 const check = (what, got, want) => (got === want ? undefined : fail(`${what}: expected ${JSON.stringify(want)}, got ${JSON.stringify(got)}`));
-const url = process.env.CARTO_URL ?? 'http://localhost:5178/';
+const url = process.env.LINEWORK_URL ?? 'http://localhost:5178/';
 
 // Drawn left to right, as asked: wide, so side by side the two go under each other (left open, five
 // cards come out top-down on a slide's room under its title, and side by side stand next to each other).
@@ -91,7 +91,7 @@ const download = async (menuItem) => {
     if (sessionStorage.getItem('seeded')) return;
     sessionStorage.setItem('seeded', '1');
     localStorage.clear();
-    for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', 'yaml-folded': false, doc: { text, doc: { name: 'shop.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+    for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', 'yaml-folded': false, doc: { text, doc: { name: 'shop.yaml' } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
   }, v1);
   await page.goto(url);
   await page.waitForSelector('.drawing [data-node="vm"]', { timeout: 15000 });
@@ -204,7 +204,7 @@ const download = async (menuItem) => {
 
 // 8. In a folder that is a git repository: last saved, HEAD and an earlier commit; a snapshot in the folder.
 {
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-compare-'));
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'linework-compare-'));
   const env = { ...process.env, GIT_AUTHOR_NAME: 'Ann', GIT_AUTHOR_EMAIL: 'ann@example.com', GIT_COMMITTER_NAME: 'Ann', GIT_COMMITTER_EMAIL: 'ann@example.com', GIT_CONFIG_GLOBAL: '/dev/null' };
   const git = (...a) => execFileSync('git', a, { cwd: repo, env, encoding: 'utf8' });
   git('init', '-q', '-b', 'main');

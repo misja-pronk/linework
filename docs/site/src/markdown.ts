@@ -167,7 +167,7 @@ export async function renderMarkdown(file: string, resolver: Resolver, root: str
       continue;
     }
     if (t.type === 'inline') current.text.push(t.content.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[`*_]/g, ''));
-    else if (t.type === 'fence' && !/^carto/.test(t.info)) current.text.push(t.content.slice(0, 400));
+    else if (t.type === 'fence' && !/^linework/.test(t.info)) current.text.push(t.content.slice(0, 400));
   }
   sections.push({ id: current.id, heading: current.heading, text: current.text.join(' ') });
 

@@ -1,7 +1,7 @@
 // Sheet marks: what makes the page a sheet. Corner marks show its extent without a box, so a white
 // diagram does not float on a white slide. A frame adds a neatline, centring ticks and a zone grid
 // (numbers along the top and bottom, letters down the sides), as on a map sheet or a drawing frame.
-import { look, type Theme } from '@cartography/theme';
+import { look, type Theme } from '@linework/theme';
 import { esc, r1 } from './paint.ts';
 
 /** Arm length of a corner mark. */

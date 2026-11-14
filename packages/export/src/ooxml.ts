@@ -86,13 +86,13 @@ export function coreProps(title: string, date: Date): string {
   const iso = date.toISOString().replace(/\.\d+Z$/, 'Z');
   return (
     `${HEAD}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">` +
-    `<dc:title>${esc(title)}</dc:title><dc:creator>Cartography</dc:creator><cp:lastModifiedBy>Cartography</cp:lastModifiedBy>` +
+    `<dc:title>${esc(title)}</dc:title><dc:creator>Linework</dc:creator><cp:lastModifiedBy>Linework</cp:lastModifiedBy>` +
     `<dcterms:created xsi:type="dcterms:W3CDTF">${iso}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${iso}</dcterms:modified></cp:coreProperties>`
   );
 }
 
 export function appProps(slides: number): string {
-  return `${HEAD}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Cartography</Application><Slides>${slides}</Slides><Notes>${slides}</Notes><PresentationFormat>On-screen Show</PresentationFormat></Properties>`;
+  return `${HEAD}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Linework</Application><Slides>${slides}</Slides><Notes>${slides}</Notes><PresentationFormat>On-screen Show</PresentationFormat></Properties>`;
 }
 
 export function presentation(slides: number, width: number, height: number): string {

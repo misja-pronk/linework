@@ -1,6 +1,6 @@
 // Two versions of one diagram in, the diff out: as data, and as pictures on request.
-import { render, type RenderOptions, type RenderResult } from '@cartography/engine';
-import type { Diagnostic } from '@cartography/core';
+import { render, type RenderOptions, type RenderResult } from '@linework/engine';
+import type { Diagnostic } from '@linework/core';
 import { diffGraphs, type GraphDiff } from './structure.ts';
 import { drawDiff, markedSide, sideBySide, type Drawing, type OverlayOptions, type Picture } from './overlay.ts';
 
@@ -11,7 +11,7 @@ export interface CompareOptions {
   /** One of the diagram's views; without it the diagram as written. */
   view?: string;
   /**
-   * Lay the newer drawing out from scratch, as `carto render` would. By default it is drawn knowing the
+   * Lay the newer drawing out from scratch, as `linework render` would. By default it is drawn knowing the
    * older one, so what both have stays where it was and the picture shows the change, not a reshuffle.
    */
   fresh?: boolean;

@@ -1,9 +1,9 @@
 {
-  "name": "@cartography/i18n",
+  "name": "@linework/i18n",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
-  "description": "Cartography's own words in English and Dutch: a small message catalog with plurals and placeholders",
+  "description": "Linework's own words in English and Dutch: a small message catalog with plurals and placeholders",
   "exports": {
     ".": "./src/index.ts",
     "./drawing": "./src/drawing.ts",

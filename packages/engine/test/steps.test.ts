@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { findType, render, schemaOf } from '../src/index.ts';
-import type { Placed, StepNote, StepState } from '@cartography/core';
-import { drawNote, noteStem, placeNotes } from '@cartography/render';
-import { light } from '@cartography/theme';
+import type { Placed, StepNote, StepState } from '@linework/core';
+import { drawNote, noteStem, placeNotes } from '@linework/render';
+import { light } from '@linework/theme';
 
 /** The drawing without its text alternative (title and description, see describe.ts), which tells every step. */
 const drawn = (svg: string | undefined) => svg?.replace(/ role="img" aria-labelledby="[^"]*"( aria-describedby="[^"]*")?/, '').replace(/<title id="[^"]*-title">[^<]*<\/title>(<desc id="[^"]*-desc">[^<]*<\/desc>)?/, '');

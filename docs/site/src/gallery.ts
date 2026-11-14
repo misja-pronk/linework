@@ -4,10 +4,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import MarkdownIt from 'markdown-it';
-import { encodeShare } from '@cartography/core';
+import { encodeShare } from '@linework/core';
 import { build, toHtml } from './draw.ts';
-import { render, types } from '@cartography/engine';
-import { icon as lucide } from '@cartography/icons';
+import { render, types } from '@linework/engine';
+import { icon as lucide } from '@linework/icons';
 import { escape } from './highlight.ts';
 import { icon } from './layout.ts';
 import { options, slug } from './markdown.ts';
@@ -116,7 +116,7 @@ export async function buildGallery(o: GalleryOptions): Promise<TypeEntry[]> {
     e.cards.push({
       id: `template-${t.id}`,
       title: 'Template',
-      source: `carto new ${t.id}`,
+      source: `linework new ${t.id}`,
       yamlHref: `yaml/templates/${name}`,
       figure: await draw(t.template, undefined, o.root),
       nodes: r.graph?.nodes.length ?? 0,

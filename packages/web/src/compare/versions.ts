@@ -1,8 +1,8 @@
 // What the open diagram can be compared with in the browser: the file as last saved, a snapshot,
 // another file, or a commit read from the folder's .git. Each comes with what render needs to draw it
 // as it was: its own pins and, for a commit, the files it includes as they were in that commit.
-import type { LayoutSidecar } from '@cartography/core';
-import { render } from '@cartography/engine';
+import type { LayoutSidecar } from '@linework/core';
+import { render } from '@linework/engine';
 import type { Repo } from './git.ts';
 import { t } from '../i18n/index.ts';
 

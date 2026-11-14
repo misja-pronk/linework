@@ -11,7 +11,7 @@ const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
 const wait = (ms = 300) => page.waitForTimeout(ms);
-const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}'));
+const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('linework:doc') ?? '{}'));
 const yaml = async () => (await wait(500), (await stored()).text ?? '');
 /** Where each node is in the drawing's own units: the canvas may zoom to fit, the drawing does not move. */
 const places = () => page.evaluate(() => Object.fromEntries([...document.querySelectorAll('.drawing [data-node]')].map((n) => { const b = n.getBBox(); return [n.getAttribute('data-node'), `${Math.round(b.x)},${Math.round(b.y)}`]; })));
@@ -65,9 +65,9 @@ await page.addInitScript(() => {
   sessionStorage.removeItem('seed');
   localStorage.clear();
   const { text, name } = JSON.parse(next);
-  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
 });
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.evaluate((next) => sessionStorage.setItem('seed', next), JSON.stringify({ text, name: 'layers.yaml' }));
 await page.reload();
 await page.waitForSelector('.drawing [data-node="vault"]', { timeout: 10000 });

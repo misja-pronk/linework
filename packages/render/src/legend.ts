@@ -1,14 +1,14 @@
 // The legend: a plain row of samples, a column beside the drawing, or the KEY of a map sheet (a
 // rule across, the word KEY, then the samples, wrapped to the page). A sample of a kind of element
 // is that kind's own icon in the theme's tile style, so it also reads without colour.
-import type { Graph, LegendItem } from '@cartography/core';
-import { baselineOffset, chipText, groupLine, look, measureText, paperTint, type Theme, type ToneColors } from '@cartography/theme';
+import type { Graph, LegendItem } from '@linework/core';
+import { baselineOffset, chipText, groupLine, look, measureText, paperTint, type Theme, type ToneColors } from '@linework/theme';
 import { chipBack, dashAttr, endMarker, esc, glyph, iconTile, monoAttr, patternOver, patternWidth, r1, tagRadius } from './paint.ts';
 import { drawTags, endStyle, tagsWidth } from './tags.ts';
 import { blockSample } from './block.ts';
 import { drawMarks } from './flow.ts';
 import { messageSample } from './sequence.ts';
-import { tr } from '@cartography/i18n/drawing';
+import { tr } from '@linework/i18n/drawing';
 import { SMALL_PX } from './readable.ts';
 
 /** Sample, gap, label, then the gap to the next item. */

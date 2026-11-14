@@ -26,7 +26,7 @@ import {
   type Reference,
   type Tone,
   type Word,
-} from '@cartography/core';
+} from '@linework/core';
 
 export const principalKinds: KindTable = {
   user: { label: 'User', icon: 'user', tone: 'slate' },
@@ -248,7 +248,7 @@ export interface AccessSource {
   policies?: Record<string, string | Control>;
   /** "who is role on scope", or "who is eligible role on scope" for a role that is activated through PIM. */
   assignments?: (string | Assignment)[];
-  /** An earlier state of the same diagram: the who × where matrix then shows what was gained and lost. Written by `carto diff`. */
+  /** An earlier state of the same diagram: the who × where matrix then shows what was gained and lost. Written by `linework diff`. */
   was?: AccessSource;
 }
 
@@ -1468,7 +1468,7 @@ export const access: DiagramType<AccessSource> = {
   ],
   schema: {
     $schema: 'http://json-schema.org/draft-07/schema#',
-    title: 'Cartography access diagram',
+    title: 'Linework access diagram',
     type: 'object',
     required: ['type'],
     properties: {
@@ -1593,7 +1593,7 @@ export const access: DiagramType<AccessSource> = {
           ],
         },
       },
-      was: { type: 'object', description: 'An earlier state of this diagram (its principals, resources, roles, packages and assignments): the who × where matrix then shows what was gained and lost. Written by carto diff' },
+      was: { type: 'object', description: 'An earlier state of this diagram (its principals, resources, roles, packages and assignments): the who × where matrix then shows what was gained and lost. Written by linework diff' },
     },
     additionalProperties: false,
   },

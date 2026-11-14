@@ -1,13 +1,13 @@
 // Export: the same SVG the CLI writes (fonts embedded), PNG through a canvas, PowerPoint and PDF
 // (their libraries load on first use, so the editor itself stays small), and the YAML itself.
 // And an SVG that Office takes whole.
-import { render, SLIDE_MIN_PT, themes, type RenderResult } from '@cartography/engine';
-import type { LayoutMemory, LayoutSidecar } from '@cartography/core';
-import type { FamilyBytes, SlideText } from '@cartography/export';
+import { render, SLIDE_MIN_PT, themes, type RenderResult } from '@linework/engine';
+import type { LayoutMemory, LayoutSidecar } from '@linework/core';
+import type { FamilyBytes, SlideText } from '@linework/export';
 import { iconOptions } from './icon-packs.ts';
 import { brand } from './brand.ts';
 import { t } from './i18n/index.ts';
-import { describe, pngWithText, toText } from '@cartography/describe';
+import { describe, pngWithText, toText } from '@linework/describe';
 
 export interface ExportInput {
   text: string;
@@ -76,7 +76,7 @@ export async function exportPageSvg(input: ExportInput): Promise<string> {
   const r = await render(input.text, options(input));
   if (!r.svg || !r.width || !r.height) throw new Error(t('Nothing to export: fix the problems first'));
   if (!r.page) return r.svg;
-  const { svgOnPage } = await import('@cartography/export');
+  const { svgOnPage } = await import('@linework/export');
   return svgOnPage(r.svg, r.width, r.height, r.page.width / r.page.height, r.theme?.canvas ?? themes[input.theme].canvas).svg;
 }
 
@@ -143,7 +143,7 @@ export async function exportPptx(input: ExportInput, name?: string, template?: P
   // A canvas's whole drawing (present: views) is never a slide: its views are the deck.
   const shownFirst = !(template?.withoutScroll && by.length) && !wholeCanvas(r);
   const drawings = [...(shownFirst ? [r] : []), ...rest.filter((x) => x.graph && x.placed && !x.empty), ...layerSlides].map((x) => ({ ...x, name }));
-  const { toPptx } = await import('@cartography/export');
+  const { toPptx } = await import('@linework/export');
   const small: SlideText[] = [];
   const aspect = r.page && Math.abs(r.page.width / r.page.height - 4 / 3) < 0.01 ? '4:3' : '16:9';
   // In a PowerPoint template: the one chosen in the menu, else the one the diagram's theme names (pptx:).
@@ -169,7 +169,7 @@ export async function exportPdf(input: ExportInput, name?: string, opts: { witho
   // A canvas's whole drawing (present: views) is not a page: a page per view instead.
   const by = wholeCanvas(r) ? (r.views ?? []) : presentedBy(r);
   const rest = (await Promise.all(by.map((v) => render(input.text, { ...options(input), view: v.name, previous: undefined, step: undefined, fonts: 'none' })))).filter((x) => x.graph && x.placed && !x.empty);
-  const [{ toPdf, pdfFamilies }, { fontFiles, bundledFontFiles }] = await Promise.all([import('@cartography/export'), import('@cartography/theme/node')]);
+  const [{ toPdf, pdfFamilies }, { fontFiles, bundledFontFiles }] = await Promise.all([import('@linework/export'), import('@linework/theme/node')]);
   // The TTFs are assets of their own, fetched only now; PDF subsetting cannot use the WOFF2 the SVG embeds.
   const bytes = async (u: URL) => new Uint8Array(await (await fetch(u)).arrayBuffer());
   const theme = r.theme ?? themes[input.theme];
@@ -190,7 +190,7 @@ export async function exportPdf(input: ExportInput, name?: string, opts: { witho
 export async function exportSafeSvg(input: ExportInput): Promise<string> {
   const r = await render(input.text, { ...options(input), fonts: 'none' });
   if (!r.svg) throw new Error(t('Nothing to export: fix the problems first'));
-  const { toSafeSvg } = await import('@cartography/export/svg-safe');
+  const { toSafeSvg } = await import('@linework/export/svg-safe');
   return toSafeSvg(r.svg);
 }
 

@@ -1,4 +1,4 @@
-// Every example in words, as `carto describe` writes it: a file per drawing (and per view) under
+// Every example in words, as `linework describe` writes it: a file per drawing (and per view) under
 // __snapshots__/describe, so a change in wording shows up in review as a change in text.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -6,8 +6,8 @@ import { describe as group, expect, it, vi } from 'vitest';
 
 // A file with views is drawn once per view.
 vi.setConfig({ testTimeout: 30_000 });
-import { describe, toText } from '@cartography/describe';
-import { isDiagramFile } from '@cartography/core';
+import { describe, toText } from '@linework/describe';
+import { isDiagramFile } from '@linework/core';
 import { render } from '../src/index.ts';
 
 const root = new URL('../../../examples/', import.meta.url).pathname;
@@ -60,7 +60,7 @@ flow:
     const text = toText(describe({ ...r }));
     expect(text).toContain('Unity Catalog access diagram');
     expect(text).not.toContain('Roles, groups and access packages');
-    expect(r.svg).toContain('<desc id="carto-');
+    expect(r.svg).toContain('<desc id="linework-');
     expect(/<desc[^>]*>([^<]*)/.exec(r.svg!)![1]).toMatch(/^Unity Catalog access diagram/);
   });
 

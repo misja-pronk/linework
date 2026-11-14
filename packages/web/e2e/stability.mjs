@@ -17,11 +17,11 @@ const openDoc = async (text, name, last) => {
       if (sessionStorage.getItem('seeded')) return;
       sessionStorage.setItem('seeded', '1');
       localStorage.clear();
-      for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', 'yaml-folded': false, doc: { text, doc: { name } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+      for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', 'yaml-folded': false, doc: { text, doc: { name } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
     },
     { text, name },
   );
-  await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+  await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
   await page.waitForSelector(`.drawing [data-node="${last}"]`, { timeout: 10000 }).catch(async (e) => {
     await page.screenshot({ path: `${out}/s0-failed.png` });
     throw e;
@@ -31,7 +31,7 @@ const openDoc = async (text, name, last) => {
 const wait = (ms = 300) => page.waitForTimeout(ms);
 const stored = async () => {
   await wait(450);
-  return page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}'));
+  return page.evaluate(() => JSON.parse(localStorage.getItem('linework:doc') ?? '{}'));
 };
 // Top-left corners in the drawing's own coordinates: zooming and panning do not change them.
 const corners = () =>

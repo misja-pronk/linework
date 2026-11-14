@@ -1,6 +1,6 @@
 // One set of design tokens for every diagram type (requirement V2). Change the look here.
-import type { Tone } from '@cartography/core';
-import type { Lang } from '@cartography/i18n';
+import type { Tone } from '@linework/core';
+import type { Lang } from '@linework/i18n';
 
 export interface ToneColors {
   /** Icons, strong accents, coloured lines. */

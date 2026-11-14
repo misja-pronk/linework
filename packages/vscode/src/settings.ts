@@ -13,7 +13,7 @@ export interface Settings {
 }
 
 export function settings(): Settings {
-  const c = vscode.workspace.getConfiguration('cartography');
+  const c = vscode.workspace.getConfiguration('linework');
   const theme = c.get<string>('preview.theme', 'auto');
   return {
     theme: theme && theme !== 'auto' ? theme : undefined,

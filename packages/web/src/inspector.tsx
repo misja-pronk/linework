@@ -8,7 +8,7 @@ import { LinkList } from './link-list.tsx';
 import { TagChips } from './tag-chips.tsx';
 import { store } from './store.ts';
 import { say, t } from './i18n/index.ts';
-import type { Link } from '@cartography/core';
+import type { Link } from '@linework/core';
 
 export interface InspectorProps {
   /** Which selection this panel shows ("node:web"), so a caller can wait for it before moving the cursor in. */

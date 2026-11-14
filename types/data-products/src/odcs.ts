@@ -2,7 +2,7 @@
 // into what a contract card shows: name, version, schema objects with their fields, SLAs and quality rules.
 // v3 (`schema[].properties[]`, `slaProperties[]`) is the target; v2 (`dataset[].columns[]`) is read too.
 // v3.1 `relationships` (foreign keys, on a schema object or on a property) become lines between fields.
-import type { RowMark } from '@cartography/core';
+import type { RowMark } from '@linework/core';
 
 export interface ContractField {
   /** The stable `id` (v3.1), which fully qualified references use instead of the name. */

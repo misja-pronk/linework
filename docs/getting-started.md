@@ -1,16 +1,16 @@
 # Get started
 
-Cartography turns a short YAML file into an architecture diagram: you say what is there and how it connects, and it lays the drawing out, routes the lines and draws it in one consistent style. There is an editor in the browser and a command line; both read and write the same files.
+Linework turns a short YAML file into an architecture diagram: you say what is there and how it connects, and it lays the drawing out, routes the lines and draws it in one consistent style. There is an editor in the browser and a command line; both read and write the same files.
 
 ## Install
 
-Cartography is not on npm yet. Run it from a clone of the repository:
+Linework is not on npm yet. Run it from a clone of the repository:
 
 ```sh
 mise install            # Node 24 and pnpm, or bring your own
 pnpm install
 pnpm web                # the editor → http://localhost:5178
-pnpm carto --help       # the command line
+pnpm linework --help    # the command line
 ```
 
 `pnpm web:build` builds the editor into `packages/web/dist`: plain files that run from any folder, offline. Nothing you draw leaves your machine.
@@ -20,10 +20,10 @@ pnpm carto --help       # the command line
 Start from a type's template, or write the file yourself:
 
 ```sh
-pnpm carto types                          # which type for what
-pnpm carto new systems shop.yaml          # start from the template
-pnpm carto render shop.yaml -f png        # → shop.png
-pnpm carto watch shop.yaml                # draw again on every save
+pnpm linework types                       # which type for what
+pnpm linework new systems shop.yaml       # start from the template
+pnpm linework render shop.yaml -f png     # → shop.png
+pnpm linework watch shop.yaml             # draw again on every save
 ```
 
 A diagram is a type, a title, the things in it and the lines between them. This is a whole file:

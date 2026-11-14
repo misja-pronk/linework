@@ -1,8 +1,8 @@
 // Renders one example per built-in theme, plus the fictional Acme brand theme, into docs/themes/png.
 import fs from 'node:fs';
 import path from 'node:path';
-import { render, type RenderOptions } from '@cartography/engine';
-import { themeCatalog } from '@cartography/theme';
+import { render, type RenderOptions } from '@linework/engine';
+import { themeCatalog } from '@linework/theme';
 import { fontScale, ttfFiles } from './fonts.ts';
 import { toPng } from './png.ts';
 

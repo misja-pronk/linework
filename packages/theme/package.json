@@ -1,5 +1,5 @@
 {
-  "name": "@cartography/theme",
+  "name": "@linework/theme",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
@@ -8,8 +8,8 @@
     "./node": "./src/node.ts"
   },
   "dependencies": {
-    "@cartography/core": "workspace:*",
+    "@linework/core": "workspace:*",
     "yaml": "^2.9.1",
-    "@cartography/i18n": "workspace:*"
+    "@linework/i18n": "workspace:*"
   }
 }

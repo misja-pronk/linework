@@ -1,5 +1,5 @@
 {
-  "name": "@cartography/cli",
+  "name": "@linework/cli",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
@@ -9,26 +9,26 @@
     "./fonts": "./src/fonts.ts"
   },
   "dependencies": {
-    "@cartography/access": "workspace:*",
-    "@cartography/core": "workspace:*",
-    "@cartography/describe": "workspace:*",
-    "@cartography/diff": "workspace:*",
-    "@cartography/engine": "workspace:*",
-    "@cartography/export": "workspace:*",
-    "@cartography/github": "workspace:*",
-    "@cartography/html-export": "workspace:*",
-    "@cartography/i18n": "workspace:*",
-    "@cartography/icons": "workspace:*",
-    "@cartography/layout": "workspace:*",
-    "@cartography/mcp": "workspace:*",
-    "@cartography/theme": "workspace:*",
+    "@linework/access": "workspace:*",
+    "@linework/core": "workspace:*",
+    "@linework/describe": "workspace:*",
+    "@linework/diff": "workspace:*",
+    "@linework/engine": "workspace:*",
+    "@linework/export": "workspace:*",
+    "@linework/github": "workspace:*",
+    "@linework/html-export": "workspace:*",
+    "@linework/i18n": "workspace:*",
+    "@linework/icons": "workspace:*",
+    "@linework/layout": "workspace:*",
+    "@linework/mcp": "workspace:*",
+    "@linework/theme": "workspace:*",
     "@resvg/resvg-js": "^2.6.2",
     "fontkit": "^2.0.4",
     "wawoff2": "^2.0.1",
     "yaml": "^2.9.1"
   },
   "bin": {
-    "carto": "./src/main.ts"
+    "linework": "./src/main.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",

@@ -1,5 +1,5 @@
 {
-  "name": "@cartography/html-export",
+  "name": "@linework/html-export",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
@@ -11,13 +11,13 @@
     "build": "node build.mjs"
   },
   "dependencies": {
-    "@cartography/core": "workspace:*",
-    "@cartography/describe": "workspace:*",
-    "@cartography/embed": "workspace:*",
-    "@cartography/engine": "workspace:*",
-    "@cartography/i18n": "workspace:*",
-    "@cartography/render": "workspace:*",
-    "@cartography/theme": "workspace:*",
+    "@linework/core": "workspace:*",
+    "@linework/describe": "workspace:*",
+    "@linework/embed": "workspace:*",
+    "@linework/engine": "workspace:*",
+    "@linework/i18n": "workspace:*",
+    "@linework/render": "workspace:*",
+    "@linework/theme": "workspace:*",
     "fflate": "0.8.3",
     "yaml": "^2.9.1"
   },

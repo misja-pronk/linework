@@ -4,12 +4,12 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse } from 'yaml';
-import { expandEach } from '@cartography/core';
-import { icon } from '@cartography/icons';
-import { config as azure, databricksGroups, databricksNodes } from '@cartography/azure';
-import { principalKinds, resourceKinds } from '@cartography/access';
-import { classes, portKinds } from '@cartography/data-products';
-import { config as systems } from '@cartography/systems';
+import { expandEach } from '@linework/core';
+import { icon } from '@linework/icons';
+import { config as azure, databricksGroups, databricksNodes } from '@linework/azure';
+import { principalKinds, resourceKinds } from '@linework/access';
+import { classes, portKinds } from '@linework/data-products';
+import { config as systems } from '@linework/systems';
 import { render } from '../src/index.ts';
 
 const dir = path.resolve(import.meta.dirname, '../../../examples/databricks');

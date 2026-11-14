@@ -21,7 +21,7 @@
 //       frontstage: …  backstage: …  support: …    the rows of a service blueprint
 //   view: map                                      map | storyboard | blueprint | compare
 //   future: { label: With self-service, steps: … } a second journey through the same phases
-import { term } from '@cartography/i18n/drawing';
+import { term } from '@linework/i18n/drawing';
 import {
   english,
   journeyAvatars,
@@ -48,7 +48,7 @@ import {
   type Path,
   type Reference,
   type Tone,
-} from '@cartography/core';
+} from '@linework/core';
 
 const PHASE_TONES: Tone[] = ['blue', 'indigo', 'violet', 'sky', 'teal'];
 const DEFAULT_ROWS: JourneyRow[] = ['steps', 'touchpoints', 'feeling', 'thoughts', 'pains', 'gains', 'ideas', 'metrics'];
@@ -466,7 +466,7 @@ const rowName = { enum: journeyRows };
 
 const schema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography journey',
+  title: 'Linework journey',
   type: 'object',
   required: ['type'],
   properties: {

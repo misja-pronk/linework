@@ -11,7 +11,7 @@ import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { lintGutter, setDiagnostics, type Diagnostic as CmDiagnostic } from '@codemirror/lint';
 import { yaml } from '@codemirror/lang-yaml';
 import { tags as t } from '@lezer/highlight';
-import type { Diagnostic, LayoutSidecar } from '@cartography/core';
+import type { Diagnostic, LayoutSidecar } from '@linework/core';
 import { schemaCompletion } from './complete.ts';
 
 export interface EditorHandle {

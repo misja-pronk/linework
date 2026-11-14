@@ -65,7 +65,7 @@ resources:
   contoso_sell_through: { kind: share, label: contoso_sell_through, caption: sales_prod.gold.sell_through, tags: [prod] }
 
 roles:
-  # Privileges as Unity Catalog names them; on: says on which securables each can be granted, so carto validate
+  # Privileges as Unity Catalog names them; on: says on which securables each can be granted, so linework validate
   # warns about a grant on the wrong level
   metastore-admin: { label: Metastore admin, tone: rose, permissions: [{ CREATE CATALOG: { on: metastore } }, { CREATE CONNECTION: { on: metastore } }, take ownership] }
   workspace-admin: { label: Workspace admin, tone: rose, permissions: [manage workspace] }

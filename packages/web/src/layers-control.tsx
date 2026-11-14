@@ -4,8 +4,8 @@
 // from the keyboard, 1–9 toggle, 0 shows everything, D switches Only and Faded. The chip under the
 // tools says what is drawn, and when layers wait for something that wins: comparing, then a focus.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { LayerMode } from '@cartography/core';
-import type { RenderResult } from '@cartography/engine';
+import type { LayerMode } from '@linework/core';
+import type { RenderResult } from '@linework/engine';
 import { Icon } from './icon.tsx';
 // The panel is a menu: its look first, then what is its own.
 import './menu.css';

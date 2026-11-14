@@ -9,7 +9,7 @@ export type Modal = 'palette' | 'templates' | 'problems' | 'connect' | 'shortcut
 export function useModals(onOpen: () => void) {
   // A first visit starts with choosing what to make and how.
   // The start dialog only until it has been left once (by any way: a template, a file, Esc).
-  // Opened by carto serve, the folder's first diagram opens instead.
+  // Opened by linework serve, the folder's first diagram opens instead.
   const [modal, setModal] = useState<Modal | undefined>(() => (store.get('started') || served() ? undefined : 'templates'));
   // A dialog takes the stage: a message about the page under it goes (what the dialog itself says shows on top).
   // Once the start dialog is left, by whatever way, it is not shown at the next launch.

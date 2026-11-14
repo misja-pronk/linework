@@ -35,7 +35,7 @@ import {
   type TableRow,
   type Tone,
   type Word,
-} from '@cartography/core';
+} from '@linework/core';
 import { findField, readOdcs, type ContractModel } from './odcs.ts';
 
 export { readOdcs, type ContractModel, type ContractRelation } from './odcs.ts';
@@ -629,7 +629,7 @@ const ids = (value: object) => ({ type: 'object', propertyNames: { pattern: idPa
 
 const schema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography data products diagram',
+  title: 'Linework data products diagram',
   type: 'object',
   required: ['type'],
   properties: {

@@ -1,5 +1,5 @@
 // Where snapshots of a diagram live as files: next to it, <name>.snapshots/<label>.yaml, the label
-// made safe for a file name. The editor writes them, `carto diff --snapshot <label>` reads them.
+// made safe for a file name. The editor writes them, `linework diff --snapshot <label>` reads them.
 
 /** A label as a file name: letters, digits, dot, dash and underscore; the rest becomes a dash. */
 export function snapshotSlug(label: string): string {

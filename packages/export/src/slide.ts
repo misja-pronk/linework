@@ -1,10 +1,10 @@
 // One diagram as native PowerPoint shapes: the same geometry render/svg.ts draws, but as rounded
 // rectangles with their text inside, pictures for icons and connectors bound to the shapes they
 // join, so the slide stays editable. Coordinates are layout px, mapped to EMU by `k`.
-import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@cartography/core';
-import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeadDown, laneHeader, laneMarks, LEGEND, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type JourneySeg, journeyPath, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, SECTION_PX, SMALL_PX, smallestTextPx, patternWidth } from '@cartography/render';
-import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@cartography/theme';
-import { tr } from '@cartography/i18n/drawing';
+import { chips, type BlockShape, type GitflowShape, type RoadmapShape, type SequenceShape, type Box, type CardShape, type Chip, type FlowShape, type Graph, type GraphEdge, type GraphGroup, type GraphNode, type JourneyShape, type LegendItem, type Marker, type MatrixCell, type MatrixShape, type Placed, type Point, type StepState, type TableShape } from '@linework/core';
+import {  besideShortLine, blockMarks, blockSample, BODY, bodyLines, byDepth, cardCaption, cardInsets, cardStroke, CHIP, chipRows, DECISION_TIP, flowMarks, groundOf, groupIconRoom, journeyScene, labelInk, labelString, laneHeadDown, laneHeader, laneMarks, LEGEND, MATRIX, matrixGeometry, cellMarks, noteMargins, noteStem, placeNotes, quietTheme, rowMarks, split, STACK, strongTheme, tableHeader, tagRadius, toOutline, type Ground, type JourneyMark, type JourneySeg, journeyPath, type PlacedNote, type StepView , endsRoom, endStyle, endTagAt, joinDot, umlEnd, tableGrid, headerGroups, sampleExtra, TAG, tagBoxes, tagColors, tagsWidth, type TagStyle, drawSequence, drawGitflow, drawRoadmap, esc, DETAIL_PX, SECTION_PX, SMALL_PX, smallestTextPx, patternWidth } from '@linework/render';
+import { chipText, fitText, groupCaptionInk, groupLabel, groupLabelInk, groupLine, look, measureText, mix, monoCell, paperTint, type Theme, type ToneColors, type Weight } from '@linework/theme';
+import { tr } from '@linework/i18n/drawing';
 import { legendLayout, PX } from './fit.ts';
 import { connector, group, picture, settle, shape, table, type TableSpec, type End, type Fill, type Frame, type Geometry, type Line, type Para, type Run, type ShapeSpec, type TextBody } from './shapes.ts';
 
@@ -304,7 +304,7 @@ class SlideDrawing {
    */
   private partPicture(n: GraphNode, s: SequenceShape | GitflowShape | RoadmapShape, b: Box, quiet: Theme): Item | undefined {
     const t = this.theme;
-    const shadow = 'carto-shadow';
+    const shadow = 'linework-shadow';
     const body = s.kind === 'sequence' ? drawSequence(s, b, t, shadow, this.state?.message ? { message: this.state.message, quiet } : undefined) : s.kind === 'gitflow' ? drawGitflow(s, b, t, shadow) : drawRoadmap(s, b, t);
     // Room for the shadows and what reaches past the box.
     const m = 16;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { chips, withoutBadges } from '@cartography/core';
-import { size } from '@cartography/render';
-import { themes } from '@cartography/theme';
+import { chips, withoutBadges } from '@linework/core';
+import { size } from '@linework/render';
+import { themes } from '@linework/theme';
 import { render } from '../src/index.ts';
 
 const diagram = (extra = '', edges = '') => `type: azure

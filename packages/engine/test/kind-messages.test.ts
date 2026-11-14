@@ -30,7 +30,7 @@ describe('kind problems', () => {
     const stray = await render('type: systems\nnodes:\n  a: { kind: service } x\n', { fonts: 'none' });
     expect(stray.diagnostics[0]).toMatchObject({ line: 3, message: 'There is text after the closing } on this line: remove it, or move it inside the { }' });
     const typo = await render('type: sytems\n', { fonts: 'none' });
-    expect(typo.diagnostics[0]).toMatchObject({ line: 1, message: 'Unknown type "sytems": did you mean systems? (completion in the editor and carto types list them all)' });
+    expect(typo.diagnostics[0]).toMatchObject({ line: 1, message: 'Unknown type "sytems": did you mean systems? (completion in the editor and linework types list them all)' });
     expect(typo.diagnostics[0]!.choices).toContain('systems');
   });
 

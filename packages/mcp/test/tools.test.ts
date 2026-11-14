@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { types } from '@cartography/engine';
+import { types } from '@linework/engine';
 import { createPrompt, getSchema, listTypes, newDiagram, renderDiagram, resolvePath, validateDiagram } from '../src/index.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-mcp-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linework-mcp-'));
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 // Supporting services everyone points at: crossings that badges should take away.

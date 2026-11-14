@@ -1,8 +1,8 @@
 // The diagram in words in the editor (docs/describe.md): for the Describe dialog, and for "Copy for
 // Confluence / Notion", which puts the picture and the words on the clipboard as one piece of rich
 // HTML, so a paste into Confluence, Notion or Google Docs gives both. Made here; nothing is uploaded.
-import { altText, describe, escapeHtml, toHtml, toMarkdown, toText, type Description } from '@cartography/describe';
-import type { RenderResult } from '@cartography/engine';
+import { altText, describe, escapeHtml, toHtml, toMarkdown, toText, type Description } from '@linework/describe';
+import type { RenderResult } from '@linework/engine';
 import { exportPng, type ExportInput } from './export.ts';
 
 export const describeResult = (r: RenderResult | undefined, file?: string): Description | undefined => (r?.graph ? describe({ ...r, name: file }) : undefined);

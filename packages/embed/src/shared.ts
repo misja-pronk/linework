@@ -1,7 +1,7 @@
 // What the interactive HTML export and the docs site share, and nothing that needs a browser or the
 // engine: where a link leads, the text alternative of a drawing, and the cleaning of an SVG before it
 // goes into a page. A diagram may be written by anyone, so everything from the YAML is untrusted here.
-import type { Diagnostic, Graph, Link } from '@cartography/core';
+import type { Diagnostic, Graph, Link } from '@linework/core';
 
 export const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 

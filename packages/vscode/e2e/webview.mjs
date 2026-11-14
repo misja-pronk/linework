@@ -1,7 +1,7 @@
 // The built extension without VS Code (none is downloaded): dist/extension.js activated against the
 // stubbed `vscode` module, then the preview page it makes opened in Chromium with a stubbed
 // acquireVsCodeApi, fed the extension's real messages, clicked, dragged, zoomed and screenshotted.
-// Usage: node e2e/webview.mjs [screenshot folder]   (build first: pnpm --filter @cartography/vscode build)
+// Usage: node e2e/webview.mjs [screenshot folder]   (build first: pnpm --filter @linework/vscode build)
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -14,7 +14,7 @@ const here = path.resolve(import.meta.dirname, '..');
 const out = path.resolve(process.argv[2] ?? path.join(here, 'e2e/out'));
 fs.mkdirSync(out, { recursive: true });
 const dist = path.join(here, 'dist');
-if (!fs.existsSync(path.join(dist, 'extension.js'))) throw new Error('Build first: pnpm --filter @cartography/vscode build');
+if (!fs.existsSync(path.join(dist, 'extension.js'))) throw new Error('Build first: pnpm --filter @linework/vscode build');
 const failures = [];
 const check = (ok, what) => {
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`);
@@ -23,7 +23,7 @@ const check = (ok, what) => {
 
 // The stub, as CommonJS, answering require('vscode') for the bundle.
 // The real path: require caches by it, and a second copy of the stub would see nothing.
-const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'carto-vscode-e2e-')));
+const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'linework-vscode-e2e-')));
 const stubFile = path.join(tmp, 'vscode-stub.cjs');
 await build({ entryPoints: [path.join(here, 'test/vscode-stub.ts')], bundle: true, format: 'cjs', platform: 'node', outfile: stubFile, logLevel: 'warning' });
 const resolve = Module._resolveFilename;
@@ -32,7 +32,7 @@ Module._resolveFilename = function (request, ...rest) {
 };
 const require = createRequire(import.meta.url);
 const stub = require(stubFile);
-stub.state.config['cartography.preview.debounce'] = 0;
+stub.state.config['linework.preview.debounce'] = 0;
 // The folder the live link announces (live.ts), for an agent to find.
 stub.workspace.workspaceFolders = [{ uri: stub.Uri.file(path.join(tmp, 'work')) }];
 const ext = require(path.join(dist, 'extension.js'));
@@ -113,16 +113,16 @@ fs.writeFileSync(file, text);
 
 // 1. The bundle: problems for a broken document, as the CLI words them.
 const broken = stub.openDocument(path.join(work, 'broken.yaml'), 'type: systems\nnodes:\n  a: { kind: apii }\n');
-const collection = stub.state.collections.find((c) => c.name === 'cartography');
+const collection = stub.state.collections.find((c) => c.name === 'linework');
 const problems = await until(() => collection.get(broken.uri)?.length && collection.get(broken.uri));
-// The words of core's source.ts (as carto validate prints them): the value, the nearest kind, a few allowed.
+// The words of core's source.ts (as linework validate prints them): the value, the nearest kind, a few allowed.
 check(problems.some((d) => d.message.startsWith('"kind" cannot be "apii": did you mean api?') && d.range.start.line === 2 && d.range.start.character === 7), 'bundle: problems at the right line, in the CLI words');
 
 // 3. The preview page in Chromium, with what the extension posts.
 const doc = stub.openDocument(file, text);
 stub.window.activeTextEditor = { document: doc, selections: [] };
-await stub.commands.executeCommand('cartography.showPreview');
-const panel = await until(() => stub.state.panels.find((p) => p.viewType === 'cartography.preview'));
+await stub.commands.executeCommand('linework.showPreview');
+const panel = await until(() => stub.state.panels.find((p) => p.viewType === 'linework.preview'));
 fs.copyFileSync(path.join(dist, 'webview.js'), path.join(tmp, 'webview.js'));
 // VS Code's theme variables, as a light theme sets them.
 const vars = `<style>:root{--vscode-font-family:-apple-system,system-ui,sans-serif;--vscode-editor-background:#fff;--vscode-foreground:#3b3b3b;--vscode-focusBorder:#005fb8;--vscode-button-secondaryBackground:#e5e5e5;--vscode-badge-background:#cce;--vscode-widget-border:#ddd;--vscode-editorWidget-background:#f8f8f8;--vscode-dropdown-background:#fff;--vscode-dropdown-border:#ccc}</style>`;
@@ -155,7 +155,7 @@ await pumpUntil(async () => (await tab.$('#paper svg')) !== null);
 await tab.waitForTimeout(300);
 check(errors.length === 0, `no errors in the page${errors.length ? `: ${errors.join('; ')}` : ''}`);
 check((await tab.$$eval('#paper [data-node]', (els) => els.length)) === 6, 'all six nodes drawn');
-check(await tab.evaluate(() => !!document.getElementById('carto-fonts')?.textContent?.includes('@font-face')), 'font faces put in the page once');
+check(await tab.evaluate(() => !!document.getElementById('linework-fonts')?.textContent?.includes('@font-face')), 'font faces put in the page once');
 check(await tab.$eval('#steps', (el) => !el.hidden), 'steps shown in the toolbar');
 await tab.screenshot({ path: path.join(out, 'preview.png') });
 
@@ -163,7 +163,7 @@ await tab.screenshot({ path: path.join(out, 'preview.png') });
 await tab.click('#paper [data-node="orders"]');
 const { sent } = await pump();
 check(sent.some((m) => m.type === 'reveal' && m.id === 'orders'), 'click on a node asks to reveal its YAML');
-check(await tab.$eval('#paper [data-node="orders"]', (el) => el.classList.contains('carto-hl')), 'the clicked node is lit up');
+check(await tab.$eval('#paper [data-node="orders"]', (el) => el.classList.contains('linework-hl')), 'the clicked node is lit up');
 
 // Cursor in the YAML → highlight.
 const at = text.indexOf('db: {') + 2;
@@ -174,7 +174,7 @@ stub.window.visibleTextEditors = [editor];
 stub.fireSelection({ textEditor: editor });
 await pump();
 await tab.waitForTimeout(50);
-check(await tab.$eval('#paper [data-node="db"]', (el) => el.classList.contains('carto-hl')), 'the cursor in the YAML lights up its node');
+check(await tab.$eval('#paper [data-node="db"]', (el) => el.classList.contains('linework-hl')), 'the cursor in the YAML lights up its node');
 
 // Zoom, then an edit: the zoom stays.
 await tab.click('#in');
@@ -216,7 +216,7 @@ await tab.screenshot({ path: path.join(out, 'preview-step.png') });
 // Dark: VS Code's dark theme, the diagram without a theme of its own follows.
 stub.window.activeColorTheme = { kind: stub.ColorThemeKind.Dark };
 panel.received.fire({ type: 'step', n: null });
-await pumpUntil(async () => (await tab.evaluate(() => getComputedStyle(document.body).getPropertyValue('--carto-canvas'))).trim() !== '' && (await tab.$eval('#stepN', (el) => el.textContent)) === '2 steps');
+await pumpUntil(async () => (await tab.evaluate(() => getComputedStyle(document.body).getPropertyValue('--linework-canvas'))).trim() !== '' && (await tab.$eval('#stepN', (el) => el.textContent)) === '2 steps');
 await tab.emulateMedia({ colorScheme: 'dark' });
 await tab.addStyleTag({ content: ':root{--vscode-editor-background:#1f1f1f;--vscode-foreground:#ccc;--vscode-editorWidget-background:#252526;--vscode-button-secondaryBackground:#313131;--vscode-dropdown-background:#313131}' });
 await pump();
@@ -228,7 +228,7 @@ await tab.screenshot({ path: path.join(out, 'preview-dark.png') });
 // Exports: SVG and PowerPoint in the extension, PNG through the page's canvas.
 const written = new Map();
 stub.workspace.fs.writeFile = async (uri, data) => void written.set(path.extname(uri.fsPath), data);
-for (const [cmd, ext] of [['cartography.exportSvg', '.svg'], ['cartography.exportPptx', '.pptx'], ['cartography.exportPng', '.png']]) {
+for (const [cmd, ext] of [['linework.exportSvg', '.svg'], ['linework.exportPptx', '.pptx'], ['linework.exportPng', '.png']]) {
   stub.window.showSaveDialog = async () => stub.Uri.file(path.join(out, `export${ext}`));
   const done = stub.commands.executeCommand(cmd, doc.uri);
   await pumpUntil(() => written.has(ext));
@@ -242,7 +242,7 @@ const png = Buffer.from(written.get('.png'));
 check(png.subarray(1, 4).toString() === 'PNG' && png.readUInt32BE(16) > 1000, `PNG export from the page canvas (${png.readUInt32BE(16)}×${png.readUInt32BE(20)})`);
 
 // The live link: the agent finds the extension, asks what is open, and proposes a change over the preview.
-const liveDir = path.join(os.tmpdir(), 'cartography-live');
+const liveDir = path.join(os.tmpdir(), 'linework-live');
 const live = fs.readdirSync(liveDir).map((f) => JSON.parse(fs.readFileSync(path.join(liveDir, f), 'utf8'))).find((e) => e.host === 'vscode' && e.roots.includes(work) && e.pid === process.pid);
 check(!!live, 'live: the extension announces itself for the workspace folder');
 const call = (body) => fetch(`${live.url}/live`, { method: 'POST', headers: { authorization: `Bearer ${live.token}`, 'content-type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
@@ -270,12 +270,12 @@ check((await rejecting).result?.outcome === 'rejected' && doc.getText().includes
 
 // The MCP server the extension registers with VS Code (mcp.ts), started as VS Code starts it: the
 // definition's command, arguments, environment and folder. An agent's calls go through it to the live link.
-const [definition] = await stub.state.mcpProviders.get('cartography.mcp').provideMcpServerDefinitions();
+const [definition] = await stub.state.mcpProviders.get('linework.mcp').provideMcpServerDefinitions();
 check(definition?.cwd?.fsPath === work && definition.args[0] === path.join(dist, 'mcp.mjs'), 'mcp: one server, the bundled one, in the workspace folder');
 const mcp = mcpClient(spawn(definition.command, definition.args, { cwd: definition.cwd.fsPath, env: { ...process.env, ...definition.env } }));
 const hello = await mcp.rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'e2e', version: '1' } });
 mcp.notify('notifications/initialized');
-check(hello.result?.serverInfo?.name === 'cartography', `mcp: the server starts and answers (${hello.result?.serverInfo?.name ?? hello.error?.message})`);
+check(hello.result?.serverInfo?.name === 'linework', `mcp: the server starts and answers (${hello.result?.serverInfo?.name ?? hello.error?.message})`);
 const names = (await mcp.rpc('tools/list')).result?.tools.map((t) => t.name) ?? [];
 check(['get_schema', 'validate', 'edit_diagram', 'get_context', 'propose'].every((n) => names.includes(n)), `mcp: the tools are there (${names.length})`);
 const mcpCtx = await mcp.tool('get_context', {});
@@ -291,7 +291,7 @@ const panelsBefore = stub.state.panels.length;
 const proposingOther = mcp.tool('propose', { file: 'billing.yaml', summary: 'Add invoices', edits: [{ op: 'set', path: ['nodes', 'invoices'], value: { kind: 'queue', label: 'Invoices' } }, { op: 'append', path: ['edges'], value: 'billing -> invoices' }] });
 const otherDoc = await until(() => stub.state.documents.find((d) => d.fileName === other));
 check(stub.state.shown.includes(otherDoc), 'propose, not open: the file opens in an editor');
-const otherPanel = await until(() => stub.state.panels.slice(panelsBefore).find((p) => p.viewType === 'cartography.preview'));
+const otherPanel = await until(() => stub.state.panels.slice(panelsBefore).find((p) => p.viewType === 'linework.preview'));
 const otherPage = await openPage(otherPanel, 'other', { width: 1000, height: 700 });
 await otherPage.pumpUntil(async () => otherPage.tab.$eval('#proposal', (el) => !el.hidden));
 check((await otherPage.tab.$eval('#pSummary', (el) => el.textContent)) === 'Add invoices', 'propose, not open: its preview opens with the proposal');
@@ -307,8 +307,8 @@ check(/not-open/.test(notOpen) && !stub.state.documents.some((d) => d.fileName =
 
 // The presenter: full screen, the step's caption below, arrows step.
 stub.window.activeColorTheme = { kind: stub.ColorThemeKind.Light };
-await stub.commands.executeCommand('cartography.present', doc.uri);
-const present = await until(() => stub.state.panels.find((p) => p.viewType === 'cartography.present'));
+await stub.commands.executeCommand('linework.present', doc.uri);
+const present = await until(() => stub.state.panels.find((p) => p.viewType === 'linework.present'));
 check(present.webview.html.includes('data-mode="present"'), 'present opens a page of its own');
 check(stub.state.executed.some((e) => /maximizeEditor/.test(e.id)), 'present maximizes the editor');
 const show = await openPage(present, 'present', { width: 1280, height: 720 });

@@ -1,7 +1,7 @@
 // Moving through one diagram without changing it: its views (V), a focus on part of it (F), its steps
 // ([ ], S) and presenting them (P), and links to other views and diagrams.
 import { useEffect, useRef, useState } from 'react';
-import type { Link } from '@cartography/core';
+import type { Link } from '@linework/core';
 import { t } from '../i18n/index.ts';
 import { linkTarget } from '../links.ts';
 import { exampleLoader, starters, type Starter } from '../library.ts';

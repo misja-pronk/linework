@@ -2,7 +2,7 @@
 // editor's history. Add, delete, duplicate, copy and paste, rename, labels typed in place, drag (and
 // into a group), connect. What an edit adds is selected once it is drawn.
 import { useEffect, useState } from 'react';
-import type { PaletteItem, Path, Point } from '@cartography/core';
+import type { PaletteItem, Path, Point } from '@linework/core';
 import { t } from '../i18n/index.ts';
 import { typeName } from '../library.ts';
 import type { EditorHandle } from '../editor.tsx';

@@ -1,7 +1,7 @@
 // What changed between two drawings, by id: the same answer for the CLI, a pull request comment and
 // (later) the editor's "compare with HEAD". Works on the built graphs, so every diagram type is covered
 // and a change in an included model file shows up in the diagrams that draw it.
-import type { Graph, GraphEdge, GraphGroup, GraphNode } from '@cartography/core';
+import type { Graph, GraphEdge, GraphGroup, GraphNode } from '@linework/core';
 
 export type Status = 'added' | 'removed' | 'changed';
 

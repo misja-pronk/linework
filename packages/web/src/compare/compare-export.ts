@@ -1,8 +1,8 @@
 // What a comparison is taken away as: the summary in Markdown (copied, or as a file) for a change
 // advisory board, the picture on screen as SVG or PNG, and a two-slide deck: before and after, each
 // with its marks, the sentences in the speaker notes. Pictures are drawn again with fonts embedded.
-import type { LayoutSidecar } from '@cartography/core';
-import { compare, explainMarkdown, toldSummary, type Comparison, type Explained, type Picture } from '@cartography/diff';
+import type { LayoutSidecar } from '@linework/core';
+import { compare, explainMarkdown, toldSummary, type Comparison, type Explained, type Picture } from '@linework/diff';
 import { baseName, download } from '../export.ts';
 import { say, t } from '../i18n/index.ts';
 import type { Baseline } from './versions.ts';
@@ -91,7 +91,7 @@ export function compareExports(i: Input): CompareExports {
           { pic: is ?? empty(t('Removed')), title: t('After: {title}', { title }), subtitle: t('Now · {counts}', { counts }) },
         ].map(async (s) => ({ title: s.title, subtitle: s.subtitle, svg: s.pic.svg, width: s.pic.width, height: s.pic.height, png: new Uint8Array(await (await svgToPng(s.pic.svg, s.pic.width, s.pic.height)).arrayBuffer()), notes: [s.title, '', ...sentences] })),
       );
-      const { toPictureDeck } = await import('@cartography/export');
+      const { toPictureDeck } = await import('@linework/export');
       const theme = (c.after ?? c.before)?.theme;
       download(file('.pptx'), new Blob([toPictureDeck(slides, { ...(theme ? { theme } : {}), title: t('Changes to {title}', { title }) }) as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }));
       i.notify(t('Saved before and after as two slides; the changes are in the speaker notes'));

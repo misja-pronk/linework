@@ -1,7 +1,7 @@
 // Editor craft as plain geometry, so it can be tested without a browser: smart guides and snapping while
 // dragging, align and distribute, dragging a line's segment, and finding the nearest element in a direction.
 // Everything works in pin space (what the sidecar stores).
-import type { Box, Point } from '@cartography/core';
+import type { Box, Point } from '@linework/core';
 
 /** An alignment line: `axis` x is a vertical line at x = `at`, running from `from` to `to` along y. */
 export interface Guide {

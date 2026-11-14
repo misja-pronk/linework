@@ -1,15 +1,15 @@
 {
-  "name": "@cartography/states",
+  "name": "@linework/states",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
   "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@cartography/core": "workspace:*" },
+  "dependencies": { "@linework/core": "workspace:*" },
   "devDependencies": {
-    "@cartography/engine": "workspace:*",
-    "@cartography/icons": "workspace:*",
-    "@cartography/render": "workspace:*",
-    "@cartography/theme": "workspace:*",
+    "@linework/engine": "workspace:*",
+    "@linework/icons": "workspace:*",
+    "@linework/render": "workspace:*",
+    "@linework/theme": "workspace:*",
     "yaml": "^2.9.1"
   }
 }

@@ -15,9 +15,9 @@ await page.addInitScript((text) => {
   if (sessionStorage.getItem('seeded')) return;
   sessionStorage.setItem('seeded', '1');
   localStorage.clear();
-  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', doc: { text, doc: { name: 'placement.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', doc: { text, doc: { name: 'placement.yaml' } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
 }, text);
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.waitForSelector('.drawing [data-node="app"]');
 // The trackpad way: the shapes listed beside the drawing in the builder.
 await page.locator('.yaml-strip button[aria-label="Shapes"]').click();
@@ -29,7 +29,7 @@ await wait(400);
 
 const pins = async () => {
   await wait(450);
-  return (await page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}'))).pins ?? {};
+  return (await page.evaluate(() => JSON.parse(localStorage.getItem('linework:doc') ?? '{}'))).pins ?? {};
 };
 /** Boxes in the drawing's own coordinates (zoom and pan do not change them), nodes and groups. */
 const boxes = () =>

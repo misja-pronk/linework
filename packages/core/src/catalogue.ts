@@ -452,7 +452,7 @@ export const modelProperties = {
 /** The schema of a `type: model` file. */
 export const modelSchema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography model',
+  title: 'Linework model',
   type: 'object',
   required: ['type'],
   properties: { type: { const: 'model' }, title: { type: 'string' }, subtitle: { type: 'string' }, direction: { enum: ['right', 'down'] }, ...modelProperties },

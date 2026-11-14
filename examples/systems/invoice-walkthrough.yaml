@@ -1,6 +1,6 @@
 # A customer walkthrough: one drawing, told in seven steps. Present it in the editor (P), or
-#   carto render invoice-walkthrough.yaml -o walkthrough.pptx     one slide per step
-#   carto render invoice-walkthrough.yaml --all-steps             one image per step
+#   linework render invoice-walkthrough.yaml -o walkthrough.pptx     one slide per step
+#   linework render invoice-walkthrough.yaml --all-steps             one image per step
 type: systems
 title: Checkout without waiting
 subtitle: Proposal for the steering group

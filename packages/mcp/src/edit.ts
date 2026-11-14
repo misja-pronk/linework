@@ -1,8 +1,8 @@
 // edit_diagram: small edits by YAML path, checked, applied, drawn, and only then written. The rest of
 // the file keeps its bytes (comments too), and an id that is renamed takes its pins along.
 import fs from 'node:fs';
-import { applyOperations, checkOperations, parseSource, renamePinsEverywhere, type Operation } from '@cartography/core';
-import { findType, render } from '@cartography/engine';
+import { applyOperations, checkOperations, parseSource, renamePinsEverywhere, type Operation } from '@linework/core';
+import { findType, render } from '@linework/engine';
 import { load, problems, quality, reader, resolvePath, type Checked, type Input } from './tools.ts';
 
 export interface EditRequest extends Input {

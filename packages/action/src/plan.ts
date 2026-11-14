@@ -1,9 +1,9 @@
 // Which diagrams a change touches, and what it does to each. A diagram is touched when its own file
 // changed, when its pins did, or when anything it reads did (a model it includes, a contract, an icon):
 // found by drawing it and noting every file it asks for, so nothing has to be declared.
-import { compare, type Comparison } from '@cartography/diff';
-import { changedFiles, git, sidecarOf, versionAt, versionOnDisk, type ChangedFile } from '@cartography/diff/node';
-import { findType, render } from '@cartography/engine';
+import { compare, type Comparison } from '@linework/diff';
+import { changedFiles, git, sidecarOf, versionAt, versionOnDisk, type ChangedFile } from '@linework/diff/node';
+import { findType, render } from '@linework/engine';
 
 export interface Target {
   /** Repository path of the diagram. */
@@ -48,7 +48,7 @@ export function pathspecs(patterns: string[] = DEFAULT_FILES): string[] {
   return out.every((p) => p.startsWith(':(glob,exclude)')) ? [...DEFAULT_FILES.map((p) => `:(glob)${p}`), ...out] : out;
 }
 
-/** A YAML file is a diagram when its `type:` is one Cartography draws; workflows, compose files and the like are not. */
+/** A YAML file is a diagram when its `type:` is one Linework draws; workflows, compose files and the like are not. */
 export function isDiagram(text: string | undefined): boolean {
   const id = text?.match(/^type:[ \t]*["']?([\w-]+)/m)?.[1];
   return !!id && (id === 'model' || !!findType(id));

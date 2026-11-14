@@ -11,7 +11,7 @@ import { edgeItemSchema, edgeReferences, parseEdge } from './edges.ts';
 import { idPattern, type BuildContext, type KindTable, type Reference } from './diagram-type.ts';
 import type { Direction, Graph, GraphEdge, GraphGroup, GraphNode, LegendItem, LinePattern, Path, Tone } from './model.ts';
 import { tones } from './model.ts';
-import { term, tr } from '@cartography/i18n/drawing';
+import { term, tr } from '@linework/i18n/drawing';
 import { elementFields, emptyCatalogue, modelProperties, parseLinks } from './catalogue.ts';
 import { envsOf, type Origins } from './views.ts';
 import { viewSource } from './c4-views.ts';

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { unzipSync, strFromU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { render, SLIDE_MIN_PT, types, type RenderResult } from '@cartography/engine';
+import { render, SLIDE_MIN_PT, types, type RenderResult } from '@linework/engine';
 import { toPptx, type SlideText } from '../src/index.ts';
 
 // Every example as a deck: no slide may come out empty, whatever the type (docs/capabilities.md).
@@ -42,8 +42,8 @@ describe('pptx of every example', () => {
     });
 });
 
-// What `carto new` writes and the editor opens for a new diagram is the first thing a reader sees:
-// it reads on a 16:9 slide, as carto validate measures it (the whole drawing, every view, every step).
+// What `linework new` writes and the editor opens for a new diagram is the first thing a reader sees:
+// it reads on a 16:9 slide, as linework validate measures it (the whole drawing, every view, every step).
 describe('every type template on a slide', () => {
   /** The smallest needed text (pt) of each slide the deck makes of a drawing. */
   const slides = async (r: RenderResult, steps: boolean) => {

@@ -36,13 +36,13 @@ Key
 
 | Where | What |
 | --- | --- |
-| Every SVG that leaves the editor (`carto render`, Export → SVG) | `<title>` and `<desc>` right after the root, which says `role="img"`, `aria-labelledby` (the title) and `aria-describedby` (the description). A step's SVG says which step in its title. |
-| PNG (`carto render -o x.png`, Export → PNG, Copy as PNG) | `Title` and `Description` text chunks (iTXt, UTF-8). Image viewers and asset tools show them; a web page still needs its own `alt`. |
-| PDF (`carto render -o x.pdf`, `carto deck`, Export → PDF) | A tagged PDF: each drawing is a `Div` with the description as its alternate text (not a `Figure`: Preview and other apps on Apple's PDFKit treat a figure as a picture, so its words could not be found, selected or copied), frame and footer marked as artifacts, language set. A page per step says that step. |
+| Every SVG that leaves the editor (`linework render`, Export → SVG) | `<title>` and `<desc>` right after the root, which says `role="img"`, `aria-labelledby` (the title) and `aria-describedby` (the description). A step's SVG says which step in its title. |
+| PNG (`linework render -o x.png`, Export → PNG, Copy as PNG) | `Title` and `Description` text chunks (iTXt, UTF-8). Image viewers and asset tools show them; a web page still needs its own `alt`. |
+| PDF (`linework render -o x.pdf`, `linework deck`, Export → PDF) | A tagged PDF: each drawing is a `Div` with the description as its alternate text (not a `Figure`: Preview and other apps on Apple's PDFKit treat a figure as a picture, so its words could not be found, selected or copied), frame and footer marked as artifacts, language set. A page per step says that step. |
 | PowerPoint (`.pptx`) | The drawing is one group on the slide whose alt text (`descr`) is the description; each shape keeps its own. A slide per step says that step. |
 | The editor | **Export → Describe in words…** or ⌘K *Describe in words*: the description of what is on screen (its view, step and focus), with **Copy text** (`T`), **Copy Markdown** (`M`) and **Copy for Confluence / Notion** (`C`, below). |
-| Interactive HTML (`carto export-html`) | Each drawing is described to a screen reader by its description. |
-| `carto describe` | On the command line, below. |
+| Interactive HTML (`linework export-html`) | Each drawing is described to a screen reader by its description. |
+| `linework describe` | On the command line, below. |
 
 ## Copy for Confluence / Notion
 
@@ -52,14 +52,14 @@ alt text, and the description. Paste into a Confluence page, Notion, Google Docs
 the words in one go; anything that takes only text gets the description as plain text. Made in the browser; nothing
 is uploaded.
 
-## carto describe
+## linework describe
 
 ```sh
-carto describe shop.yaml                     # plain text on standard output
-carto describe shop.yaml -o shop.md          # Markdown (-o x.html: HTML; --format text|md|html says it outright)
-carto describe model.yaml --view containers  # one view
-carto describe teams.yaml --all-views        # the drawing as written and each view after it
-carto describe - < shop.yaml                 # the diagram from standard input (carto validate - too)
+linework describe shop.yaml                  # plain text on standard output
+linework describe shop.yaml -o shop.md       # Markdown (-o x.html: HTML; --format text|md|html says it outright)
+linework describe model.yaml --view containers  # one view
+linework describe teams.yaml --all-views     # the drawing as written and each view after it
+linework describe - < shop.yaml              # the diagram from standard input (linework validate - too)
 ```
 
 It exits 1 when the diagram has errors and writes nothing then.

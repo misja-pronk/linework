@@ -6,7 +6,7 @@
 // node e2e/view-follows.mjs <outDir>
 import { chromium } from '@playwright/test';
 const out = process.argv[2];
-const url = process.env.CARTO_URL ?? 'http://localhost:5178/';
+const url = process.env.LINEWORK_URL ?? 'http://localhost:5178/';
 const problems = [];
 const fail = (m) => problems.push(m);
 const browser = await chromium.launch();

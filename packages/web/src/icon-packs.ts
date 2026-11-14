@@ -1,9 +1,9 @@
 // Official icon sets in the browser: a download (zip or folder) is copied into the origin's private
-// file system (OPFS), indexed like `carto icons import` does, and the matched icons are kept in memory
+// file system (OPFS), indexed like `linework icons import` does, and the matched icons are kept in memory
 // for drawing. Nothing leaves the browser; the sets are never part of a diagram or a share link.
 import { useSyncExternalStore } from 'react';
-import { buildPack, coverage, detectVendor, iconIndex, nameTokens, vendors, type IconPackFile, type Vendor } from '@cartography/icons';
-import { iconKinds, vendorKinds, type IconMode } from '@cartography/engine';
+import { buildPack, coverage, detectVendor, iconIndex, nameTokens, vendors, type IconPackFile, type Vendor } from '@linework/icons';
+import { iconKinds, vendorKinds, type IconMode } from '@linework/engine';
 import { store } from './store.ts';
 import { t } from './i18n/index.ts';
 

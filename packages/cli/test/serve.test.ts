@@ -1,4 +1,4 @@
-// carto serve end to end, without a browser: a stand-in editor on the event stream answers the live
+// linework serve end to end, without a browser: a stand-in editor on the event stream answers the live
 // calls, and an MCP client over HTTP calls the tools as an agent would.
 import fs from 'node:fs';
 import os from 'node:os';
@@ -6,7 +6,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import type { ToEditor } from '@cartography/core';
+import type { ToEditor } from '@linework/core';
 import { serve } from '../src/serve.ts';
 
 const shop = `type: azure
@@ -18,7 +18,7 @@ edges:
   - web -> db: SQL
 `;
 
-const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'carto-serve-')));
+const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'linework-serve-')));
 const root = path.join(tmp, 'folder');
 const app = path.join(tmp, 'app');
 const token = 'test-token-0123456789abcdefghijklmnop';
@@ -36,7 +36,7 @@ afterAll(() => {
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
-const api = (p: string, init: RequestInit = {}) => fetch(`${s.url}${p}`, { ...init, headers: { 'x-carto-token': token, ...init.headers } });
+const api = (p: string, init: RequestInit = {}) => fetch(`${s.url}${p}`, { ...init, headers: { 'x-linework-token': token, ...init.headers } });
 
 async function agent() {
   const client = new Client({ name: 'test', version: '0' });
@@ -73,12 +73,12 @@ async function editor(answer: (m: Extract<ToEditor, { type: 'call' }>) => unknow
   return { seen, close: () => ctl.abort() };
 }
 
-describe('carto serve', () => {
+describe('linework serve', () => {
   it('serves the app with the token, and only to this machine with the token', async () => {
-    expect(await (await fetch(`${s.url}/`)).text()).toContain(`<meta name="carto-serve" content="${token}"`);
+    expect(await (await fetch(`${s.url}/`)).text()).toContain(`<meta name="linework-serve" content="${token}"`);
     expect((await fetch(`${s.url}/api/files`)).status).toBe(401);
     expect((await fetch(`${s.url}/mcp`, { method: 'POST', body: '{}' })).status).toBe(401);
-    expect((await fetch(`${s.url}/api/files`, { headers: { 'x-carto-token': token, origin: 'http://evil.example' } })).status).toBe(403);
+    expect((await fetch(`${s.url}/api/files`, { headers: { 'x-linework-token': token, origin: 'http://evil.example' } })).status).toBe(403);
     expect(((await (await api('/api/files')).json()) as { files: { path: string }[] }).files.map((f) => f.path)).toEqual(['shop.yaml']);
     expect((await api('/api/file?path=../app/index.html')).status).toBe(400);
   });

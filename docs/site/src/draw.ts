@@ -3,10 +3,10 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Diagnostic, LayoutSidecar, Link } from '@cartography/core';
-import { render, themes, type RenderOptions, type RenderResult } from '@cartography/engine';
-import { diagnosticText, escapeHtml, linkTarget, safeAttribute, SVG_ELEMENTS } from '@cartography/embed/shared';
-import { bundledFont, type Theme } from '@cartography/theme';
+import type { Diagnostic, LayoutSidecar, Link } from '@linework/core';
+import { render, themes, type RenderOptions, type RenderResult } from '@linework/engine';
+import { diagnosticText, escapeHtml, linkTarget, safeAttribute, SVG_ELEMENTS } from '@linework/embed/shared';
+import { bundledFont, type Theme } from '@linework/theme';
 
 export interface DrawOptions {
   /** `auto` (the default) draws a light and a dark version and lets the page pick; or a built-in theme name. */
@@ -124,16 +124,16 @@ export async function build(job: Job): Promise<Built> {
   const fonts = o.fonts !== 'none';
   try {
     const variants = both
-      ? [el('div', { class: 'carto-light' }, inlineSvg(light, title, fonts, o)), el('div', { class: 'carto-dark' }, inlineSvg(both, title, fonts, o))]
-      : [el('div', { class: 'carto-only' }, inlineSvg(light, title, fonts, o))];
-    return { figure: el('figure', { class: 'carto' }, ...variants), problems, ok: true };
+      ? [el('div', { class: 'linework-light' }, inlineSvg(light, title, fonts, o)), el('div', { class: 'linework-dark' }, inlineSvg(both, title, fonts, o))]
+      : [el('div', { class: 'linework-only' }, inlineSvg(light, title, fonts, o))];
+    return { figure: el('figure', { class: 'linework' }, ...variants), problems, ok: true };
   } catch (e) {
     return fail(e instanceof Error ? e.message : String(e));
   }
 }
 
 /** The name a bundled typeface goes into a page under, so it never changes the page's own text. No spaces: the CSS needs no quotes. */
-const faceName = (family: string) => `Carto${family.replace(/\s+/g, '')}`;
+const faceName = (family: string) => `Linework${family.replace(/\s+/g, '')}`;
 const faceRules = (family: string) =>
   Object.entries(bundledFont(family)?.woff2 ?? {}).map(([weight, data]) => `@font-face{font-family:${faceName(family)};font-style:normal;font-weight:${weight};font-display:swap;src:url(data:font/woff2;base64,${data})}`);
 /** The bundled typefaces a theme sets its text in; Inter where a brand brings its own files. */
@@ -191,7 +191,7 @@ function problemFigure(problems: Problem[]): El {
   const errors = problems.filter((p) => p.severity === 'error');
   return el(
     'figure',
-    { class: 'carto carto-problem', role: 'alert', style: 'margin:1.5em 0;padding:10px 14px;border-left:3px solid #d4372c;background:rgba(212,55,44,.07);text-align:left' },
+    { class: 'linework linework-problem', role: 'alert', style: 'margin:1.5em 0;padding:10px 14px;border-left:3px solid #d4372c;background:rgba(212,55,44,.07);text-align:left' },
     el('strong', {}, errors.length > 1 ? 'This diagram has problems' : 'This diagram has a problem'),
     el('ul', { style: 'margin:4px 0 0;padding-left:18px' }, ...errors.slice(0, 8).map((p) => el('li', {}, diagnosticText(p, p.file)))),
   );
@@ -199,12 +199,12 @@ function problemFigure(problems: Problem[]): El {
 
 /** The CSS that goes into the site once: which drawing shows on a light and on a dark page. */
 export function pageCss(): string {
-  const toDark = (prefix: string) => `${prefix}.carto-light{display:none}${prefix}.carto-dark{display:block}`;
-  const toLight = (prefix: string) => `${prefix}.carto-light{display:block}${prefix}.carto-dark{display:none}`;
+  const toDark = (prefix: string) => `${prefix}.linework-light{display:none}${prefix}.linework-dark{display:block}`;
+  const toLight = (prefix: string) => `${prefix}.linework-light{display:block}${prefix}.linework-dark{display:none}`;
   return [
-    '.carto{margin:1.5em 0}',
-    '.carto svg,.carto img{display:block;margin:0 auto;max-width:100%;height:auto;border-radius:8px}',
-    '.carto-dark{display:none}',
+    '.linework{margin:1.5em 0}',
+    '.linework svg,.linework img{display:block;margin:0 auto;max-width:100%;height:auto;border-radius:8px}',
+    '.linework-dark{display:none}',
     `@media (prefers-color-scheme:dark){${toDark('')}}`,
     toDark(':is([data-theme=dark],[data-bs-theme=dark],[data-md-color-scheme=slate],.dark) '),
     toLight(':is([data-theme=light],[data-bs-theme=light],[data-md-color-scheme=default],.light) '),

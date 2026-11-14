@@ -1,10 +1,10 @@
 // What the engine knows about a diagram besides the drawing, for an assistant to read: the diagram in
 // words, and what changed between two versions. Each is what the CLI's command of the same name says.
 import path from 'node:path';
-import { describe as describeDrawing, toMarkdown } from '@cartography/describe';
-import { compare, explain, summary as diffSummary } from '@cartography/diff';
-import { repoPath, repoRoot, versionAt } from '@cartography/diff/node';
-import { render, type RenderOptions } from '@cartography/engine';
+import { describe as describeDrawing, toMarkdown } from '@linework/describe';
+import { compare, explain, summary as diffSummary } from '@linework/diff';
+import { repoPath, repoRoot, versionAt } from '@linework/diff/node';
+import { render, type RenderOptions } from '@linework/engine';
 import { drawnOptions, load, problems, reader, resolvePath, type Drawn, type Input, type Problem } from './tools.ts';
 
 const errorsIn = (ds: { severity: string }[]) => ds.some((d) => d.severity === 'error');

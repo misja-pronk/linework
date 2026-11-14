@@ -1,6 +1,6 @@
 # One model, many diagrams
 
-Architecture drawings repeat themselves: the same orders API shows up in the context diagram, the container diagram and the Azure deployment. Cartography lets you describe it once and reference it everywhere, while every diagram stays a plain YAML file of its own type. Four pieces make that work: `include:`, a shared `elements:` catalogue, `views:` and `links:`.
+Architecture drawings repeat themselves: the same orders API shows up in the context diagram, the container diagram and the Azure deployment. Linework lets you describe it once and reference it everywhere, while every diagram stays a plain YAML file of its own type. Four pieces make that work: `include:`, a shared `elements:` catalogue, `views:` and `links:`.
 
 The examples below are in [examples/model](../examples/model): `model.yaml`, `context.yaml`, `containers.yaml` and `deployment.yaml`. [examples/deployment](../examples/deployment) deploys one model to Azure and to AWS, per environment (see [Deployments](#deployments-of-what-a-resource-runs)).
 
@@ -19,9 +19,9 @@ nodes:
 - Maps (`nodes`, `groups`, `tables`, …) merge key by key; lists (`edges`, ERD `relations`, …) are appended. The diagram's own entries come first, so their ids, edge numbers and pins stay as they are.
 - An id that is in two files is an error, shown on the `include:` line with the file it came from. So are include cycles (`a.yaml → b.yaml → a.yaml`), unreadable files and problems inside an included file (`parts.yaml:4: …`).
 - A file reached twice through different includes is read once.
-- A warning about something in an included file (a relation of the model to an element it does not have) is said once: `carto validate` on a folder says it in that file, and not again in every file that includes it (checking only the files that include it, the first one says it); the editor says it when that file is open. Errors are said in every file that includes it, since none of them can be drawn.
+- A warning about something in an included file (a relation of the model to an element it does not have) is said once: `linework validate` on a folder says it in that file, and not again in every file that includes it (checking only the files that include it, the first one says it); the editor says it when that file is open. Errors are said in every file that includes it, since none of them can be drawn.
 - What an included file says about itself stays its own: its `title`, `subtitle`, `direction`, `focus` and `steps`, and its look and language (`theme`, `icons`, `aspect`, `lang`). The diagram that includes it decides those for the drawing, so a file made in the Dutch editor (`lang: nl`) can be included in an English diagram and the other way round.
-- `carto watch` re-renders when an included file changes; the editor reads includes from the open folder, and the bundled examples read them from the bundle.
+- `linework watch` re-renders when an included file changes; the editor reads includes from the open folder, and the bundled examples read them from the bundle.
 - In the editor, entries from another file can be selected and moved, but are edited in that file.
 
 ## A shared catalogue: elements and relations
@@ -174,12 +174,12 @@ One file can hold dev, test and production. `env:` on a node, group or edge says
 - What has no `env:` is in every environment. What sits in a group that is left out goes with it, and so do the lines to it.
 - An environment nothing is tagged for is simply what is left: `dev` without the extras of `prod`. A view with `environment:` in a file where nothing has `env:` at all gets a warning.
 - Without a view the diagram draws everything, every environment at once. Then what only some environments have carries their names as tags (`prod`, `test · prod` on a card or a zone, `dev` after a line's label), and the key says that what has no tag is in all of them.
-- `carto render aws.yaml --all-views` writes one picture per environment.
+- `linework render aws.yaml --all-views` writes one picture per environment.
 - Three detailed environments side by side are seldom one slide: `present: views` makes the whole a working canvas and the views the slides (see [present: views](#present-views--the-whole-is-a-working-canvas)).
 
 ### Complete or not
 
-`complete: true` on a view claims that everything in the model runs somewhere in it. Every part (container, database, queue, …) that no node is `of:` (or `ref:`) gets a warning: `Nothing runs "shop.worker" (Mailer) in prod: add a node with of: shop.worker`. People and external systems are not expected to be deployed. `complete: [shop.api, shop.db]` checks only those, for an environment that leaves parts out on purpose. `carto validate` checks every view of a file, so a part that was added to the model and not deployed shows up in CI.
+`complete: true` on a view claims that everything in the model runs somewhere in it. Every part (container, database, queue, …) that no node is `of:` (or `ref:`) gets a warning: `Nothing runs "shop.worker" (Mailer) in prod: add a node with of: shop.worker`. People and external systems are not expected to be deployed. `complete: [shop.api, shop.db]` checks only those, for an environment that leaves parts out on purpose. `linework validate` checks every view of a file, so a part that was added to the model and not deployed shows up in CI.
 
 A `kind: deployment` view of a C4 diagram takes `of:` on a deployment node and `complete:` in the same way; see [c4.md](c4.md#deployment-views).
 
@@ -218,15 +218,15 @@ Rules, in `include:` and `exclude:`:
 - Without a view a diagram draws what it says. A diagram that only has views (like `containers.yaml`) draws its first.
 - Diagrams of other types (ERD, GitHub, data products) take views too, by id, `id.*` and relation rules. An access diagram applies a view itself, to its graph and its tables alike (see [types.md](types.md#roles-groups-and-access-packages)).
 - `show:` picks one of the type's own drawings for the view, cut to it: `show: access` is an access diagram's who × where matrix of only what the view keeps. A view named like one of those drawings gets a warning: asked for by that name, the type's drawing is drawn.
-- Views of an included model stay the model's: `carto render model.yaml --view landscape` draws them.
+- Views of an included model stay the model's: `linework render model.yaml --view landscape` draws them.
 - `exclude:` at the top of a diagram leaves relations of the model out of the drawing as written and of every view, by the same arrow rules: `exclude: ['uc-weu -> lakehouse']`. Lines written in the diagram stay. A node is left out by not writing it, so a rule without an arrow there gets a warning.
 - A view can be told in parts: `steps:` inside the view, see [steps.md](steps.md). When presenting, the views come in the order written.
 
 CLI:
 
 ```sh
-carto render containers.yaml --view ordering     # → containers-ordering.svg
-carto render containers.yaml --all-views         # → containers.svg plus containers--<view>.svg for each
+linework render containers.yaml --view ordering  # → containers-ordering.svg
+linework render containers.yaml --all-views      # → containers.svg plus containers--<view>.svg for each
 ```
 
 In the editor a view menu appears in the canvas tools when the diagram has views.
@@ -254,9 +254,9 @@ views:
 ```
 
 - Without a view the first view is drawn, as for a file of only views. The whole drawing is drawn when asked for by the empty view name: "Whole diagram" in the editor's view picker, `--view ''` on the command line.
-- `carto validate` measures the views (and their steps) on their slides, never the whole.
+- `linework validate` measures the views (and their steps) on their slides, never the whole.
 - The type's own drawings of the whole (an access diagram's who × where of everything) are part of the canvas too: a view with `show:` presents one, cut.
-- `carto render x.yaml -o x.pptx` (or `.pdf`), `--all-views` and `carto deck` write the views, a slide (page, picture) each; `carto describe` describes each view; the HTML export and presenting in the editor show the views. A PowerPoint or PDF exported in the editor while the whole is on screen holds the views.
+- `linework render x.yaml -o x.pptx` (or `.pdf`), `--all-views` and `linework deck` write the views, a slide (page, picture) each; `linework describe` describes each view; the HTML export and presenting in the editor show the views. A PowerPoint or PDF exported in the editor while the whole is on screen holds the views.
 - The editor opens the file on its first view; V goes round the views. The whole of a large canvas can take a minute or more to lay out: the editor keeps the last one it finished, so "Whole diagram" picked again for the same text (after a look at a view) is there at once. It keeps only that one, and an edit lets it go.
 - Steps belong in the views: steps written at the top get a warning, since the whole is not presented. `present: whole` is the default. Without views, `present: views` gets a warning and the drawing is the slide.
 
@@ -279,7 +279,7 @@ links:
 - **SVG exports** contain real `<a href>` links. Links to diagrams point at the SVG the CLI writes next to them (`containers.yaml#containers` → `containers--containers.svg`), so a folder rendered with `--all-views` can be clicked through in a browser.
 - **In the editor** ⌘-click (Ctrl-click elsewhere) follows the first link, and the inspector lists them all: URLs open in a new tab, diagrams and views open in place (from the open folder, or among the bundled examples). **Back to …** over the drawing, or ⌘[ (Ctrl+[), goes back to where the link was followed from, in the view it showed; a walk of several links comes back one step at a time.
 - Double-click on a linked card still renames it, as on any card: the editor is for changing the drawing, and a slip of the mouse should not take you to another file. Following is the deliberate ⌘-click. While presenting (P), ⌘-click or Tab and ↵ follows a link, and ⌫ (or the Back button) comes back.
-- Links in an included model are relative to the model file; Cartography rebases them for the diagram.
+- Links in an included model are relative to the model file; Linework rebases them for the diagram.
 - **A `link:` on one thing** takes the same forms. A sequence's `ref:` box leads into another diagram, at the view it names:
 
   ```yaml
@@ -307,8 +307,8 @@ The top level holds the pins of the diagram as written, so existing sidecars kee
 
 ## A folder of them
 
-Open the folder in the editor (or `carto serve` it) and its diagrams include one another and follow their links. `carto validate <folder>` checks each diagram in it, and `carto export --to html <folder>` writes all of them into one file that drills down from the landscape. See [examples/workspace](../examples/workspace).
+Open the folder in the editor (or `linework serve` it) and its diagrams include one another and follow their links. `linework validate <folder>` checks each diagram in it, and `linework export --to html <folder>` writes all of them into one file that drills down from the landscape. See [examples/workspace](../examples/workspace).
 
 ## How it fits together
 
-`include:` merging and the catalogue are in `@cartography/core` (`include.ts`, `catalogue.ts`). For graph types, refs and views are resolved into plain nodes, groups and edges before the type builds them (`views.ts`), so each type's kinds, edge styles and legend still apply; other types are filtered by id after they built their graph. Diagrams without any of these keys go through exactly the old path.
+`include:` merging and the catalogue are in `@linework/core` (`include.ts`, `catalogue.ts`). For graph types, refs and views are resolved into plain nodes, groups and edges before the type builds them (`views.ts`), so each type's kinds, edge styles and legend still apply; other types are filtered by id after they built their graph. Diagrams without any of these keys go through exactly the old path.

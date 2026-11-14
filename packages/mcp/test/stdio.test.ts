@@ -6,7 +6,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const root = path.resolve(import.meta.dirname, '../../..');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-mcp-e2e-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linework-mcp-e2e-'));
 let server: ChildProcessWithoutNullStreams;
 const pending = new Map<number, (msg: any) => void>();
 let nextId = 1;
@@ -29,7 +29,7 @@ beforeAll(async () => {
     }
   });
   const init = await request('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '0' } });
-  expect(init.result.serverInfo.name).toBe('cartography');
+  expect(init.result.serverInfo.name).toBe('linework');
   server.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
 }, 30_000);
 
@@ -38,7 +38,7 @@ afterAll(() => {
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
-describe('cartography-mcp over stdio', () => {
+describe('linework-mcp over stdio', () => {
   it('lists its tools with input schemas', async () => {
     const { result } = await request('tools/list');
     const names = result.tools.map((t: { name: string }) => t.name).sort();
@@ -74,8 +74,8 @@ describe('cartography-mcp over stdio', () => {
 
   it('serves resources and the prompt', async () => {
     const list = (await request('resources/list')).result.resources.map((r: { uri: string }) => r.uri);
-    expect(list).toEqual(expect.arrayContaining(['cartography://types', 'cartography://schema/erd']));
-    const schema = (await request('resources/read', { uri: 'cartography://schema/erd' })).result.contents[0];
+    expect(list).toEqual(expect.arrayContaining(['linework://types', 'linework://schema/erd']));
+    const schema = (await request('resources/read', { uri: 'linework://schema/erd' })).result.contents[0];
     expect(JSON.parse(schema.text)).toHaveProperty('properties.tables');
     const prompt = (await request('prompts/get', { name: 'create-diagram', arguments: { what: 'a webshop' } })).result;
     expect(prompt.messages[0].content.text).toContain('a webshop');

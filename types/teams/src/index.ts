@@ -14,7 +14,7 @@
 //     - checkout -> payments: x-as-a-service   the first uses what the second provides
 //     - enablement -> checkout: facilitating
 //     - checkout <-> fraud: collaboration
-import { english, parseLink, parseLinks, tones, type BlockForm, type BlockShape, type BuildContext, type DiagramType, type GraphEdge, type GraphNode, type Graph, type LegendItem, type Link, type PaletteItem, type Path, type Reference, type Tone } from '@cartography/core';
+import { english, parseLink, parseLinks, tones, type BlockForm, type BlockShape, type BuildContext, type DiagramType, type GraphEdge, type GraphNode, type Graph, type LegendItem, type Link, type PaletteItem, type Path, type Reference, type Tone } from '@linework/core';
 import { orgLayout } from './org.ts';
 import { topologyLayout } from './topology.ts';
 
@@ -314,7 +314,7 @@ const ids = { anyOf: [{ type: 'string' }, { type: 'array', items: { type: 'strin
 
 const schema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography teams',
+  title: 'Linework teams',
   type: 'object',
   required: ['type'],
   properties: {

@@ -1,7 +1,7 @@
 // Heatmaps on a capability map: one property of the capabilities (maturity, investment, fit, a
 // cost) on a scale, with a legend. Numbers go on a sequential or a diverging scale, words on a
 // categorical one; every capability with a value says it in a tag as well, so the colour only helps.
-import { english, type BlockHeat, type LegendItem, type Tone, type Word } from '@cartography/core';
+import { english, type BlockHeat, type LegendItem, type Tone, type Word } from '@linework/core';
 
 export interface HeatEntry {
   /** The property the map is coloured by. */

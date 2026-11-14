@@ -4,7 +4,7 @@
 // have to go around it: over the top of the group it is in, or under its bottom. Here the annex moves
 // up until it stands wholly above the rows those lines leave from (or, where there is no room above,
 // below them), so they run straight on beside it, and what they lead to comes level with those rows.
-import type { Box, Sized } from '@cartography/core';
+import type { Box, Sized } from '@linework/core';
 import type { Placement } from './dot.ts';
 import { fitGroups } from './tidy.ts';
 import { boxOverlaps } from './metrics.ts';

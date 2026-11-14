@@ -18,9 +18,9 @@ await page.addInitScript((text) => {
   if (sessionStorage.getItem('seeded')) return;
   sessionStorage.setItem('seeded', '1');
   localStorage.clear();
-  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name: 'web-shop.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name: 'web-shop.yaml' } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
 }, shop);
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.waitForSelector('.drawing [data-node="users"]', { timeout: 15000 });
 await wait(500);
 

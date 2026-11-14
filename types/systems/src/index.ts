@@ -12,7 +12,7 @@
 //     - api -> bus: { label: OrderPlaced, style: async }
 //
 // Process flows use step, decision, start and end: shapes that speak for themselves, so no caption.
-import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
+import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@linework/core';
 
 export const config: GraphTypeConfig = {
   groupKinds: {
@@ -116,7 +116,7 @@ export const systems: DiagramType<GraphSource> = {
     { text: 'C4 context, container and component views', use: 'c4' },
   ],
   keywords: ['architecture', 'system', 'service', 'microservice', 'api', 'component', 'flow', 'overview', 'queue', 'event', 'frontend', 'backend', 'integration', 'boxes and arrows'],
-  schema: graphSchema('systems', config, 'Cartography architecture diagram'),
+  schema: graphSchema('systems', config, 'Linework architecture diagram'),
   palette,
   build: (src, ctx) => buildGraph(src, config, ctx),
   references: graphReferences,

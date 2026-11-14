@@ -1,7 +1,7 @@
 // The live preview (and the presenter): a webview per document that the extension draws into as you
 // type. Clicks reveal the YAML, the cursor lights up the drawing, a drag pins a node in the sidecar.
 import * as vscode from 'vscode';
-import type { RenderResult } from '@cartography/engine';
+import type { RenderResult } from '@linework/engine';
 import { draw, pinned, readSidecar, writeSidecar, type DrawAsk } from './draw.ts';
 import { elementSpans, elementsAt, spanOf, type Span } from './mapping.ts';
 import { nonce, page } from './webview/html.ts';
@@ -53,7 +53,7 @@ export class Preview {
     column: vscode.ViewColumn,
   ) {
     const name = doc.uri.path.split('/').pop() ?? 'diagram';
-    this.panel = vscode.window.createWebviewPanel(mode === 'present' ? 'cartography.present' : 'cartography.preview', mode === 'present' ? `Present ${name}` : `Preview ${name}`, { viewColumn: column, preserveFocus: mode === 'preview' }, {
+    this.panel = vscode.window.createWebviewPanel(mode === 'present' ? 'linework.present' : 'linework.preview', mode === 'present' ? `Present ${name}` : `Preview ${name}`, { viewColumn: column, preserveFocus: mode === 'preview' }, {
       enableScripts: true,
       localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')],
       retainContextWhenHidden: false,

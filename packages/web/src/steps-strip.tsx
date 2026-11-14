@@ -2,7 +2,7 @@
 // and make, name, order and remove steps without typing YAML.
 import './steps-strip.css';
 import { useEffect, useRef, useState } from 'react';
-import type { StepState } from '@cartography/core';
+import type { StepState } from '@linework/core';
 import { Icon } from './icon.tsx';
 import { t } from './i18n/index.ts';
 

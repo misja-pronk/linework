@@ -27,10 +27,10 @@ product's default look. What Survey is and the rules behind it are in [style.md]
 
 ![survey](themes/png/survey.png)
 
-Previews of every theme are in [themes/png](themes/png); `pnpm themes` renders them again and `carto themes` lists
+Previews of every theme are in [themes/png](themes/png); `pnpm themes` renders them again and `linework themes` lists
 the names.
 
-Use one with `theme: transit` at the top of a diagram, `carto render x.yaml --theme transit`, or the theme picker in
+Use one with `theme: transit` at the top of a diagram, `linework render x.yaml --theme transit`, or the theme picker in
 the editor's Export menu. A `--theme` flag or the picker wins over the diagram's own `theme:`.
 
 ### Sketch, for workshops
@@ -213,7 +213,7 @@ and the colour used instead.
 
 ### Fonts
 
-Cartography ships these families, all under the SIL Open Font License 1.1, each with its licence file next to it
+Linework ships these families, all under the SIL Open Font License 1.1, each with its licence file next to it
 in `packages/theme/fonts`:
 
 | Family | Used by | Weights |
@@ -242,10 +242,10 @@ Per export:
 - **PNG and PDF** use the TTF files directly.
 - **PowerPoint** keeps text as real, editable text. Fonts are not embedded in a .pptx: Apple's importer (Quick
   Look, Keynote, Mail, an iPhone) leaves embedded fonts out and sets a face it does not have in Times. So for the
-  faces Cartography brings along (Instrument Sans, Inter, Geist Mono, Barlow, IBM Plex, Kalam), which few
+  faces Linework brings along (Instrument Sans, Inter, Geist Mono, Barlow, IBM Plex, Kalam), which few
   machines have, a deck names faces every Mac and Windows machine has: Arial (no wider than Instrument Sans or
   Inter, so text still fits) and Courier New for the monospace text (as wide as Geist Mono). A brand theme's own
-  face is named as it is. `carto render --format pptx --font "Instrument Sans"` names another typeface for the
+  face is named as it is. `linework render --format pptx --font "Instrument Sans"` names another typeface for the
   whole deck, where it is installed.
 - **In a client's PowerPoint template:** `pptx: template.potx` in a theme file makes every deck in that template,
   its layouts, master, colours and fonts; see [powerpoint-templates.md](powerpoint-templates.md).
@@ -253,6 +253,6 @@ Per export:
 ## Icon packs (bring your own)
 
 The official Azure, AWS, Google Cloud and Kubernetes icons are downloaded by you and imported once, in the editor
-(top bar **⋯** → **Diagram theme, icons, language…** → **Official icons…**) or with `carto icons import <zip>`; a diagram then uses them with
+(top bar **⋯** → **Diagram theme, icons, language…** → **Official icons…**) or with `linework icons import <zip>`; a diagram then uses them with
 `icons: official`. Where to download each set, how matching and hand mapping work, how they look in each theme
 and in each export, and what may be shared: [icons.md](icons.md).

@@ -1,7 +1,7 @@
 // Moves things across the flow (up in a left-to-right diagram) where there is room, so groups do not
 // keep empty corners. dot centres each layer on its widest neighbour; in nested groups that leaves
 // space nobody uses. Order is kept: nothing passes anything else, groups move with their contents.
-import type { Box, Graph } from '@cartography/core';
+import type { Box, Graph } from '@linework/core';
 import type { Placement } from './dot.ts';
 
 interface Axis {

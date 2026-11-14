@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import { strFromU8, unzipSync, zipSync, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { render, textPtAt, type RenderResult } from '@cartography/engine';
-import { contrast } from '@cartography/theme';
+import { render, textPtAt, type RenderResult } from '@linework/engine';
+import { contrast } from '@linework/theme';
 import { chooseLayout, fitSlide, readTemplate, templateTheme, toPptx, type SlideText } from '../src/index.ts';
 import { planSlide } from '../src/template/place.ts';
 import { relsOf } from '../src/template/read.ts';
@@ -199,7 +199,7 @@ describe('writing into a template', () => {
     expect(text('ppt/notesSlides/notesSlide2.xml')).toContain('<p:ph type="body" idx="3"/>');
     expect(text('ppt/notesSlides/_rels/notesSlide2.xml.rels')).toContain('../notesMasters/notesMaster1.xml');
     // Icons are named apart from the template's own media.
-    expect(Object.keys(files).some((p) => /^ppt\/media\/cartography-icon\d+\.svg$/.test(p))).toBe(true);
+    expect(Object.keys(files).some((p) => /^ppt\/media\/linework-icon\d+\.svg$/.test(p))).toBe(true);
   });
 
   it('fills the placeholders: the title with no formatting of its own, footer and slide number from the layout', async () => {

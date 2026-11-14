@@ -1,4 +1,4 @@
-import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@cartography/core';
+import { buildGraph, graphReferences, graphSchema, type DiagramType, type GraphSource, type GraphTypeConfig, type PaletteItem } from '@linework/core';
 import { databricksGroups, databricksNodes } from './databricks.ts';
 
 export { databricksGroups, databricksNodes } from './databricks.ts';
@@ -155,7 +155,7 @@ export const azure: DiagramType<GraphSource> = {
     'azure', 'subscription', 'resource group', 'vnet', 'subnet', 'private endpoint', 'hub spoke', 'landing zone', 'app service', 'key vault',
     'front door', 'aks', 'cloud', 'infrastructure', 'network', 'firewall', 'deployment', 'iac', 'bicep', 'terraform',
   ],
-  schema: graphSchema('azure', config, 'Cartography Azure diagram'),
+  schema: graphSchema('azure', config, 'Linework Azure diagram'),
   palette,
   build: (src, ctx) => {
     const graph = buildGraph(src, config, ctx);

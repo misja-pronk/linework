@@ -1,4 +1,4 @@
-// The layout benchmark: the same diagrams drawn by Cartography, Mermaid and D2 (dagre, ELK and TALA,
+// The layout benchmark: the same diagrams drawn by Linework, Mermaid and D2 (dagre, ELK and TALA,
 // when the d2 binary is installed), each tool's SVG reduced to boxes and sampled lines in headless
 // Chromium, and measured the same way (src/geometry.ts). Then one shape and one line are added and each
 // is drawn again, to see how far the rest moves. Writes docs/benchmark/results.json, the tables in
@@ -11,7 +11,7 @@ import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { chromium, type Page } from '@playwright/test';
-import { render } from '@cartography/engine';
+import { render } from '@linework/engine';
 import { displacement, measure, type Displacement, type Drawing, type Metrics } from './geometry.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');
@@ -46,9 +46,9 @@ export const CASES: Case[] = [
   { id: 'ci-pipeline', title: 'Delivery pipeline', kind: 'flowchart with loops', mmd: own('ci-pipeline.mmd'), d2: own('ci-pipeline.d2'), edit: { mmd: 'smoke --> notify[Notify the team]', d2: 'notify: Notify the team\nsmoke -> notify' } },
 ];
 
-export type ToolId = 'cartography' | 'mermaid' | 'd2-dagre' | 'd2-elk' | 'd2-tala';
+export type ToolId = 'linework' | 'mermaid' | 'd2-dagre' | 'd2-elk' | 'd2-tala';
 export const TOOLS: { id: ToolId; name: string; note: string }[] = [
-  { id: 'cartography', name: 'Cartography', note: 'The Mermaid source converted to YAML once, untouched (`docs/benchmark/cartography`), default theme, no hand-tuning' },
+  { id: 'linework', name: 'Linework', note: 'The Mermaid source converted to YAML once, untouched (`docs/benchmark/linework`), default theme, no hand-tuning' },
   { id: 'mermaid', name: 'Mermaid', note: 'The `mermaid` npm package, default config, in headless Chromium' },
   { id: 'd2-dagre', name: 'D2 · dagre', note: 'D2 default layout' },
   { id: 'd2-elk', name: 'D2 · ELK', note: 'D2 with `--layout elk`' },
@@ -59,7 +59,7 @@ export interface ToolResult {
   metrics?: Metrics;
   /** After adding one shape and one line, drawn from scratch. */
   edit?: Displacement;
-  /** Cartography only: the same edit drawn knowing the drawing before (what the editor and `--stable` do). */
+  /** Linework only: the same edit drawn knowing the drawing before (what the editor and `--stable` do). */
   editKept?: Displacement;
   skipped?: string;
 }
@@ -83,7 +83,7 @@ const which = (bin: string) => {
 const d2Version = which('d2');
 const plantuml = which('plantuml');
 const mermaidVersion = (JSON.parse(fs.readFileSync(path.join(path.dirname(require.resolve('mermaid/package.json')), 'package.json'), 'utf8')) as { version: string }).version;
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-bench-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linework-bench-'));
 
 function d2Svg(source: string, layout: string): string {
   const input = path.join(tmp, 'in.d2');
@@ -140,7 +140,7 @@ async function extract(page: Page, svg: string, tool: ToolId): Promise<Drawing> 
     const labels: { x: number; y: number; w: number; h: number }[] = [];
     const visible = (r: { w: number; h: number }) => r.w > 0.5 && r.h > 0.5;
 
-    if (tool === 'cartography') {
+    if (tool === 'linework') {
       for (const g of svg.querySelectorAll('[data-node]')) nodes.push({ id: g.getAttribute('data-node')!, ...rect(g) });
       for (const g of svg.querySelectorAll('[data-edge]')) {
         const line = [...g.querySelectorAll(':scope > path')].find((p) => p.getAttribute('fill') === 'none') as SVGPathElement | undefined;
@@ -232,7 +232,7 @@ async function picture(svg: string, file: string) {
 const previous: Results | undefined = fs.existsSync(path.join(outDir, 'results.json')) ? JSON.parse(fs.readFileSync(path.join(outDir, 'results.json'), 'utf8')) : undefined;
 const results: Results = {
   generated: new Date().toISOString().slice(0, 10),
-  versions: { cartography: 'this commit', mermaid: mermaidVersion, ...(d2Version ? { d2: d2Version } : {}) },
+  versions: { linework: 'this commit', mermaid: mermaidVersion, ...(d2Version ? { d2: d2Version } : {}) },
   tools: TOOLS,
   skippedTools,
   cases: [],
@@ -254,12 +254,12 @@ for (const c of CASES) {
       let before: string;
       let after: string;
       let kept: string | undefined;
-      if (t.id === 'cartography') {
-        const yaml = fs.readFileSync(path.join(outDir, 'cartography', `${c.id}.yaml`), 'utf8');
+      if (t.id === 'linework') {
+        const yaml = fs.readFileSync(path.join(outDir, 'linework', `${c.id}.yaml`), 'utf8');
         const r = await render(yaml, { interactive: true });
         if (!r.svg) throw new Error(r.diagnostics.map((d) => d.message).join('; '));
         before = r.svg;
-        const edited = fs.readFileSync(path.join(outDir, 'cartography', `${c.id}-edited.yaml`), 'utf8');
+        const edited = fs.readFileSync(path.join(outDir, 'linework', `${c.id}-edited.yaml`), 'utf8');
         after = (await render(edited, { interactive: true, previous: null })).svg!;
         kept = (await render(edited, { interactive: true, previous: r.placed?.memory })).svg!;
       } else if (t.id === 'mermaid') {
@@ -322,14 +322,14 @@ function writeTables(r: Results) {
   };
   const pct = (v: number | undefined) => (v == null ? undefined : v * 100);
   // Where another tool does better, in words, so the losses are read first and not dug out of tables.
-  const others = shown.filter((t) => t.id !== 'cartography');
+  const others = shown.filter((t) => t.id !== 'linework');
   const losses: string[] = [];
   const lose = (what: string, pick: (x: ToolResult) => number | undefined, show: (v: number) => string, margin = 0) => {
     for (const c of r.cases) {
-      const mine = pick(c.results.cartography ?? {});
+      const mine = pick(c.results.linework ?? {});
       if (mine == null) continue;
       const better = others.map((t) => ({ t, v: pick(c.results[t.id] ?? {}) })).filter((x): x is { t: (typeof others)[number]; v: number } => x.v != null && x.v < mine - margin);
-      if (better.length) losses.push(`- **${c.title}**, ${what}: Cartography ${show(mine)}; ${better.map((b) => `${b.t.name} ${show(b.v)}`).join(', ')}`);
+      if (better.length) losses.push(`- **${c.title}**, ${what}: Linework ${show(mine)}; ${better.map((b) => `${b.t.name} ${show(b.v)}`).join(', ')}`);
     }
   };
   lose('crossings', (x) => x.metrics?.crossings, String);
@@ -337,10 +337,10 @@ function writeTables(r: Results) {
   lose('unrelated lines touching', (x) => x.metrics?.touches, String);
   lose('white space (area per shape area, more than 1.5 more)', (x) => x.metrics?.area, (v) => v.toFixed(1), 1.5);
   lose('movement after the edit, from scratch (more than 5 points more)', (x) => (x.edit ? x.edit.mean * 100 : undefined), (v) => `${v.toFixed(1)} %`, 5);
-  const wide = r.cases.filter((c) => (c.results.cartography?.metrics?.aspect ?? 0) > 4).map((c) => `${c.title} (${c.results.cartography!.metrics!.aspect.toFixed(1)} : 1)`);
+  const wide = r.cases.filter((c) => (c.results.linework?.metrics?.aspect ?? 0) > 4).map((c) => `${c.title} (${c.results.linework!.metrics!.aspect.toFixed(1)} : 1)`);
   if (wide.length) losses.push(`- **Very wide drawings** that will not fit a slide or a page without shrinking: ${wide.join(', ')}`);
   const body = [
-    '### Where Cartography loses',
+    '### Where Linework loses',
     '',
     ...(losses.length ? losses : ['- Nowhere on these measures.']),
     '',
@@ -364,12 +364,12 @@ function writeTables(r: Results) {
     '',
     table('Displacement after adding one shape and one line, % of the diagonal (drawn from scratch)', (x) => pct(x.edit?.mean), 1),
     '',
-    `Cartography also keeps the drawing before the edit in mind when it can (the editor does, and \`carto render --stable\`). Drawn that way, the same edits move the shapes that were there by:`,
+    `Linework also keeps the drawing before the edit in mind when it can (the editor does, and \`linework render --stable\`). Drawn that way, the same edits move the shapes that were there by:`,
     '',
     `| Case | From scratch | Knowing the drawing before |`,
     `| --- | ---: | ---: |`,
     ...r.cases.map((c) => {
-      const x = c.results.cartography;
+      const x = c.results.linework;
       return `| ${c.title} | ${fmt(pct(x?.edit?.mean), 1)} % | ${fmt(pct(x?.editKept?.mean), 1)} % |`;
     }),
     '',

@@ -5,9 +5,9 @@
 It is not a BPMN modeller. There are no pools, boundary events, data stores or compensation, nothing is executable, and there is no BPMN XML in or out. What you get is a process a steering group can read, laid out for you.
 
 ```sh
-carto new process access.yaml                  # a starter with lanes and a decision
-carto render access.yaml --format png          # svg, png, pdf, pptx
-carto render access.yaml --all-steps --format pptx   # one slide per step of the happy path
+linework new process access.yaml               # a starter with lanes and a decision
+linework render access.yaml --format png       # svg, png, pdf, pptx
+linework render access.yaml --all-steps --format pptx  # one slide per step of the happy path
 ```
 
 ## The YAML reads like the process
@@ -90,7 +90,7 @@ A note or a document is tied to its step with a line in the flow: `Laptop policy
 
 ## What it tells you
 
-Problems come with a line and column, in the editor and from `carto validate`:
+Problems come with a line and column, in the editor and from `linework validate`:
 
 - a flow item that is not a chain; a lane that does not exist; a name used for both a lane and a step (errors)
 - a step under `nodes:` that is in no flow, or one nothing leads to

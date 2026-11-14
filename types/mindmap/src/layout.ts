@@ -2,8 +2,8 @@
 // side), each side a tidy tree on its side (packages/tree's tidy, turned a quarter), connectors
 // square on a bus between the levels. Which arrangement fills a 16:9 slide best is tried, and the
 // drawing before is kept close: a branch stays on its side, a new topic moves its neighbours only.
-import type { Box, LayoutMemory, Placed, PlacedEdge, Point, Sized } from '@cartography/core';
-import { choose, slideScale, tidy, type TidyNode } from '@cartography/tree';
+import type { Box, LayoutMemory, Placed, PlacedEdge, Point, Sized } from '@linework/core';
+import { choose, slideScale, tidy, type TidyNode } from '@linework/tree';
 
 export type Side = 'right' | 'left';
 export type Arrangement = 'both' | 'right' | 'left';

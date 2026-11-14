@@ -1,9 +1,9 @@
-// The template's look as a Cartography theme, made by the same derivation a brand theme file goes
+// The template's look as a Linework theme, made by the same derivation a brand theme file goes
 // through: the page from the slide background, text from tx1, tones from the six accents, the
 // body font for every word. An accent that cannot be drawn with on that page (too light, the
-// background's own colour) keeps Cartography's tone, and the export says so.
-import { tones as toneSlots, type Tone } from '@cartography/core';
-import { contrast, deriveTheme, ensureContrast, themes, toHsl, type Theme, type ThemeSpec } from '@cartography/theme';
+// background's own colour) keeps Linework's tone, and the export says so.
+import { tones as toneSlots, type Tone } from '@linework/core';
+import { contrast, deriveTheme, ensureContrast, themes, toHsl, type Theme, type ThemeSpec } from '@linework/theme';
 import type { PptxTemplate, SchemeColor, TemplateLayout } from './read.ts';
 
 /** Under this against the page an accent is a background colour, not one to draw lines and icons with. */
@@ -46,7 +46,7 @@ export function templateTheme(t: PptxTemplate, layout: TemplateLayout): Template
   const usable = accents.filter((a) => {
     const c = contrast(a.color, canvas);
     if (c >= DRAWABLE) return true;
-    warnings.push(`${a.key} ${a.color} is too close to the slide background ${canvas} (${c.toFixed(1)}:1) to draw with: that tone stays Cartography's`);
+    warnings.push(`${a.key} ${a.color} is too close to the slide background ${canvas} (${c.toFixed(1)}:1) to draw with: that tone stays Linework's`);
     return false;
   });
   // The first accent is the main tone (blue, what most things are drawn in), the second the second

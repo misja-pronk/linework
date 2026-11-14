@@ -1,7 +1,7 @@
 // The diagram's views, in the canvas tools: one drawing per view of the same file (context, containers…).
 // viewChoices is what every list of views offers (the picker, the read-only viewer); viewsOf names them.
 import './view-picker.css';
-import type { RenderResult } from '@cartography/engine';
+import type { RenderResult } from '@linework/engine';
 import { Icon } from './icon.tsx';
 import { t, uiLang } from './i18n/index.ts';
 

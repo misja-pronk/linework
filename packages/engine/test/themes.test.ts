@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { matchIcons, nameTokens } from '@cartography/icons';
-import { themes } from '@cartography/theme';
+import { matchIcons, nameTokens } from '@linework/icons';
+import { themes } from '@linework/theme';
 import { render } from '../src/index.ts';
 
 const acmeDir = path.resolve(import.meta.dirname, '../../../docs/themes/acme');

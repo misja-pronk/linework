@@ -1,4 +1,4 @@
-// carto serve with a real browser and a real MCP client: the editor opens the folder, get_context
+// linework serve with a real browser and a real MCP client: the editor opens the folder, get_context
 // sees the selection, a proposal shows and Accept applies it as one undo step, and a file the agent
 // writes comes into the editor marked, with ⌘Z taking it back. Needs pnpm web:build first.
 // node packages/web/e2e/serve.mjs [out-dir]
@@ -12,7 +12,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 const repo = path.resolve(import.meta.dirname, '../../..');
 const out = process.argv[2];
-const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-serve-e2e-'));
+const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'linework-serve-e2e-'));
 fs.copyFileSync(path.join(repo, 'examples/azure/web-shop.yaml'), path.join(folder, 'web-shop.yaml'));
 const file = path.join(fs.realpathSync(folder), 'web-shop.yaml');
 const port = String(4400 + Math.floor(Math.random() * 500));
@@ -21,7 +21,7 @@ const server = spawn(path.join(repo, 'node_modules/.bin/tsx'), [path.join(repo, 
 let printed = '';
 await new Promise((ok, fail) => {
   server.stdout.on('data', (d) => ((printed += d), /Bearer ([\w-]+)/.test(printed) && ok()));
-  server.on('exit', (c) => fail(new Error(`carto serve exited ${c}`)));
+  server.on('exit', (c) => fail(new Error(`linework serve exited ${c}`)));
 });
 const token = /Bearer ([\w-]+)/.exec(printed)[1];
 const url = `http://127.0.0.1:${port}`;
@@ -38,7 +38,7 @@ try {
   await page.goto(`${url}/`);
   await page.waitForSelector('.files .file');
   await page.waitForFunction(() => document.querySelector('.cm-content')?.textContent.includes('Web shop'));
-  if (!printed.includes(`claude mcp add --transport http cartography ${url}/mcp`)) fail('no claude mcp add line');
+  if (!printed.includes(`claude mcp add --transport http linework ${url}/mcp`)) fail('no claude mcp add line');
   await agent.connect(new StreamableHTTPClientTransport(new URL(`${url}/mcp`), { requestInit: { headers: { authorization: `Bearer ${token}` } } }));
   const text = (r) => r.content.map((c) => c.text ?? '').join('\n');
 
@@ -103,7 +103,7 @@ try {
   const otherVerdict = text(await proposingOther);
   if (!/Accepted/.test(otherVerdict)) fail(`propose for a file that is not open: ${otherVerdict}`);
   if (!(await yaml()).includes('invoices: { kind: queue, label: Invoices }')) fail('propose for a file that is not open: not applied');
-  const outside = path.join(os.tmpdir(), `carto-outside-${process.pid}.yaml`);
+  const outside = path.join(os.tmpdir(), `linework-outside-${process.pid}.yaml`);
   fs.copyFileSync(billing, outside);
   const notOpen = text(await agent.callTool({ name: 'propose', arguments: { file: outside, edits: [{ op: 'delete', path: ['nodes', 'ledger'] }] } }));
   fs.rmSync(outside, { force: true });
@@ -120,4 +120,4 @@ if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);
 }
-console.log('carto serve e2e: ok');
+console.log('linework serve e2e: ok');

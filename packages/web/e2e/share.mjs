@@ -6,7 +6,7 @@ import path from 'node:path';
 import { chromium } from '@playwright/test';
 const out = process.argv[2];
 if (out) fs.mkdirSync(out, { recursive: true });
-const base = process.env.CARTO_URL ?? 'http://localhost:5178/';
+const base = process.env.LINEWORK_URL ?? 'http://localhost:5178/';
 const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1512, height: 900 }, deviceScaleFactor: 2, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] });
 const page = await context.newPage();
@@ -43,7 +43,7 @@ await page.addInitScript(() => {
   sessionStorage.removeItem('seed');
   localStorage.clear();
   const { text, name } = JSON.parse(next);
-  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', doc: { text, doc: { name } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', doc: { text, doc: { name } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
 });
 const seed = async (text, name) => {
   await page.evaluate((next) => sessionStorage.setItem('seed', next), JSON.stringify({ text, name }));
@@ -127,7 +127,7 @@ viewer.on('pageerror', (e) => fail(`viewer: ${e.message}`));
 // 7. Open in editor: a document of its own, named as shared, with an undo; the link leaves the address bar.
 {
   await viewer.evaluate(() => {
-    for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', doc: { text: 'type: systems\ntitle: Mine\n', doc: { name: 'mine.yaml' } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+    for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', doc: { text: 'type: systems\ntitle: Mine\n', doc: { name: 'mine.yaml' } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
   });
   await viewer.locator('button:has-text("Open in editor")').click();
   await viewer.waitForSelector('.drawing [data-node="api"]', { timeout: 10000 }).catch(() => fail('Open in editor did not open the diagram'));

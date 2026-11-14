@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { Resvg } from '@resvg/resvg-js';
-import { render } from '@cartography/engine';
+import { render } from '@linework/engine';
 import { toPptx, type PptxOptions } from '../../src/index.ts';
 import { corporateTemplate, dutchTemplate } from '../fixtures/templates.ts';
 import { deckToSvg } from './slide-svg.ts';

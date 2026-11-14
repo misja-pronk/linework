@@ -1,10 +1,10 @@
-// `carto export-html`: a diagram, or a folder of them, as one HTML file a customer opens from disk.
+// `linework export-html`: a diagram, or a folder of them, as one HTML file a customer opens from disk.
 // A file brings along the diagrams of its folder that it links or drills into; a folder becomes a
-// small site in one file, with a contents page. The work is in @cartography/html-export.
+// small site in one file, with a contents page. The work is in @linework/html-export.
 import fs from 'node:fs';
 import path from 'node:path';
-import { isDiagramFile, parseSidecar } from '@cartography/core';
-import { exportHtml, type HtmlExportInput } from '@cartography/html-export';
+import { isDiagramFile, parseSidecar } from '@linework/core';
+import { exportHtml, type HtmlExportInput } from '@linework/html-export';
 
 export interface HtmlFlags {
   title?: string;

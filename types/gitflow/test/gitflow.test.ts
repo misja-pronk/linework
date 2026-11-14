@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { icon } from '@cartography/icons';
-import { render } from '@cartography/engine';
-import { themes } from '@cartography/theme';
-import { gitflowGeometry, gitTextBoxes, type GitflowGeometry } from '@cartography/render';
-import type { Box, GitflowShape } from '@cartography/core';
+import { icon } from '@linework/icons';
+import { render } from '@linework/engine';
+import { themes } from '@linework/theme';
+import { gitflowGeometry, gitTextBoxes, type GitflowGeometry } from '@linework/render';
+import type { Box, GitflowShape } from '@linework/core';
 import { familyOf, gitflow, gitflowReferences, presetNames } from '../src/index.ts';
 
 async function geometry(yaml: string) {

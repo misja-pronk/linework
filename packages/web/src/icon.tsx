@@ -1,4 +1,4 @@
-import { icon } from '@cartography/icons';
+import { icon } from '@linework/icons';
 
 /** A Lucide icon from the same pack the diagrams use. */
 export function Icon({ name, size = 16, stroke = 1.5 }: { name: string; size?: number; stroke?: number }) {

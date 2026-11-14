@@ -4,11 +4,11 @@
 // (a shortcut's description from keys.ts) goes through `say`, which passes unknown text as is.
 // The language of what is drawn is the diagram's own `lang:`, not this.
 import { useSyncExternalStore } from 'react';
-import { lookup, pickLang, translator, type Lang, type Params } from '@cartography/i18n';
+import { lookup, pickLang, translator, type Lang, type Params } from '@linework/i18n';
 import { store } from '../store.ts';
 import { nl } from './nl.ts';
 
-export type { Lang } from '@cartography/i18n';
+export type { Lang } from '@linework/i18n';
 export type Message = keyof typeof nl;
 
 const KEY = 'lang';

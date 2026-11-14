@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { versionOnDisk } from '@cartography/diff/node';
+import { versionOnDisk } from '@linework/diff/node';
 import {
   ApiError,
   commentBody,
@@ -29,7 +29,7 @@ import {
   type GitHubApi,
 } from '../src/index.ts';
 
-const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'carto-action-')));
+const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'linework-action-')));
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 function sh(cwd: string, ...args: string[]): string {
@@ -169,7 +169,7 @@ const onBranch = (origin: string, branch: string) => sh(origin, 'ls-tree', '-r',
 const isPng = (data: Uint8Array) => Buffer.from(data).subarray(1, 4).toString() === 'PNG';
 
 describe('finding diagrams', () => {
-  it('takes YAML that Cartography draws and nothing else', () => {
+  it('takes YAML that Linework draws and nothing else', () => {
     expect(isDiagram(shop)).toBe(true);
     expect(isDiagram(model)).toBe(true);
     expect(isDiagram('type: "c4"\n')).toBe(true);
@@ -294,38 +294,38 @@ describe('pictures on a branch', () => {
   it('keeps a folder per pull request on a branch with one commit, and leaves the checkout alone', () => {
     const r = repository('images', usual);
     const status = sh(r.root, 'status', '--porcelain');
-    const first = publish(r.root, { branch: 'cartography-diffs', folder: 'pr-7', files: [png('a'), png('b')] });
+    const first = publish(r.root, { branch: 'linework-diffs', folder: 'pr-7', files: [png('a'), png('b')] });
     expect(first.commit).toMatch(/^[0-9a-f]{40}$/);
     expect(first.paths.get('a.png')).toBe('pr-7/a.png');
-    expect(onBranch(r.origin, 'cartography-diffs')).toEqual(['README.md', 'pr-7/a.png', 'pr-7/b.png']);
-    expect(sh(r.origin, 'show', 'cartography-diffs:pr-7/a.png')).toBe('a');
+    expect(onBranch(r.origin, 'linework-diffs')).toEqual(['README.md', 'pr-7/a.png', 'pr-7/b.png']);
+    expect(sh(r.origin, 'show', 'linework-diffs:pr-7/a.png')).toBe('a');
 
     // Another pull request: its own folder, the first one stays.
-    publish(r.root, { branch: 'cartography-diffs', folder: 'pr-8', files: [png('c')] });
+    publish(r.root, { branch: 'linework-diffs', folder: 'pr-8', files: [png('c')] });
     // A new push to the first: its folder is replaced, not added to.
-    publish(r.root, { branch: 'cartography-diffs', folder: 'pr-7', files: [png('d')] });
-    expect(onBranch(r.origin, 'cartography-diffs')).toEqual(['README.md', 'pr-7/d.png', 'pr-8/c.png']);
-    expect(sh(r.origin, 'rev-list', '--count', 'cartography-diffs')).toBe('1');
+    publish(r.root, { branch: 'linework-diffs', folder: 'pr-7', files: [png('d')] });
+    expect(onBranch(r.origin, 'linework-diffs')).toEqual(['README.md', 'pr-7/d.png', 'pr-8/c.png']);
+    expect(sh(r.origin, 'rev-list', '--count', 'linework-diffs')).toBe('1');
 
     // The same again: nothing to push.
-    expect(publish(r.root, { branch: 'cartography-diffs', folder: 'pr-7', files: [png('d')] }).commit).toBeUndefined();
+    expect(publish(r.root, { branch: 'linework-diffs', folder: 'pr-7', files: [png('d')] }).commit).toBeUndefined();
 
     // Closed: the folder goes.
-    expect(unpublish(r.root, { branch: 'cartography-diffs', folder: 'pr-7' }).commit).toBeDefined();
-    expect(onBranch(r.origin, 'cartography-diffs')).toEqual(['README.md', 'pr-8/c.png']);
-    expect(unpublish(r.root, { branch: 'cartography-diffs', folder: 'pr-7' }).commit).toBeUndefined();
+    expect(unpublish(r.root, { branch: 'linework-diffs', folder: 'pr-7' }).commit).toBeDefined();
+    expect(onBranch(r.origin, 'linework-diffs')).toEqual(['README.md', 'pr-8/c.png']);
+    expect(unpublish(r.root, { branch: 'linework-diffs', folder: 'pr-7' }).commit).toBeUndefined();
 
     // The checkout: same commit, same branch, nothing staged, no stray refs.
     expect(sh(r.root, 'rev-parse', 'HEAD')).toBe(r.head);
     expect(sh(r.root, 'rev-parse', '--abbrev-ref', 'HEAD')).toBe('feature');
     expect(sh(r.root, 'status', '--porcelain')).toBe(status);
-    expect(sh(r.root, 'for-each-ref', 'refs/cartography')).toBe('');
+    expect(sh(r.root, 'for-each-ref', 'refs/linework')).toBe('');
   });
 
   it('does not make a branch just to say there is nothing', () => {
     const r = repository('images-none');
-    expect(unpublish(r.root, { branch: 'cartography-diffs', folder: 'pr-1' }).commit).toBeUndefined();
-    expect(sh(r.origin, 'branch', '--list', 'cartography-diffs')).toBe('');
+    expect(unpublish(r.root, { branch: 'linework-diffs', folder: 'pr-1' }).commit).toBeUndefined();
+    expect(sh(r.origin, 'branch', '--list', 'linework-diffs')).toBe('');
   });
 
   it('starts over when another run pushed first', () => {
@@ -349,7 +349,7 @@ describe('pictures on a branch', () => {
   });
 
   it('addresses a picture so that private repositories work too', () => {
-    expect(imageUrl('https://github.com', 'acme/shop', 'cartography-diffs', 'pr-7/abc1234-docs-shop.png')).toBe('https://github.com/acme/shop/blob/cartography-diffs/pr-7/abc1234-docs-shop.png?raw=true');
+    expect(imageUrl('https://github.com', 'acme/shop', 'linework-diffs', 'pr-7/abc1234-docs-shop.png')).toBe('https://github.com/acme/shop/blob/linework-diffs/pr-7/abc1234-docs-shop.png?raw=true');
     expect(imageUrl('https://ghe.example.com/', 'a/b', 'x/y', 'pr-1/a b.png')).toBe('https://ghe.example.com/a/b/blob/x/y/pr-1/a%20b.png?raw=true');
   });
 });
@@ -442,9 +442,9 @@ describe('the comment', () => {
     expect(body).toContain('Drawn from `abc1234`');
 
     // Without addresses: words, and where the pictures are.
-    const plain = commentBody(p, { artifact: { url: 'https://github.com/acme/shop/actions/runs/42', name: 'cartography-diagrams' } })!;
+    const plain = commentBody(p, { artifact: { url: 'https://github.com/acme/shop/actions/runs/42', name: 'linework-diagrams' } })!;
     expect(plain).not.toContain('![');
-    expect(plain).toContain('Pictures: artifact `cartography-diagrams` of [this run](https://github.com/acme/shop/actions/runs/42)');
+    expect(plain).toContain('Pictures: artifact `linework-diagrams` of [this run](https://github.com/acme/shop/actions/runs/42)');
 
     // GitHub refuses long comments: tables go first, then drawings, and it says how many.
     const tight = commentBody(p, { images, limit: 1500 })!;
@@ -469,11 +469,11 @@ describe('a run on a pull request', () => {
     expect(first.comment?.action).toBe('created');
 
     const sha = r.head.slice(0, 7);
-    const files = onBranch(r.origin, 'cartography-diffs');
+    const files = onBranch(r.origin, 'linework-diffs');
     expect(files).toEqual(['README.md', ...['docs-context', 'docs-fresh.data', 'docs-fresh', 'docs-model', 'docs-old.data', 'docs-old', 'docs-shop'].map((n) => `pr-7/${sha}-${n}.png`)]);
     const body = comments[0]!.body;
     expect(body).toContain(MARKER);
-    expect(body).toContain(`![docs/shop.yaml: 2 added](https://github.com/acme/shop/blob/cartography-diffs/pr-7/${sha}-docs-shop.png?raw=true)`);
+    expect(body).toContain(`![docs/shop.yaml: 2 added](https://github.com/acme/shop/blob/linework-diffs/pr-7/${sha}-docs-shop.png?raw=true)`);
     expect(body).toContain('against `main`');
     expect(body.match(/!\[/g)).toHaveLength(7);
 
@@ -491,7 +491,7 @@ describe('a run on a pull request', () => {
     // The same commit again: nothing new anywhere.
     const again = await run(j.env, { api, log: () => {} });
     expect(again.comment?.action).toBe('unchanged');
-    expect(onBranch(r.origin, 'cartography-diffs')).toEqual(files);
+    expect(onBranch(r.origin, 'linework-diffs')).toEqual(files);
 
     // A new push: new addresses (no stale cached picture), the same comment.
     r.write('docs/shop.yaml', grown.replace('title: Shop', 'title: Web shop'));
@@ -502,12 +502,12 @@ describe('a run on a pull request', () => {
     expect(next.comment?.action).toBe('updated');
     expect(comments).toHaveLength(1);
     expect(comments[0]!.body).toContain(`pr-7/${head.slice(0, 7)}-docs-shop.png`);
-    expect(onBranch(r.origin, 'cartography-diffs').every((f) => f === 'README.md' || f.startsWith(`pr-7/${head.slice(0, 7)}-`))).toBe(true);
+    expect(onBranch(r.origin, 'linework-diffs').every((f) => f === 'README.md' || f.startsWith(`pr-7/${head.slice(0, 7)}-`))).toBe(true);
 
     // Closed: its pictures leave the branch, the comment stays as the record.
     const closed = await run(job({ ...r, head }, 'run', {}, { action: 'closed' }).env, { api, log: () => {} });
     expect(closed.mode).toBe('cleanup');
-    expect(onBranch(r.origin, 'cartography-diffs')).toEqual(['README.md']);
+    expect(onBranch(r.origin, 'linework-diffs')).toEqual(['README.md']);
     expect(comments).toHaveLength(1);
   }, 180_000);
 
@@ -529,13 +529,13 @@ describe('a run on a pull request', () => {
       globalThis.fetch = realFetch;
     }
     expect(calls).toEqual([]);
-    expect(sh(r.origin, 'branch', '--list', 'cartography-diffs')).toBe('');
+    expect(sh(r.origin, 'branch', '--list', 'linework-diffs')).toBe('');
     expect(lines.some((l) => l.startsWith('::notice::A pull request from a fork'))).toBe(true);
     const out = j.outputs();
     expect(fs.readdirSync(out.output!).sort()).toEqual(['comment.md', 'diff.json', 'docs-context.png', 'docs-fresh.data.png', 'docs-fresh.png', 'docs-model.png', 'docs-old.data.png', 'docs-old.png', 'docs-shop.png']);
     const md = fs.readFileSync(path.join(out.output!, 'comment.md'), 'utf8');
     expect(md).not.toContain('![');
-    expect(md).toContain('artifact `cartography-diagrams` of [this run](https://github.com/acme/shop/actions/runs/42)');
+    expect(md).toContain('artifact `linework-diagrams` of [this run](https://github.com/acme/shop/actions/runs/42)');
     expect(j.summary()).toContain('docs/shop.yaml');
   }, 120_000);
 
@@ -589,7 +589,7 @@ describe('a run on a pull request', () => {
     expect(some).toMatchObject({ changed: 2, images: 'none', upload: false });
     expect(comments[0]!.body).not.toContain('![');
     expect(comments[0]!.body).not.toContain('docs/fresh.yaml');
-    expect(sh(r.origin, 'branch', '--list', 'cartography-diffs')).toBe('');
+    expect(sh(r.origin, 'branch', '--list', 'linework-diffs')).toBe('');
 
     const j = job(r, 'inputs', { INPUT_FILES: 'docs/shop.yaml', INPUT_IMAGES: 'artifact', INPUT_SIDE_BY_SIDE: 'true', INPUT_SCALE: '1', INPUT_OUTPUT: 'out/diff' });
     const side = await run(j.env, { api, log: () => {} });

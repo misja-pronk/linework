@@ -1,5 +1,5 @@
 # Acme Corporation: a fictional client brand, to show what a theme file can do.
-# Use it from a diagram with `theme: ./acme.theme.yaml`, or `carto render x.yaml --theme acme.theme.yaml`.
+# Use it from a diagram with `theme: ./acme.theme.yaml`, or `linework render x.yaml --theme acme.theme.yaml`.
 name: acme
 extends: light
 
@@ -29,6 +29,6 @@ titleBlock:
   client: Acme Corporation
   project: Platform modernisation
   classification: Confidential
-  footer: Acme Corporation is a fictional brand used to illustrate Cartography brand themes.
+  footer: Acme Corporation is a fictional brand used to illustrate Linework brand themes.
 
 legend: bottom

@@ -1,5 +1,5 @@
 {
-  "name": "@cartography/diff",
+  "name": "@linework/diff",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
@@ -8,10 +8,10 @@
     "./node": "./src/node.ts"
   },
   "dependencies": {
-    "@cartography/core": "workspace:*",
-    "@cartography/engine": "workspace:*",
-    "@cartography/render": "workspace:*",
-    "@cartography/theme": "workspace:*",
+    "@linework/core": "workspace:*",
+    "@linework/engine": "workspace:*",
+    "@linework/render": "workspace:*",
+    "@linework/theme": "workspace:*",
     "yaml": "^2.9.1"
   }
 }

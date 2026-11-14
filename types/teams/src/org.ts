@@ -1,8 +1,8 @@
 // The org chart placed: people on a tidy tree (packages/tree), every card in a row (or a list) as tall
 // as the tallest in it so the rows line up, the dotted-line reports routed around the cards. Given the
 // drawing before, the tree keeps to it: one more person moves the cards beside them, not the chart.
-import type { Box, LayoutMemory, Placed, PlacedEdge, Point, Sized } from '@cartography/core';
-import { route, tidy, type Side, type TidyNode } from '@cartography/tree';
+import type { Box, LayoutMemory, Placed, PlacedEdge, Point, Sized } from '@linework/core';
+import { route, tidy, type Side, type TidyNode } from '@linework/tree';
 
 export function orgLayout(sized: Sized, previous?: LayoutMemory): Placed {
   const g = sized.graph;

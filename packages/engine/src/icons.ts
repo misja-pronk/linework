@@ -1,9 +1,9 @@
 // BYO official icons: which kinds a diagram uses, which SVG file each maps to (packs, then the
 // diagram's own `icons:` entries), read only those files and hand them to render as data URIs.
 import { parse } from 'yaml';
-import type { Graph, Path } from '@cartography/core';
-import { vendorsFor, type IconPackFile } from '@cartography/icons';
-import { joinPath } from '@cartography/theme';
+import type { Graph, Path } from '@linework/core';
+import { vendorsFor, type IconPackFile } from '@linework/icons';
+import { joinPath } from '@linework/theme';
 import type { RenderOptions } from './index.ts';
 
 export type { IconPackFile };
@@ -83,7 +83,7 @@ export function resolveIcons(graph: Graph, data: Record<string, unknown>, ref: u
     const p = opts.pack?.(name);
     if (!p) {
       if (quiet) return;
-      return warn(path, opts.pack || !opts.iconPacks ? `No ${name} icons imported yet: download the official set and run carto icons import <folder|zip> (docs/icons.md)` : `No ${name} icons in this browser yet: Theme → Official icons… imports the download (docs/icons.md)`);
+      return warn(path, opts.pack || !opts.iconPacks ? `No ${name} icons imported yet: download the official set and run linework icons import <folder|zip> (docs/icons.md)` : `No ${name} icons in this browser yet: Theme → Official icons… imports the download (docs/icons.md)`);
     }
     fromPack(p, '', name);
   };

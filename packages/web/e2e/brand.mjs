@@ -67,10 +67,10 @@ const page = await browser.newPage({ viewport: { width: 1512, height: 900 }, dev
 const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
 const fail = (m) => problems.push(m);
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.evaluate(async ({ files }) => {
   localStorage.clear();
-  localStorage.setItem('cartography:started', 'true');
+  localStorage.setItem('linework:started', 'true');
   const opfs = await navigator.storage.getDirectory();
   for await (const [name] of opfs.entries()) await opfs.removeEntry(name, { recursive: true });
   const put = async (root, p, data) => {

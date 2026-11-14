@@ -1,6 +1,6 @@
-# The Cartography style
+# The Linework style
 
-Cartography has a look of its own, called **Survey**. It is the default: a diagram without a `theme:` is drawn in
+Linework has a look of its own, called **Survey**. It is the default: a diagram without a `theme:` is drawn in
 it. Two other looks, **Transit** and **Drafting**, are built in for the cases where Survey is not the right voice.
 This page says what Survey is, which rules keep it recognisable, and when to pick which theme. The tokens behind
 it are listed in [themes.md](themes.md); the research that led here is in
@@ -22,7 +22,7 @@ them.
 
 ## The rules that keep it recognisable
 
-A theme file can change any of these. A diagram stops looking like Cartography when several go at once, so change
+A theme file can change any of these. A diagram stops looking like Linework when several go at once, so change
 colour and font for a brand, and leave the rest.
 
 1. **Depth, not colour, fills a group.** One tint per nesting level, the same hue throughout. A group's tone

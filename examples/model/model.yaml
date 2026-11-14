@@ -1,5 +1,5 @@
 # The shop, described once. Diagrams include this file and reference elements by id;
-# `carto render model.yaml --all-views` draws the views below straight from it.
+# `linework render model.yaml --all-views` draws the views below straight from it.
 type: model
 title: Web shop model
 

@@ -5,10 +5,10 @@
 It is not an HR system: there are no photos, no headcount maths, no import from Workday. Initials stand in for photos, which keeps a chart printable and free of personal pictures.
 
 ```sh
-carto new teams org.yaml
-carto render org.yaml --format png                 # the org chart
-carto render org.yaml --view topology -o teams.png # the Team Topologies view
-carto render org.yaml --focus bo --format pptx     # Bo's branch on a slide
+linework new teams org.yaml
+linework render org.yaml --format png              # the org chart
+linework render org.yaml --view topology -o teams.png # the Team Topologies view
+linework render org.yaml --focus bo --format pptx  # Bo's branch on a slide
 ```
 
 ![An engagement: client and consultancy](teams/org-chart.png)

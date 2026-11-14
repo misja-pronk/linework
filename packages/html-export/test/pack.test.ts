@@ -6,7 +6,7 @@ import { gunzipSync, strFromU8 } from 'fflate';
 import { base64, drawnShapes, exportHtml, shareIcons, type Payload } from '../src/index.ts';
 import { viewerScript } from '../src/generated/viewer.ts';
 import { tokens } from '../src/style.ts';
-import { themes } from '@cartography/theme';
+import { themes } from '@linework/theme';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../../..');
@@ -20,7 +20,7 @@ const reader = (dir: string) => (p: string) => {
 
 /** The data block of a page, unpacked as the viewer does. */
 function payloadOf(html: string): Payload {
-  const data = /<script type="application\/gzip\+json;base64" id="carto-data">([^<]*)<\/script>/.exec(html)![1]!;
+  const data = /<script type="application\/gzip\+json;base64" id="linework-data">([^<]*)<\/script>/.exec(html)![1]!;
   return JSON.parse(strFromU8(gunzipSync(Uint8Array.from(atob(data), (c) => c.charCodeAt(0))))) as Payload;
 }
 
@@ -44,9 +44,9 @@ describe('packing', () => {
     ];
     const table = shareIcons(pics);
     expect(table).toEqual([big]);
-    expect(pics[0]!.light).toBe(`<svg><image data-carto-icon="0"/><image href="${small}"/></svg>`);
-    expect(pics[0]!.dark).toBe('<svg><image data-carto-icon="0"/></svg>');
-    expect(pics[1]!.light).toBe('<svg><image data-carto-icon="0"/></svg>');
+    expect(pics[0]!.light).toBe(`<svg><image data-linework-icon="0"/><image href="${small}"/></svg>`);
+    expect(pics[0]!.dark).toBe('<svg><image data-linework-icon="0"/></svg>');
+    expect(pics[1]!.light).toBe('<svg><image data-linework-icon="0"/></svg>');
   });
 
   it('reads the shapes of a drawing, ids unescaped', () => {

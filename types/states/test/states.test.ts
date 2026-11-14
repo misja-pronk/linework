@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { render } from '@cartography/engine';
-import type { FlowShape } from '@cartography/core';
+import { render } from '@linework/engine';
+import type { FlowShape } from '@linework/core';
 import { parseTransition, states as statesType, stateShorthand, statesReferences } from '../src/index.ts';
 
 const examples = path.resolve(import.meta.dirname, '../../../examples/states');

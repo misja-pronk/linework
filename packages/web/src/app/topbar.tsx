@@ -2,7 +2,7 @@
 // theme, light or dark), Export.
 import './topbar.css';
 import { useState } from 'react';
-import type { DiagramType } from '@cartography/core';
+import type { DiagramType } from '@linework/core';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import { Menu } from '../menu.tsx';
@@ -52,7 +52,7 @@ export function Topbar(p: Props) {
     <header className="topbar">
       <div className="brand">
         <BrandMark />
-        Cartography
+        Linework
       </div>
       <div className="doc-name">
         <span className="doc-file">{ws && doc.path ? `${ws.name}/${doc.path}` : doc.name}</span>
@@ -73,7 +73,7 @@ export function Topbar(p: Props) {
                 <button role="menuitem" onClick={() => (setTypeCard(false), p.onTypeGuide())}>
                   <Icon name="circle-question-mark" /> {t('Which type do I need?')}
                 </button>
-                <p className="type-card-fine">{t('Also in docs/types.md and')} <code>carto types</code></p>
+                <p className="type-card-fine">{t('Also in docs/types.md and')} <code>linework types</code></p>
               </Menu>
             )}
           </div>

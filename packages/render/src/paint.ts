@@ -1,9 +1,9 @@
 // The pieces every drawer shares, drawn the way the theme asks: icon tiles, step numbers, line
 // corners, dashes and arrowheads, the ground behind a label, chips. One place, so the graph renderer,
 // sequence, git, roadmap and matrix drawings all follow the same look.
-import type { LinePattern, Marker, Point } from '@cartography/core';
-import { icon } from '@cartography/icons';
-import { baselineOffset, look, mix, type Theme, type ToneColors } from '@cartography/theme';
+import type { LinePattern, Marker, Point } from '@linework/core';
+import { icon } from '@linework/icons';
+import { baselineOffset, look, mix, type Theme, type ToneColors } from '@linework/theme';
 
 /** Text and double-quoted attributes of a drawing (every drawer's one escape). An apostrophe stays as it is: no attribute here is single-quoted, and font stacks keep reading as written. */
 export const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

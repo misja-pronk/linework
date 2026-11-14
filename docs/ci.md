@@ -4,40 +4,40 @@ Diagrams live next to the code, so a pull request can change them. This page cov
 
 | What | Command | Use |
 |---|---|---|
-| Is every diagram valid? | `carto validate` | fail the build on a broken diagram |
-| Do saved positions still match? | `carto validate --drift` | catch pins for things that were renamed or removed |
-| Does an edit redraw everything? | `carto render --stable` | keep the picture where it was after an edit |
-| What changed? | `carto diff` | a list of changes and a marked-up picture |
+| Is every diagram valid? | `linework validate` | fail the build on a broken diagram |
+| Do saved positions still match? | `linework validate --drift` | catch pins for things that were renamed or removed |
+| Does an edit redraw everything? | `linework render --stable` | keep the picture where it was after an edit |
+| What changed? | `linework diff` | a list of changes and a marked-up picture |
 | All of it on GitHub | the Action | one comment on the pull request, with pictures |
 
 Everything runs on plain Node. No Docker, no headless browser, no server.
 
 ![A diff picture: one node and one line added, one node and one line changed, one node and one line removed](ci/diff.png)
 
-## Check diagrams: `carto validate`
+## Check diagrams: `linework validate`
 
 ```sh
-carto validate docs/**/*.yaml
+linework validate docs/**/*.yaml
 ```
 
 Prints `file ok` or the problems with line numbers, and exits 1 when a file has errors. Included files (`include:`) are read too, so a diagram that breaks because its model file changed is caught.
 
-It also warns (without failing) when text would be too small to read on a slide: under 6 pt for the words a reader needs (names on cards, lines and groups; not tags, counts and badges), on the drawing's slide and on the slide of each of its views. The slide is measured as `carto render --format pptx` makes it (16:9, or 4:3 when `aspect:` says so): the title and subtitle rows at the top, the drawing scaled into the rest, so the number validate prints is the one PowerPoint shows, and the editor's page frame (⇧P) and its PowerPoint export say the same; its PDF on a slide page sets the drawing at that size too. A drawing meant for paper (`aspect: a4`) is measured fitted onto that sheet. A diagram with `steps:` is checked the way PowerPoint shows it too, a slide per step with the step's title and caption on it: one warning per drawing, naming the step whose caption takes the room (see [Steps](steps.md#problems)). A whole sequence diagram, which is read scrolling, only gets a hint to present it per phase.
+It also warns (without failing) when text would be too small to read on a slide: under 6 pt for the words a reader needs (names on cards, lines and groups; not tags, counts and badges), on the drawing's slide and on the slide of each of its views. The slide is measured as `linework render --format pptx` makes it (16:9, or 4:3 when `aspect:` says so): the title and subtitle rows at the top, the drawing scaled into the rest, so the number validate prints is the one PowerPoint shows, and the editor's page frame (⇧P) and its PowerPoint export say the same; its PDF on a slide page sets the drawing at that size too. A drawing meant for paper (`aspect: a4`) is measured fitted onto that sheet. A diagram with `steps:` is checked the way PowerPoint shows it too, a slide per step with the step's title and caption on it: one warning per drawing, naming the step whose caption takes the room (see [Steps](steps.md#problems)). A whole sequence diagram, which is read scrolling, only gets a hint to present it per phase.
 
-Decks made in a client's template have the template's room instead (its title bar, footers and logo leave less): `carto validate --template customer.potx` (with `--layout` as for `carto render`) measures on that template's slide, and a brand theme that names a template (`pptx:`) is measured in it without asking. See [PowerPoint templates](powerpoint-templates.md).
+Decks made in a client's template have the template's room instead (its title bar, footers and logo leave less): `linework validate --template customer.potx` (with `--layout` as for `linework render`) measures on that template's slide, and a brand theme that names a template (`pptx:`) is measured in it without asking. See [PowerPoint templates](powerpoint-templates.md).
 
 ### Saved positions that no longer fit: `--drift`
 
 When you drag things in the editor, their positions are saved next to the diagram in `<name>.layout.json`. Rename or remove an element in the YAML and its saved position stays behind. Nothing breaks: the entry is ignored. But the file slowly fills with entries that mean nothing, and a pin you thought you had is silently gone.
 
 ```sh
-carto validate --drift docs/**/*.yaml         # exit 1 when a layout file names things that are gone
-carto validate --drift --fix docs/**/*.yaml   # remove those entries
+linework validate --drift docs/**/*.yaml      # exit 1 when a layout file names things that are gone
+linework validate --drift --fix docs/**/*.yaml  # remove those entries
 ```
 
 `--drift` reports, per file and per view: pinned nodes and groups, bent lines, locked elements and whole views that are no longer in the diagram. `--fix` removes exactly those entries and leaves the rest of the file alone. Run `--fix` locally and commit the result. In CI, use `--drift` without `--fix`.
 
-## Keep the picture where it was: `carto render --stable`
+## Keep the picture where it was: `linework render --stable`
 
 A new line or a new box can make the layout engine choose a different arrangement. Mostly you do not want that: the diagram you knew is gone and the diff is unreadable.
 
@@ -45,19 +45,19 @@ A new line or a new box can make the layout engine choose a different arrangemen
 - **In the CLI** it is a choice, because the same input must always give the same picture:
 
 ```sh
-carto render shop.yaml --stable
+linework render shop.yaml --stable
 ```
 
 `--stable` writes a short note of where things were drawn into `shop.layout.json` (under `"layout"`, per view). Every later render, with or without `--stable`, reads that note and keeps things there. Only `--stable` writes it. Commit the layout file: then everybody, and CI, gets the same picture from the same two files.
 
-Without a layout file, `carto render` is laid out from scratch every time, as before.
+Without a layout file, `linework render` is laid out from scratch every time, as before.
 
-## What changed: `carto diff`
+## What changed: `linework diff`
 
 ```sh
-carto diff before.yaml after.yaml                 # two files
-carto diff --git main docs/shop.yaml              # the file now, against the same file on main
-carto diff --git HEAD~3 docs/*.yaml -o diffs/     # several, pictures into a folder
+linework diff before.yaml after.yaml              # two files
+linework diff --git main docs/shop.yaml           # the file now, against the same file on main
+linework diff --git HEAD~3 docs/*.yaml -o diffs/  # several, pictures into a folder
 ```
 
 Elements are matched by id, so a renamed label is a change and not a removal plus an addition. Reordering the file changes nothing. With `--git`, included files are read from that commit too, so a change in a shared model file shows in every diagram that uses it.
@@ -112,7 +112,7 @@ on:
     types: [opened, synchronize, reopened, closed]
 
 permissions:
-  contents: write        # pictures go to the cartography-diffs branch
+  contents: write        # pictures go to the linework-diffs branch
   pull-requests: write   # the comment
 
 jobs:
@@ -122,7 +122,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: misja-pronk/cartography/packages/action@main
+      - uses: misja-pronk/linework/packages/action@main
 ```
 
 Pin the action to a tag or a commit instead of `@main` once you rely on it.
@@ -146,7 +146,7 @@ The comparison is with the commit where the pull request left its base branch. T
 | `views` | `true` | also compare or draw every view |
 | `base` | the pull request's base | diff: commit or branch to compare with |
 | `images` | `auto` | diff: `branch`, `artifact`, `none`, or `auto` (see below) |
-| `image-branch` | `cartography-diffs` | the branch that holds the pictures |
+| `image-branch` | `linework-diffs` | the branch that holds the pictures |
 | `comment` | `true` | diff: keep one comment up to date |
 | `side-by-side` | `false` | diff: before and after instead of one marked-up drawing |
 | `max-images` | `12` | diff: at most this many pictures in the comment |
@@ -156,7 +156,7 @@ The comparison is with the commit where the pull request left its base branch. T
 | `commit` | `false` | render: commit the pictures that changed and push |
 | `commit-message` | `Render diagrams [skip ci]` | |
 | `upload-artifact` | `auto` | upload the output folder as an artifact |
-| `artifact-name` | `cartography-diagrams` | |
+| `artifact-name` | `linework-diagrams` | |
 | `fail-on-error` | `true` | fail the step when a diagram has errors |
 | `token` | the job's token | used for the comment only |
 | `setup-node` | `true` | install Node 24; turn off when the runner has it |
@@ -171,7 +171,7 @@ A comment can only show a picture that has an address. GitHub gives a workflow n
 
 | `images` | How | Good | Not so good |
 |---|---|---|---|
-| `branch` | PNG files are pushed to a branch in your repository (`cartography-diffs`), the comment links to them | pictures right in the comment; works in private repositories; no outside service | needs `contents: write`; not possible for pull requests from forks |
+| `branch` | PNG files are pushed to a branch in your repository (`linework-diffs`), the comment links to them | pictures right in the comment; works in private repositories; no outside service | needs `contents: write`; not possible for pull requests from forks |
 | `artifact` | PNG files are uploaded as a workflow artifact, the comment has the words and a link to the run | needs no write access; works for forks | one click and a download away; artifacts expire (90 days by default) |
 | `none` | words only | fastest | no picture |
 
@@ -205,7 +205,7 @@ For a pull request from a fork, GitHub gives the workflow a read-only token and 
 
 Nothing needs to be configured for this, and no secret is needed.
 
-**Do not switch the workflow to `pull_request_target` to get a comment on fork pull requests.** That event runs with a token that can write and with access to secrets, and checking out the pull request's code under it lets a stranger's change run with those rights. The well-known ways this goes wrong: a changed `package.json` script or lockfile, a changed workflow helper, a changed action in the repository. Cartography does not run code from a diagram, and it refuses to read files outside the repository (an `include:` or icon path with `../`, an absolute path or a symlink pointing out). But the rest of your workflow, and the checkout itself, are not protected by that.
+**Do not switch the workflow to `pull_request_target` to get a comment on fork pull requests.** That event runs with a token that can write and with access to secrets, and checking out the pull request's code under it lets a stranger's change run with those rights. The well-known ways this goes wrong: a changed `package.json` script or lockfile, a changed workflow helper, a changed action in the repository. Linework does not run code from a diagram, and it refuses to read files outside the repository (an `include:` or icon path with `../`, an absolute path or a symlink pointing out). But the rest of your workflow, and the checkout itself, are not protected by that.
 
 If you do want comments on fork pull requests, the safe pattern is two workflows: the first runs on `pull_request` without rights and uploads the artifact (this action does that already); the second runs on `workflow_run`, has write access, never checks out the pull request's code, and only downloads the artifact and posts `comment.md`. The second half is not part of this action yet.
 
@@ -226,7 +226,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: misja-pronk/cartography/packages/action@main
+      - uses: misja-pronk/linework/packages/action@main
         with:
           formats: svg
           commit: true
@@ -238,26 +238,26 @@ Use `README` images like `![Shop](docs/shop.svg)` and they stay up to date by th
 
 ### Validate and drift in the same job
 
-`mode: setup` only installs, and puts `carto` on the PATH for the steps after it:
+`mode: setup` only installs, and puts `linework` on the PATH for the steps after it:
 
 ```yaml
-      - uses: misja-pronk/cartography/packages/action@main
+      - uses: misja-pronk/linework/packages/action@main
         with:
           mode: setup
       - run: |
           shopt -s globstar nullglob
-          carto validate --drift docs/**/*.yaml
+          linework validate --drift docs/**/*.yaml
 ```
 
-(`shopt -s globstar` makes `**` reach into subfolders in bash; `carto` takes the file names the shell gives it.)
+(`shopt -s globstar` makes `**` reach into subfolders in bash; `linework` takes the file names the shell gives it.)
 
-Any later step can use the CLI after the action ran, in every mode: `carto validate architecture/` fails the job on a diagram with errors.
+Any later step can use the CLI after the action ran, in every mode: `linework validate architecture/` fails the job on a diagram with errors.
 
 ### Good to know
 
 - **Self-hosted runners**: set `setup-node: false` when Node 24 is installed. The action needs `git`, `node` and either `corepack` or `npm` (to get pnpm).
 - **Speed**: the first step installs the action's own packages (about 130 MB, a few seconds from a warm cache). A pull request that touches no diagram is done right after.
-- **Pictures in the comment differ slightly from `carto render`?** The diff picture keeps things where they were in the older version, so that only real changes stand out. Commit a layout file written with `render --stable` to get the same from both.
+- **Pictures in the comment differ slightly from `linework render`?** The diff picture keeps things where they were in the older version, so that only real changes stand out. Commit a layout file written with `render --stable` to get the same from both.
 - **The comment disappears** when a later push takes the diagram change back. Other comments are never touched: the action finds its own by a hidden marker.
 - **Large changes**: the comment shows at most `max-images` pictures and stays under GitHub's size limit by dropping the tables first. Everything is in `diff.json`.
 - **GitHub Enterprise Server**: the server and API addresses are taken from the runner.

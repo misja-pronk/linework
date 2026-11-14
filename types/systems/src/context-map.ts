@@ -12,7 +12,7 @@
 // A light type of its own rather than more edge styles on `systems`: a context map has its own words
 // (bounded context, upstream, conformist) and a palette of thirty service kinds would drown them. It is
 // built on the same graph source, so focus, steps, views and model refs work as they do there.
-import { buildGraph, edgeItemSchema, graphReferences, graphSchema, parseEdge, type DiagramType, type GraphSource, type GraphTypeConfig, type LegendItem, type PaletteItem, type Tone } from '@cartography/core';
+import { buildGraph, edgeItemSchema, graphReferences, graphSchema, parseEdge, type DiagramType, type GraphSource, type GraphTypeConfig, type LegendItem, type PaletteItem, type Tone } from '@linework/core';
 
 export const relations = {
   partnership: { label: 'Partnership', symmetric: true },
@@ -65,7 +65,7 @@ const palette: PaletteItem[] = [
 ];
 
 function schema(): object {
-  const s = graphSchema('context-map', contextMapConfig, 'Cartography context map') as { properties: Record<string, any> };
+  const s = graphSchema('context-map', contextMapConfig, 'Linework context map') as { properties: Record<string, any> };
   const node = s.properties.nodes.additionalProperties.anyOf.find((x: { type?: string }) => x.type === 'object');
   node.properties = { ...node.properties, domain: { enum: Object.keys(domains), description: 'Its subdomain: core, supporting or generic' } };
   const patterns = (list: readonly string[]) => ({ type: 'array', items: { enum: list } });

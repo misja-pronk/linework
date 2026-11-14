@@ -4,12 +4,12 @@
 //   propose  edits by YAML path (edit.ts), shown in the editor as a proposal with the diff marks;
 //            it resolves when the user accepts or rejects it. A file of the host's folder that is
 //            not open is opened first (VS Code: the document and its preview; the browser editor
-//            of carto serve: the file in the editor). `not-open` only when it cannot be: outside
+//            of linework serve: the file in the editor). `not-open` only when it cannot be: outside
 //            the folder, not there, or the user keeps the file that is open.
-// Files are absolute paths on the wire. The hosts are the VS Code extension and `carto serve` (which
+// Files are absolute paths on the wire. The hosts are the VS Code extension and `linework serve` (which
 // passes calls on to the browser editor). Each host listens on 127.0.0.1 and takes a call as
 //   POST /live   Authorization: Bearer <token>   body: LiveCall   → the answer as JSON
-// and says where it is in a small discovery file (see @cartography/mcp's discovery.ts), so an MCP
+// and says where it is in a small discovery file (see @linework/mcp's discovery.ts), so an MCP
 // server started anywhere in the same folder finds it. Plain JSON both ways, nothing else.
 import { checkOperations, type Operation } from './edit.ts';
 
@@ -82,7 +82,7 @@ export async function answerLive(host: LiveHost, call: unknown): Promise<{ resul
   }
 }
 
-// The browser editor of `carto serve` is reached over Server-Sent Events (calls and file changes in)
+// The browser editor of `linework serve` is reached over Server-Sent Events (calls and file changes in)
 // and POST /api/reply (answers out). Paths there are relative to the folder served.
 
 export type ToEditor = { type: 'call'; id: number; call: LiveCall } | { type: 'changed'; path: string };

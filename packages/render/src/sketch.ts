@@ -3,8 +3,8 @@
 // no filters, so PNG, slides and Office-safe SVG keep the look. The wobble is seeded per element:
 // by its node, group or edge id where the drawing carries them (the editor's), else by its geometry,
 // so the same drawing comes out the same every time and a dragged card keeps its own hand.
-import { mix, parseColor, type Theme } from '@cartography/theme';
-import type { Point } from '@cartography/core';
+import { mix, parseColor, type Theme } from '@linework/theme';
+import type { Point } from '@linework/core';
 
 export interface SketchOptions {
   /** 0 is a ruler, 1 the default, 2 a quick marker. */

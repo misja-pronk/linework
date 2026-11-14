@@ -12,7 +12,7 @@ const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
 const wait = (ms = 300) => page.waitForTimeout(ms);
-const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}'));
+const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('linework:doc') ?? '{}'));
 const yaml = async () => (await wait(500), (await stored()).text ?? '');
 const drawing = () => page.locator('.drawing svg').first().innerHTML();
 
@@ -20,12 +20,12 @@ await page.addInitScript(() => {
   const text = sessionStorage.getItem('seed');
   if (!text) return;
   sessionStorage.removeItem('seed');
-  localStorage.setItem('cartography:doc', JSON.stringify({ text, doc: { name: 'raci.yaml' } }));
+  localStorage.setItem('linework:doc', JSON.stringify({ text, doc: { name: 'raci.yaml' } }));
 });
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await page.evaluate(() => {
   localStorage.clear();
-  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code' })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code' })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
 });
 await page.reload();
 await page.waitForSelector('.preview svg');

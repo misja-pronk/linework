@@ -7,8 +7,8 @@
 // stability.test.ts keeps the result under the limit.
 import fs from 'node:fs';
 import path from 'node:path';
-import type { DiagramType, LayoutMemory, Point } from '@cartography/core';
-import { measure, score } from '@cartography/layout';
+import type { DiagramType, LayoutMemory, Point } from '@linework/core';
+import { measure, score } from '@linework/layout';
 import { addEntry, connectEntries } from '../../web/src/builder.ts';
 import { render, type RenderResult } from '../src/index.ts';
 

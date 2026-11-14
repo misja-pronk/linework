@@ -18,7 +18,7 @@
 // `start` and `end` are the initial and final pseudo-states of the level the state at the other
 // end of the arrow lives in. A name that ends in "?" is a choice. A state that appears only in
 // `transitions:` needs no entry.
-import { linksSchema, parseLinks, tones, type BuildContext, type DiagramType, type FlowShape, type Graph, type GraphBeat, type GraphEdge, type GraphGroup, type GraphNode, type PaletteItem, type Path, type Reference, type Tone } from '@cartography/core';
+import { linksSchema, parseLinks, tones, type BuildContext, type DiagramType, type FlowShape, type Graph, type GraphBeat, type GraphEdge, type GraphGroup, type GraphNode, type PaletteItem, type Path, type Reference, type Tone } from '@linework/core';
 
 interface Kind {
   label: string;
@@ -404,7 +404,7 @@ const state = {
 };
 const schema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography state machine',
+  title: 'Linework state machine',
   type: 'object',
   required: ['type'],
   definitions: {

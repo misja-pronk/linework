@@ -1,12 +1,12 @@
 {
-  "name": "@cartography/mindmap",
+  "name": "@linework/mindmap",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
   "exports": { ".": "./src/index.ts" },
-  "dependencies": { "@cartography/core": "workspace:*", "@cartography/tree": "workspace:*" },
+  "dependencies": { "@linework/core": "workspace:*", "@linework/tree": "workspace:*" },
   "devDependencies": {
-    "@cartography/engine": "workspace:*",
+    "@linework/engine": "workspace:*",
     "yaml": "^2.9.1"
   }
 }

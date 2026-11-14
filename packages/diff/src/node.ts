@@ -3,8 +3,8 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { LayoutSidecar } from '@cartography/core';
-import type { RenderOptions } from '@cartography/engine';
+import type { LayoutSidecar } from '@linework/core';
+import type { RenderOptions } from '@linework/engine';
 
 /** Runs git and returns what it printed; throws with git's own message when it fails. */
 export function git(args: string[], cwd: string, input?: string | Uint8Array, env?: Record<string, string>): string {

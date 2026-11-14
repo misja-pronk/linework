@@ -3,7 +3,7 @@
 // their whole neighbourhood, which leaves small jogs between tables of different heights or cards
 // next to taller neighbours. A move is kept only when more lines end up straight than before, the
 // node stays below its group's header (the group grows when needed), and it overlaps nothing.
-import type { Box, Graph, NodeSize } from '@cartography/core';
+import type { Box, Graph, NodeSize } from '@linework/core';
 import type { Placement } from './dot.ts';
 import { growGroups } from './pins.ts';
 

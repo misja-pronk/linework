@@ -1,14 +1,14 @@
 {
-  "name": "cartography",
+  "name": "linework",
   "private": true,
   "type": "module",
   "license": "MIT",
   "description": "Architecture diagrams as text: YAML in, a clean and consistent drawing out",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/misja-pronk/cartography.git"
+    "url": "git+https://github.com/misja-pronk/linework.git"
   },
-  "homepage": "https://github.com/misja-pronk/cartography#readme",
+  "homepage": "https://github.com/misja-pronk/linework#readme",
   "packageManager": "pnpm@10.34.7",
   "scripts": {
     "build": "pnpm web:build && node scripts/bundle.mjs",
@@ -16,7 +16,7 @@
     "build:mcp": "node scripts/bundle.mjs mcp",
     "smoke": "node scripts/smoke-bundles.mjs",
     "validators": "tsx scripts/validators.ts",
-    "carto": "tsx packages/cli/src/main.ts",
+    "linework": "tsx packages/cli/src/main.ts",
     "mcp": "tsx packages/mcp/src/main.ts",
     "gallery": "tsx packages/cli/src/gallery.ts",
     "themes": "tsx packages/cli/src/theme-gallery.ts",
@@ -30,11 +30,11 @@
     "snapshot": "tsx packages/cli/src/snapshot.ts",
     "stability": "tsx packages/engine/test/stability.ts",
     "margin": "tsx packages/cli/src/margin.ts",
-    "web": "pnpm --filter @cartography/web dev",
-    "web:build": "pnpm --filter @cartography/web build",
-    "docs:build": "pnpm --filter @cartography/web build && pnpm --filter @cartography/site build",
-    "docs:serve": "pnpm --filter @cartography/site serve",
-    "bench": "pnpm --filter @cartography/site bench",
+    "web": "pnpm --filter @linework/web dev",
+    "web:build": "pnpm --filter @linework/web build",
+    "docs:build": "pnpm --filter @linework/web build && pnpm --filter @linework/site build",
+    "docs:serve": "pnpm --filter @linework/site serve",
+    "bench": "pnpm --filter @linework/site bench",
     "licences": "node scripts/licences.mjs",
     "pack:check": "node scripts/pack-check.mjs",
     "e2e:templates": "node packages/web/e2e/templates.mjs"

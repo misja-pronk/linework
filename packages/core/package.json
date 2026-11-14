@@ -1,5 +1,5 @@
 {
-  "name": "@cartography/core",
+  "name": "@linework/core",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
@@ -9,6 +9,6 @@
   "dependencies": {
     "yaml": "^2.9.1",
     "ajv": "^8.20.0",
-    "@cartography/i18n": "workspace:*"
+    "@linework/i18n": "workspace:*"
   }
 }

@@ -12,8 +12,8 @@
 //       capabilities:                      …or as a map
 //         Accounting: { maturity: 4 }
 //     Payroll: { parent: Finance }         or anywhere, with parent:
-import { english, parseLink, parseLinks, tones, type BlockHeat, type BlockShape, type BuildContext, type DiagramType, type Graph, type GraphNode, type Link, type PaletteItem, type Path, type Placed, type Reference, type Sized, type Tone } from '@cartography/core';
-import { pack, type PackItem } from '@cartography/tree';
+import { english, parseLink, parseLinks, tones, type BlockHeat, type BlockShape, type BuildContext, type DiagramType, type Graph, type GraphNode, type Link, type PaletteItem, type Path, type Placed, type Reference, type Sized, type Tone } from '@linework/core';
+import { pack, type PackItem } from '@linework/tree';
 import { heatScale, type HeatEntry, type HeatScale } from './heat.ts';
 
 export { heatScale, numberOf, type HeatEntry } from './heat.ts';
@@ -287,7 +287,7 @@ const capability = {
 
 const schema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography capability map',
+  title: 'Linework capability map',
   type: 'object',
   required: ['type'],
   properties: {

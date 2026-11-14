@@ -5,8 +5,8 @@
 //   pnpm snapshot --compare <a> <b>     what moved between two snapshots, and each canvas's area
 import fs from 'node:fs';
 import path from 'node:path';
-import { render } from '@cartography/engine';
-import { measure, score } from '@cartography/layout';
+import { render } from '@linework/engine';
+import { measure, score } from '@linework/layout';
 import { toPng } from './png.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');

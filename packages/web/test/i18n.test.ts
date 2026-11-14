@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { badMessages, sourceText, unusedIds } from '@cartography/i18n/lint';
+import { badMessages, sourceText, unusedIds } from '@linework/i18n/lint';
 import { nl } from '../src/i18n/nl.ts';
 import { nlCollections } from '../src/i18n/nl-shell.ts';
 import { SHORTCUTS } from '../src/keys.ts';
@@ -56,9 +56,9 @@ describe('the catalog parts', () => {
 
 describe('a Dutch description in the start dialog', () => {
   it('finds the type an English one would', async () => {
-    const { matchTypes } = await import('@cartography/core');
+    const { matchTypes } = await import('@linework/core');
     const { englishQuery } = await import('../src/i18n/query-nl.ts');
-    const { types } = await import('@cartography/engine');
+    const { types } = await import('@linework/engine');
     const best = (q: string) => matchTypes(englishQuery(q), types)[0]!.type.id;
     expect(best('wie heeft toegang tot welke gegevens')).toBe(best('who has access to which data'));
     expect(best('volgorde van aanroepen tussen systemen')).toBe('sequence');

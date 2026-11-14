@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { BlockShape, GraphNode } from '@cartography/core';
+import type { BlockShape, GraphNode } from '@linework/core';
 import { render } from '../../../packages/engine/src/index.ts';
 import { bigMap } from '../../../packages/tree/test/fixtures.ts';
 import { capabilityReferences, heatScale, numberOf } from '../src/index.ts';

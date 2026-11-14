@@ -1,10 +1,10 @@
-// The MCP server over streamable HTTP, for carto serve: stateless, a fresh server per request (the
+// The MCP server over streamable HTTP, for linework serve: stateless, a fresh server per request (the
 // tools keep no state between calls), and only for callers with the token. Plus the live link's
 // POST /live, which the VS Code extension answers too.
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { answerLive, type LiveHost } from '@cartography/core';
+import { answerLive, type LiveHost } from '@linework/core';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 /** The bearer token matches, in constant time. */

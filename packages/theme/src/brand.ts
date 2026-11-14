@@ -1,6 +1,6 @@
 // Brand themes: a small spec (1–2 brand colours, font, corners, title block) becomes a full Theme.
 // Everything not given is derived, and every text/background pair is checked against WCAG AA.
-import { tones as toneSlots, type Tone } from '@cartography/core';
+import { tones as toneSlots, type Tone } from '@linework/core';
 import { contrast, ensureContrast, fromHsl, hex, isColor, isDark, mix, parseColor, toHsl } from './color.ts';
 import { bundledFamilies, bundledFamily } from './fonts.ts';
 import { classic, type PptxLook, type EdgeLabelLook, type FontFace, type GroupLook, type LegendPosition, type LineLook, type MonoRole, type SheetLook, type SketchLook, type Theme, type TileStyle, type TitleBlock, type TitleLook, type ToneColors } from './tokens.ts';

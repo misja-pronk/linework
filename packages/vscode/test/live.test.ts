@@ -4,13 +4,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { endpoints } from '@cartography/mcp/discovery';
+import { endpoints } from '@linework/mcp/discovery';
 
 vi.mock('vscode', () => import('./vscode-stub.ts'));
 const stub = await import('./vscode-stub.ts');
 const { activate } = await import('../src/extension.ts');
 
-const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'carto-vscode-live-')));
+const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'linework-vscode-live-')));
 const shop = 'type: systems\nnodes:\n  web: { kind: client }\n  api: { kind: api }\nedges:\n  - web -> api\n';
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function until<T>(f: () => T | undefined, ms = 15_000): Promise<T> {
@@ -26,7 +26,7 @@ async function until<T>(f: () => T | undefined, ms = 15_000): Promise<T> {
 let call: (body: unknown) => Promise<{ result?: { outcome: string; message?: string }; error?: string }>;
 
 beforeAll(async () => {
-  stub.state.config['cartography.preview.debounce'] = 0;
+  stub.state.config['linework.preview.debounce'] = 0;
   stub.workspace.workspaceFolders = [{ uri: stub.Uri.file(dir) }];
   activate({ subscriptions: [], extensionUri: stub.Uri.file('/ext') } as never);
   const e = await until(() => endpoints().find((x) => x.pid === process.pid && x.roots.includes(dir)));
@@ -45,7 +45,7 @@ describe('propose for a file that is not open', () => {
     const doc = await until(() => stub.state.documents.find((d) => d.fileName === file));
     expect(doc.getText()).toBe(shop);
     expect(stub.state.shown).toContain(doc);
-    const panel = await until(() => stub.state.panels.find((p) => p.viewType === 'cartography.preview'));
+    const panel = await until(() => stub.state.panels.find((p) => p.viewType === 'linework.preview'));
     panel.received.fire({ type: 'ready' });
     const shown = (await until(() => panel.posted.find((m) => (m as { type: string }).type === 'proposal'))) as { summary: string; svg?: string };
     expect(shown.summary).toBe('Add a database');
@@ -56,7 +56,7 @@ describe('propose for a file that is not open', () => {
   });
 
   it('says not-open for a file outside the workspace folders', async () => {
-    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-vscode-outside-'));
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'linework-vscode-outside-'));
     const file = path.join(outside, 'other.yaml');
     fs.writeFileSync(file, shop);
     const r = (await call({ method: 'propose', params: { file, edits: addDb } })).result;

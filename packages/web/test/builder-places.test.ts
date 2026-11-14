@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { findType, render } from '@cartography/engine';
+import { findType, render } from '@linework/engine';
 import { deleteEntry, renameEntry } from '../src/builder.ts';
 
 const azure = findType('azure')!;

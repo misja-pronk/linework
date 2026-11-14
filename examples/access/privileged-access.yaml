@@ -11,7 +11,7 @@
 #   assignments  "eligible" is PIM: nobody holds a Tier 0 or Tier 1 role until they activate it. In the long form,
 #                activation is the longest an activation lasts and approval who approves it.
 #                Only the two break-glass accounts hold Global Administrator permanently.
-# tags put each tier on a layer: pick one in the Layers menu (or carto render --layer tier-0).
+# tags put each tier on a layer: pick one in the Layers menu (or linework render --layer tier-0).
 type: access
 title: Privileged access
 subtitle: Northwind tenant · Entra roles by tier, through PIM and Conditional Access, with break-glass accounts

@@ -3,9 +3,9 @@
 `type: mindmap` draws a central topic with branches around it: a brainstorm before a decision, the agenda of a workshop, the parts of a subject on one slide. Each level out is a step lighter than the one inside it (a filled centre, tinted branches, outlined topics, then words on their own), and each branch keeps its own colour from the theme.
 
 ```sh
-carto new mindmap ideas.yaml
-carto render ideas.yaml -o ideas.png
-carto render ideas.yaml -o ideas.pptx        # every topic a native shape
+linework new mindmap ideas.yaml
+linework render ideas.yaml -o ideas.png
+linework render ideas.yaml -o ideas.pptx     # every topic a native shape
 ```
 
 ![An architecture decision brainstorm](mindmap/event-store.png)

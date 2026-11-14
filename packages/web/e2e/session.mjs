@@ -5,7 +5,7 @@
 // normal editor too: node e2e/session.mjs <outDir>
 import { chromium } from '@playwright/test';
 const out = process.argv[2] ?? '.';
-const URL = process.env.CARTO_URL ?? 'http://localhost:5178/';
+const URL = process.env.LINEWORK_URL ?? 'http://localhost:5178/';
 const browser = await chromium.launch();
 const problems = [];
 const fail = (m) => problems.push(m);
@@ -24,7 +24,7 @@ const openDoc = async (text, name, prefs = {}) => {
       if (sessionStorage.getItem('seeded')) return;
       sessionStorage.setItem('seeded', '1');
       localStorage.clear();
-      for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', theme: 'dark', doc: { text, doc: { name } }, ...prefs })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+      for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', theme: 'dark', doc: { text, doc: { name } }, ...prefs })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
     },
     { text, name, prefs },
   );
@@ -33,7 +33,7 @@ const openDoc = async (text, name, prefs = {}) => {
   await page.waitForTimeout(400);
 };
 /** The YAML as the app keeps it (the editor is hidden in a session). */
-const yaml = () => page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}').text ?? '');
+const yaml = () => page.evaluate(() => JSON.parse(localStorage.getItem('linework:doc') ?? '{}').text ?? '');
 const until = async (what, fn, arg, timeout = 8000) => {
   try {
     await page.waitForFunction(fn, arg, { timeout });
@@ -44,7 +44,7 @@ const until = async (what, fn, arg, timeout = 8000) => {
     return false;
   }
 };
-const written = (text) => until(`"${text}" never got into the YAML`, (t) => (JSON.parse(localStorage.getItem('cartography:doc') ?? '{}').text ?? '').includes(t), text);
+const written = (text) => until(`"${text}" never got into the YAML`, (t) => (JSON.parse(localStorage.getItem('linework:doc') ?? '{}').text ?? '').includes(t), text);
 const naming = () => until('no name editor opened', () => document.activeElement?.classList.contains('label-editor'));
 const onCanvas = () => until('the drawing does not have the focus', () => document.activeElement?.classList.contains('preview'));
 const drawn = (id) => until(`${id} was not drawn`, (id) => !!document.querySelector(`.drawing [data-node="${id}"]`), id);

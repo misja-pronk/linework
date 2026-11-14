@@ -1,6 +1,6 @@
 // Export → Interactive HTML: the diagram (and what it drills into in the open folder), or the whole
-// folder, as one page to send. Drawn here in the browser, the same as `carto export-html` writes.
-import type { LayoutSidecar } from '@cartography/core';
+// folder, as one page to send. Drawn here in the browser, the same as `linework export-html` writes.
+import type { LayoutSidecar } from '@linework/core';
 import { brand } from './brand.ts';
 import { iconOptions } from './icon-packs.ts';
 import { diagrams, type Workspace } from './files.ts';
@@ -19,7 +19,7 @@ export interface PageInput {
 }
 
 export async function exportPage(input: PageInput): Promise<string> {
-  const { exportHtml } = await import('@cartography/html-export');
+  const { exportHtml } = await import('@linework/html-export');
   const { ws, file } = input;
   const inFolder = (p: string) => ws?.files.get(p)?.text;
   const json = <T>(p: string): T | undefined => {

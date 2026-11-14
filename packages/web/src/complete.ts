@@ -2,7 +2,7 @@
 // and ids already in the document where a value refers to something.
 import type { Completion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
 import { parse } from 'yaml';
-import { findType, schemaOf, types } from '@cartography/engine';
+import { findType, schemaOf, types } from '@linework/engine';
 import { cursorContext } from './yaml-path.ts';
 
 type Schema = Record<string, any>;

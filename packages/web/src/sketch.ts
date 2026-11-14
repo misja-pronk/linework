@@ -3,7 +3,7 @@
 // as "fw: Edge firewall"), a kind changed, and boxes put into a group. The drawing's graph says where
 // a box is (its group, what points at it); the YAML stays the source of truth.
 import { parseDocument } from 'yaml';
-import type { DiagramType, Graph, PaletteItem } from '@cartography/core';
+import type { DiagramType, Graph, PaletteItem } from '@linework/core';
 import { addEntry, connectEntries, drawnAs, fieldsFor, isEntryPath, kindKey, parentKey, renameEntry, setField } from './builder.ts';
 
 type Path = (string | number)[];

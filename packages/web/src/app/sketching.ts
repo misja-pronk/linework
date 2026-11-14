@@ -3,7 +3,7 @@
 // YAML (sketch.ts) and one undo step. Keys typed while the new box is still on its way to the screen
 // are kept and go into its name, so a fast typist loses nothing.
 import { useLayoutEffect, useRef, useState } from 'react';
-import type { PaletteItem } from '@cartography/core';
+import type { PaletteItem } from '@linework/core';
 import { nearestToward, type Direction } from '../craft.ts';
 import { is } from '../keys.ts';
 import { isEntryPath, parentKey } from '../builder.ts';

@@ -1,7 +1,7 @@
 // Renders every examples/<type>/*.yaml in light and dark, plus PNGs and an index page, into gallery/out.
 import fs from 'node:fs';
 import path from 'node:path';
-import { render } from '@cartography/engine';
+import { render } from '@linework/engine';
 import { toPng } from './png.ts';
 
 const root = path.resolve(import.meta.dirname, '../../..');
@@ -35,7 +35,7 @@ for (const dir of fs.readdirSync(path.join(root, 'examples')).sort()) {
 
 fs.writeFileSync(
   path.join(out, 'index.html'),
-  `<!doctype html><meta charset="utf-8"><title>Cartography gallery</title>
+  `<!doctype html><meta charset="utf-8"><title>Linework gallery</title>
 <style>
 body{margin:0;padding:32px 16px;font:14px system-ui;background:#F4F5F7;color:#0F172A}
 h1{font-size:20px;margin:0 0 24px}
@@ -44,7 +44,7 @@ img{display:block;max-width:100%;height:auto;border-radius:12px;box-shadow:0 1px
 .dark{display:none}
 @media (prefers-color-scheme:dark){body{background:#05070A;color:#E8EBF0}.light{display:none}.dark{display:block}}
 </style>
-<h1>Cartography gallery</h1>${cards.join('\n')}`,
+<h1>Linework gallery</h1>${cards.join('\n')}`,
 );
 console.log(`→ ${path.relative(root, out)}/index.html`);
 process.exitCode = failed ? 1 : 0;

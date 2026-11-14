@@ -2,8 +2,8 @@
 // stylesheet and the viewer script inline, and a Content-Security-Policy that allows exactly those
 // two inline blocks and data: pictures and fonts, nothing else: no network, no eval, no handlers.
 import { gzipSync, strToU8 } from 'fflate';
-import { bundledFont, themes, type Theme } from '@cartography/theme';
-import { escapeHtml } from '@cartography/embed/shared';
+import { bundledFont, themes, type Theme } from '@linework/theme';
+import { escapeHtml } from '@linework/embed/shared';
 import type { Collected } from './collect.ts';
 import type { Payload, Picture } from './payload.ts';
 import { pageCss, tokens } from './style.ts';
@@ -33,7 +33,7 @@ export function shareIcons(pictures: Picture[]): string[] {
     svg.replace(/\s(?:xlink:)?href="(data:image\/[^"]{256,})"/g, (_, uri: string) => {
       let n = at.get(uri);
       if (n === undefined) at.set(uri, (n = table.push(uri) - 1));
-      return ` data-carto-icon="${n}"`;
+      return ` data-linework-icon="${n}"`;
     });
   for (const p of pictures) {
     p.light = swap(p.light);
@@ -108,13 +108,13 @@ export async function toPage(c: Collected, opts: { date?: Date } = {}): Promise<
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="referrer" content="no-referrer">
-<meta name="generator" content="Cartography">
+<meta name="generator" content="Linework">
 <title>${title}</title>
 <style>${style}</style>
 </head>
 <body>
 <noscript><p>${title}: this page shows its diagrams with JavaScript, which is off in this browser.</p></noscript>
-<script type="application/gzip+json;base64" id="carto-data">${data}</script>
+<script type="application/gzip+json;base64" id="linework-data">${data}</script>
 <script>${script}</script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`sequence > renders the template the same as before 1`] = `
-"<svg xmlns="http://www.w3.org/2000/svg" width="771" height="784" viewBox="0 0 771 784" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="carto-69qk2a738-title" aria-describedby="carto-69qk2a738-desc" lang="en" xml:lang="en"><title id="carto-69qk2a738-title">Checkout</title><desc id="carto-69qk2a738-desc">Sequence diagram. 4 participants and 9 messages.
+"<svg xmlns="http://www.w3.org/2000/svg" width="771" height="784" viewBox="0 0 771 784" font-family="'Instrument Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-rendering="geometricPrecision" role="img" aria-labelledby="linework-69qk2a738-title" aria-describedby="linework-69qk2a738-desc" lang="en" xml:lang="en"><title id="linework-69qk2a738-title">Checkout</title><desc id="linework-69qk2a738-desc">Sequence diagram. 4 participants and 9 messages.
 
 Participants
 - Person

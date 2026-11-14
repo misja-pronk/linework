@@ -1,6 +1,6 @@
-// carto new <type> [file.yaml]: a diagram from the type's template; without a type, help picking one.
+// linework new <type> [file.yaml]: a diagram from the type's template; without a type, help picking one.
 import fs from 'node:fs';
-import { findType, types } from '@cartography/engine';
+import { findType, types } from '@linework/engine';
 import { t } from '../i18n.ts';
 import type { Ctx } from '../io.ts';
 import { typeGuide } from './types.ts';

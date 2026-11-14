@@ -1,8 +1,8 @@
 // What opens over the editor: presenting, the palette and its uses (connect to, problems), the keys,
 // the start dialog, the description in words, and the drop target for files.
 import './dialogs.css';
-import type { Diagnostic } from '@cartography/core';
-import type { RenderResult } from '@cartography/engine';
+import type { Diagnostic } from '@linework/core';
+import type { RenderResult } from '@linework/engine';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import { Palette, type Command } from '../palette.tsx';

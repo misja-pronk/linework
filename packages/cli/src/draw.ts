@@ -2,10 +2,10 @@
 // --focus, the deck or PDF of drawings (and its PowerPoint template), and the --stable layout note.
 import fs from 'node:fs';
 import path from 'node:path';
-import { BIG_CANVAS, layerKey, SLIDE_MIN_PT, type RenderOptions, type RenderResult } from '@cartography/engine';
-import { readTemplate, toPdf, toPptx, type Drawing, type PptxOptions, type SlideText } from '@cartography/export';
-import { isThemeFile, resolveTheme, themes, type Theme } from '@cartography/theme';
-import { packLayout, sameLayoutNote, viewPins, withViewPins } from '@cartography/core';
+import { BIG_CANVAS, layerKey, SLIDE_MIN_PT, type RenderOptions, type RenderResult } from '@linework/engine';
+import { readTemplate, toPdf, toPptx, type Drawing, type PptxOptions, type SlideText } from '@linework/export';
+import { isThemeFile, resolveTheme, themes, type Theme } from '@linework/theme';
+import { packLayout, sameLayoutNote, viewPins, withViewPins } from '@linework/core';
 import type { DocumentOptions, DrawOptions } from './args.ts';
 import { fontScale } from './fonts.ts';
 import { t } from './i18n.ts';
@@ -14,7 +14,7 @@ import { readPack } from './packs.ts';
 import { iconPng, interTtf, themeTtf } from './png.ts';
 
 /**
- * --theme: a name, or a theme file relative to where carto runs; read once for all files. Undefined
+ * --theme: a name, or a theme file relative to where linework runs; read once for all files. Undefined
  * without --theme, false when it is neither (said).
  */
 export function themeFlag(ctx: Ctx, theme: string | undefined): Theme | undefined | false {
@@ -41,7 +41,7 @@ export function iconsFlag(v: string | undefined): RenderOptions['iconsOverride']
   throw new UsageError(t('--icons is official or lucide, not "{value}"', { value: v }));
 }
 
-/** --lang or CARTO_LANG: the language of the drawing's own words when a diagram has no lang: (never the machine's locale). */
+/** --lang or LINEWORK_LANG: the language of the drawing's own words when a diagram has no lang: (never the machine's locale). */
 export const langOption = (ctx: Ctx): Pick<RenderOptions, 'lang'> => (ctx.lang ? { lang: ctx.lang } : {});
 
 /** How one diagram file is drawn: its sidecar, includes and assets beside it, and the flags. */
@@ -78,8 +78,8 @@ const pageSizes = ['fit', 'a4', 'a3'];
 
 /** --aspect and --page: one of the values each takes, else a usage error that lists them. */
 export function documentFlags(o: Pick<DocumentOptions, 'aspect' | 'page'>) {
-  if (o.aspect != null && !aspects.includes(o.aspect)) throw new UsageError(`--aspect ${o.aspect} is not a slide shape carto makes; use one of: ${aspects.join(', ')}`);
-  if (o.page != null && !pageSizes.includes(o.page)) throw new UsageError(`--page ${o.page} is not a page size carto makes; use one of: ${pageSizes.join(', ')}`);
+  if (o.aspect != null && !aspects.includes(o.aspect)) throw new UsageError(`--aspect ${o.aspect} is not a slide shape linework makes; use one of: ${aspects.join(', ')}`);
+  if (o.page != null && !pageSizes.includes(o.page)) throw new UsageError(`--page ${o.page} is not a page size linework makes; use one of: ${pageSizes.join(', ')}`);
 }
 
 /**
@@ -109,7 +109,7 @@ const readableName = (file: string) => {
 };
 
 /**
- * The slides of a deck whose smallest text is under SLIDE_MIN_PT, as carto validate says it of one
+ * The slides of a deck whose smallest text is under SLIDE_MIN_PT, as linework validate says it of one
  * drawing: a warning per drawing (its step slides share its layout), on standard error. `aspect`:
  * our own slides; undefined for a template's.
  */

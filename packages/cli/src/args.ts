@@ -84,7 +84,7 @@ export interface Args {
   values: Values;
 }
 
-/** An option that cannot be read: the message as carto says it, and the command it was for. */
+/** An option that cannot be read: the message as linework says it, and the command it was for. */
 export interface ArgsError {
   error: string;
   command: string | undefined;
@@ -99,7 +99,7 @@ function parseError(m: string): string {
   return m;
 }
 
-/** `carto export --to html` is the export command of that name. */
+/** `linework export --to html` is the export command of that name. */
 export const exportTo = ['html'];
 
 export function parse(argv: string[]): Args | ArgsError {

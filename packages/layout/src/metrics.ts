@@ -1,5 +1,5 @@
 // Layout quality, measured. Used to compare layout strategies and to guard against regressions.
-import type { Box, Graph, GraphEdge, Placed, Point } from '@cartography/core';
+import type { Box, Graph, GraphEdge, Placed, Point } from '@linework/core';
 
 export interface LayoutMetrics {
   /** Pairs of edge segments that cross. */

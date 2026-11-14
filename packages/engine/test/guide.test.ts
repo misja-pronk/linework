@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchTypes } from '@cartography/core';
+import { matchTypes } from '@linework/core';
 import { icon } from '../../icons/src/index.ts';
 import { types } from '../src/index.ts';
 

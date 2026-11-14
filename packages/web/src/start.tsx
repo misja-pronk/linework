@@ -5,8 +5,8 @@
 import './start.css';
 import './start-types.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { render, types } from '@cartography/engine';
-import { matchTypes, type DiagramType } from '@cartography/core';
+import { render, types } from '@linework/engine';
+import { matchTypes, type DiagramType } from '@linework/core';
 import { blankText, exampleLoader, starters, typeName, type Starter } from './library.ts';
 import { SCENARIOS, exampleAt } from './scenarios.ts';
 import { Icon } from './icon.tsx';

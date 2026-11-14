@@ -1,5 +1,5 @@
 // Per-browser conveniences (last document, theme, split). Storage can be missing or blocked; the app works without it.
-const PREFIX = 'cartography:';
+const PREFIX = 'linework:';
 
 export const store = {
   get<T>(key: string): T | undefined {

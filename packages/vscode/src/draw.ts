@@ -2,8 +2,8 @@
 // files next to the diagram, its sidecar, and the font faces sent once instead of with every drawing.
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseSidecar, viewPins, withViewPins, type Box, type LayoutSidecar } from '@cartography/core';
-import { render, type RenderOptions, type RenderResult } from '@cartography/engine';
+import { parseSidecar, viewPins, withViewPins, type Box, type LayoutSidecar } from '@linework/core';
+import { render, type RenderOptions, type RenderResult } from '@linework/engine';
 import { sidecarName } from './detect.ts';
 
 export interface DrawAsk {
@@ -126,14 +126,14 @@ export interface Drawn {
 
 /** Draws for the preview: interactive marks on, links kept inert, fonts apart. */
 export async function draw(ask: DrawAsk): Promise<Drawn> {
-  const result = await render(ask.text, renderOptions(ask, { fonts: 'embed', interactive: true, hints: false, idPrefix: 'carto' }));
+  const result = await render(ask.text, renderOptions(ask, { fonts: 'embed', interactive: true, hints: false, idPrefix: 'linework' }));
   if (!result.svg) return { result, fontCss: '' };
   const { svg, css } = splitFonts(result.svg);
   return { result, picture: { ...pictureOf(result, svg), fonts: css ? `${result.theme?.name ?? ''}:${css.length}` : '' }, fontCss: css };
 }
 
 /**
- * Every problem of the file, as `carto validate` finds them: the drawing asked for and each of its
+ * Every problem of the file, as `linework validate` finds them: the drawing asked for and each of its
  * views (what a view says about itself is only known when it is drawn).
  */
 export async function allDiagnostics(ask: DrawAsk, first: RenderResult): Promise<RenderResult['diagnostics']> {

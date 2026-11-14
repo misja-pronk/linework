@@ -1,7 +1,7 @@
 // The diagram in words (docs/describe.md): the Describe dialog from the palette and from the Export
 // menu, its copy buttons and keys, "Copy for Confluence / Notion" as rich HTML with the PNG inside,
 // and the text alternative of an exported SVG and PNG as a screen reader gets it (the accessibility tree).
-//   node packages/web/e2e/describe.mjs <out-folder>     CARTO_URL picks the app (default http://localhost:5178/)
+//   node packages/web/e2e/describe.mjs <out-folder>     LINEWORK_URL picks the app (default http://localhost:5178/)
 import fs from 'node:fs';
 import { chromium } from '@playwright/test';
 
@@ -14,15 +14,15 @@ const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
 const wait = (ms) => page.waitForTimeout(ms);
-const url = process.env.CARTO_URL ?? 'http://localhost:5178/';
+const url = process.env.LINEWORK_URL ?? 'http://localhost:5178/';
 const origin = new URL(url).origin;
 page.on('request', (r) => !r.url().startsWith(origin) && !r.url().startsWith('data:') && !r.url().startsWith('blob:') && fail(`left the app: ${r.url()}`));
 await page.goto(url);
 await page.evaluate(() => {
   localStorage.clear();
-  localStorage.setItem('cartography:started', 'true');
+  localStorage.setItem('linework:started', 'true');
   // The YAML starts folded to its rail; these steps type in it.
-  localStorage.setItem('cartography:yaml-folded', 'false');
+  localStorage.setItem('linework:yaml-folded', 'false');
 });
 await page.reload();
 await page.waitForSelector('.preview svg');

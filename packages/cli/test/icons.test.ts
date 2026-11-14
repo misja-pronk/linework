@@ -6,16 +6,16 @@ import * as fontkit from 'fontkit';
 import { findIcons, iconGuide, importIcons, mapIcon, packSheet, readPack, unmapIcon } from '../src/packs.ts';
 import { readZip, writeZip } from '../src/zip.ts';
 import { renameFamily, ttfFiles } from '../src/fonts.ts';
-import { fontFiles } from '@cartography/theme/node';
+import { fontFiles } from '@linework/theme/node';
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'carto-icons-'));
-process.env.CARTO_CONFIG_DIR = path.join(tmp, 'config');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'linework-icons-'));
+process.env.LINEWORK_CONFIG_DIR = path.join(tmp, 'config');
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 // Stand-ins with official-looking names; the real icons are never in the repo.
 const svg = (c: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18"><rect width="18" height="18" fill="${c}"/></svg>`;
 
-describe('carto icons import', () => {
+describe('linework icons import', () => {
   it('indexes a downloaded zip into the config dir', () => {
     const zip = path.join(tmp, 'Azure_Public_Service_Icons.zip');
     fs.writeFileSync(
@@ -31,7 +31,7 @@ describe('carto icons import', () => {
     expect(readZip(fs.readFileSync(zip)).map((e) => e.name)).toHaveLength(5);
     const r = importIcons(zip, 'azure');
     expect(r.files).toBe(3);
-    expect(r.dir.startsWith(process.env.CARTO_CONFIG_DIR!)).toBe(true);
+    expect(r.dir.startsWith(process.env.LINEWORK_CONFIG_DIR!)).toBe(true);
     const pack = readPack('azure')!;
     expect(pack.icons).toEqual({
       'key-vault': 'Azure_Public_Service_Icons/Icons/security/10245-icon-service-Key-Vaults.svg',

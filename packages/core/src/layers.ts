@@ -18,8 +18,8 @@
 import type { Graph, GraphEdge, GraphNode, LegendItem, Path } from './model.ts';
 import type { Emphasis, StepState } from './steps.ts';
 import { pruneLegend } from './focus.ts';
-import type { Lang } from '@cartography/i18n';
-import { tr } from '@cartography/i18n/drawing';
+import type { Lang } from '@linework/i18n';
+import { tr } from '@linework/i18n/drawing';
 
 export type LayerMode = 'only' | 'dim';
 

@@ -1,6 +1,6 @@
-// The diagram types the engine knows, and how to pick one (the CLI's `carto types` and `carto new`).
-import { matchTypes, type DiagramType } from '@cartography/core';
-import { types } from '@cartography/engine';
+// The diagram types the engine knows, and how to pick one (the CLI's `linework types` and `linework new`).
+import { matchTypes, type DiagramType } from '@linework/core';
+import { types } from '@linework/engine';
 
 let ids: string[] | undefined;
 export const typeIds = (): string[] => (ids ??= types.map((t) => t.id));

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { icon } from '@cartography/icons';
-import { chips, withoutBadges } from '@cartography/core';
-import { render } from '@cartography/engine';
+import { icon } from '@linework/icons';
+import { chips, withoutBadges } from '@linework/core';
+import { render } from '@linework/engine';
 import { config, guidance, kubernetes, shortImage } from '../src/index.ts';
 
 const shop = `type: kubernetes

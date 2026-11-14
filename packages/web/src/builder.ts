@@ -2,10 +2,10 @@
 // and every change is an ordinary edit in the editor (one undo history, two-way sync for free).
 // Everything is driven by the type's JSON Schema and palette: a new type gets a builder without UI code.
 import { isMap, isScalar, isSeq, parseDocument, YAMLMap, type Document, type Node, type Pair } from 'yaml';
-import type { DiagramType, PaletteItem } from '@cartography/core';
+import type { DiagramType, PaletteItem } from '@linework/core';
 import { printPreserving } from './yaml-print.ts';
-import { deleteEntryUnsafe, hasEach, isEntryPath, renameEntryUnsafe } from '@cartography/core';
-import { iconNames } from '@cartography/icons';
+import { deleteEntryUnsafe, hasEach, isEntryPath, renameEntryUnsafe } from '@linework/core';
+import { iconNames } from '@linework/icons';
 import { schemasAt } from './complete.ts';
 import { say, t } from './i18n/index.ts';
 

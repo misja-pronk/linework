@@ -14,7 +14,7 @@
 //       topics: [Operations effort, Cost]
 //     Replay: { parent: Criteria }        or anywhere, with parent:
 //     Risks: Nobody on the team knows it  a string is a note
-import { parseLink, parseLinks, tones, type BlockShape, type BuildContext, type DiagramType, type Graph, type GraphEdge, type GraphNode, type Link, type Path, type Reference, type Tone } from '@cartography/core';
+import { parseLink, parseLinks, tones, type BlockShape, type BuildContext, type DiagramType, type Graph, type GraphEdge, type GraphNode, type Link, type Path, type Reference, type Tone } from '@linework/core';
 import { mindmapLayout } from './layout.ts';
 
 export { mindmapLayout, sides } from './layout.ts';
@@ -190,7 +190,7 @@ const topicSchema = {
 
 const schema = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  title: 'Cartography mind map',
+  title: 'Linework mind map',
   type: 'object',
   required: ['type'],
   properties: {

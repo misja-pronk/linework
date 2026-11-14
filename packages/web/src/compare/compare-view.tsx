@@ -5,9 +5,9 @@
 // Marks never rest on colour alone: a sign (+ ~ −), an outline pattern and the word in the list.
 import { shortcutFor } from '../keys.ts';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { LayoutSidecar } from '@cartography/core';
-import { render, type RenderResult } from '@cartography/engine';
-import { compare, countTold, explain, type Comparison, type Explained, type ItemDiff, type Picture } from '@cartography/diff';
+import type { LayoutSidecar } from '@linework/core';
+import { render, type RenderResult } from '@linework/engine';
+import { compare, countTold, explain, type Comparison, type Explained, type ItemDiff, type Picture } from '@linework/diff';
 import { useBrand } from '../brand.ts';
 import { useIconOptions } from '../icon-packs.ts';
 import { registerThemeFonts } from '../fonts.ts';

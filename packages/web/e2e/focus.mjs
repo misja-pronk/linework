@@ -21,7 +21,7 @@ const problems = [];
 const fail = (m) => problems.push(m);
 page.on('pageerror', (e) => fail(e.message));
 const wait = (ms = 300) => page.waitForTimeout(ms);
-const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('cartography:doc') ?? '{}'));
+const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('linework:doc') ?? '{}'));
 const yaml = async () => (await wait(500), (await stored()).text ?? '');
 const nodes = () => page.evaluate(() => [...document.querySelectorAll('.drawing [data-node]')].map((n) => n.getAttribute('data-node')).sort().join(' '));
 const chip = async () => ((await page.locator('.focus-chip').count()) ? (await page.locator('.focus-chip').innerText()).replace(/\s+/g, ' ').trim() : '');
@@ -70,13 +70,13 @@ await page.addInitScript(() => {
   sessionStorage.removeItem('seed');
   localStorage.clear();
   const { text, name } = JSON.parse(next);
-  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name } } })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+  for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'visual', doc: { text, doc: { name } } })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
 });
 const seed = async (text, name) => {
   await page.evaluate((next) => sessionStorage.setItem('seed', next), JSON.stringify({ text, name }));
   await page.reload();
 };
-await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
 await seed(text, 'focus.yaml');
 await page.waitForSelector('.drawing [data-node="crm"]', { timeout: 10000 });
 await wait(400);

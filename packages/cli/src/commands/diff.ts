@@ -1,13 +1,13 @@
-// carto diff: two files, or files against a git ref or an editor snapshot. Words (or JSON) on stdout, the picture with -o.
+// linework diff: two files, or files against a git ref or an editor snapshot. Words (or JSON) on stdout, the picture with -o.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse as parseYaml, stringify as yamlText } from 'yaml';
-import { accessChanges, type AccessChange, type AccessSource } from '@cartography/access';
-import { compare, explain, explainMarkdown, formatDiff, snapshotDir, snapshotPath, summary, type Comparison } from '@cartography/diff';
-import { repoPath, repoRoot, versionAt } from '@cartography/diff/node';
-import { render, type RenderOptions } from '@cartography/engine';
-import { accessOf } from '@cartography/github';
+import { accessChanges, type AccessChange, type AccessSource } from '@linework/access';
+import { compare, explain, explainMarkdown, formatDiff, snapshotDir, snapshotPath, summary, type Comparison } from '@linework/diff';
+import { repoPath, repoRoot, versionAt } from '@linework/diff/node';
+import { render, type RenderOptions } from '@linework/engine';
+import { accessOf } from '@linework/github';
 import type { DiffOptions } from '../args.ts';
 import { optionsFor, themeFlag } from '../draw.ts';
 import { fontScale, ttfFiles } from '../fonts.ts';
@@ -55,7 +55,7 @@ export async function diffCommand(ctx: Ctx, files: string[], o: DiffOptions): Pr
   const ref = o.git ?? o.since;
   const snap = o.snapshot;
   if (ref || snap ? !files.length : files.length !== 2)
-    return (ctx.error(ref ? t('Name the diagrams: carto diff --git <ref> <file.yaml…>') : snap ? t('Name the diagrams: carto diff --snapshot <label> <file.yaml…>') : t('Two files: carto diff <before.yaml> <after.yaml>, carto diff --git <ref> <file.yaml…> or carto diff --snapshot <label> <file.yaml…>')), 1);
+    return (ctx.error(ref ? t('Name the diagrams: linework diff --git <ref> <file.yaml…>') : snap ? t('Name the diagrams: linework diff --snapshot <label> <file.yaml…>') : t('Two files: linework diff <before.yaml> <after.yaml>, linework diff --git <ref> <file.yaml…> or linework diff --snapshot <label> <file.yaml…>')), 1);
   if (snap) {
     // A snapshot that is not there: say which there are.
     const missing = files.filter((f) => !fs.existsSync(snapshotPath(f, snap)));
@@ -77,7 +77,7 @@ export async function diffCommand(ctx: Ctx, files: string[], o: DiffOptions): Pr
       root = repoRoot(process.cwd());
       execFileSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { cwd: root, stdio: 'ignore' });
     } catch {
-      return (ctx.error(root ? t('"{ref}" is not a commit, branch or tag here', { ref }) : t('carto diff --git needs a git repository')), 1);
+      return (ctx.error(root ? t('"{ref}" is not a commit, branch or tag here', { ref }) : t('linework diff --git needs a git repository')), 1);
     }
   }
   const pairs = snap

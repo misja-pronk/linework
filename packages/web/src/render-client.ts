@@ -2,8 +2,8 @@
 // working canvas) can take a minute, and the page goes on answering meanwhile. A drawing nobody waits
 // for any more is stopped there; where a worker cannot run (tests, a page opened from disk) the
 // drawing is made here, as before.
-import { findType, render, type LayoutAbout, type RenderOptions, type RenderResult } from '@cartography/engine';
-import type { Lang } from '@cartography/i18n';
+import { findType, render, type LayoutAbout, type RenderOptions, type RenderResult } from '@linework/engine';
+import type { Lang } from '@linework/i18n';
 
 /** Where a loader reads: the folder's (or the examples') files and the diagram's place among them. */
 export interface FileSource {

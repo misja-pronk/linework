@@ -1,19 +1,19 @@
 ---
-name: cartography
-description: Create, check and render architecture diagrams with Cartography (diagrams as YAML, laid out automatically). Use when the user asks for an architecture, Azure, system, database/ERD, access/RBAC/Entra, GitHub organisation or data-product (data mesh) diagram, wants a Mermaid diagram turned into a better-looking one, or edits a Cartography .yaml file (it starts with `type:`).
+name: linework
+description: Create, check and render architecture diagrams with Linework (diagrams as YAML, laid out automatically). Use when the user asks for an architecture, Azure, system, database/ERD, access/RBAC/Entra, GitHub organisation or data-product (data mesh) diagram, wants a Mermaid diagram turned into a better-looking one, or edits a Linework .yaml file (it starts with `type:`).
 ---
 
-# Cartography diagrams
+# Linework diagrams
 
-A diagram is one YAML file. Cartography validates it against the type's JSON Schema, places
+A diagram is one YAML file. Linework validates it against the type's JSON Schema, places
 everything itself and draws SVG or PNG. You never write positions, sizes or colours per element.
 
-Use the **MCP tools** when the `cartography` server is connected (`list_types`, `get_schema`,
+Use the **MCP tools** when the `linework` server is connected (`list_types`, `get_schema`,
 `new_diagram`, `validate`, `render`, `edit_diagram`, `describe`, `diff`,
 `get_context`, `propose`). Otherwise use the CLI (bottom of this file).
 
 To change an existing diagram, prefer `edit_diagram` (edits by YAML path) to rewriting the file:
-comments and pins stay. When an editor is connected (VS Code, `carto serve`), call `get_context`
+comments and pins stay. When an editor is connected (VS Code, `linework serve`), call `get_context`
 first ("this", "the selected" mean what it lists) and `propose` the change: the editor opens the
 file if it is not open yet, and the user accepts or rejects it. Use `edit_diagram` when `propose`
 says `no-editor` or `not-open`.
@@ -124,15 +124,15 @@ until it is clean and `render` to check the picture. Say what you could not carr
 
 ## 6. Without MCP: the CLI
 
-From the Cartography repo (`pnpm install` once). Elsewhere run `pnpm -C <repo> carto …` and pass
+From the Linework repo (`pnpm install` once). Elsewhere run `pnpm -C <repo> linework …` and pass
 absolute file paths, since paths then resolve from the repo:
 
 ```sh
-pnpm carto types                               # list types
-pnpm carto new systems diagram.yaml            # template to a file (stdout without a file)
-pnpm carto validate diagram.yaml               # file:line:col  error  message; exit 1 on errors
-pnpm carto render diagram.yaml -f png -t dark  # → diagram.png (svg default; -o out path or dir)
-pnpm carto render diagram.yaml --focus api --hops 2   # only api and what is within two lines of it
+pnpm linework types                            # list types
+pnpm linework new systems diagram.yaml         # template to a file (stdout without a file)
+pnpm linework validate diagram.yaml            # file:line:col  error  message; exit 1 on errors
+pnpm linework render diagram.yaml -f png -t dark  # → diagram.png (svg default; -o out path or dir)
+pnpm linework render diagram.yaml --focus api --hops 2  # only api and what is within two lines of it
 ```
 
 The CLI has no layout-quality report: render a PNG and look at it instead. Schemas are in

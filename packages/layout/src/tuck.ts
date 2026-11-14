@@ -2,7 +2,7 @@
 // the far end of the flow, staff on a row of their own under a wrapped drawing) makes the drawing
 // longer for one card, and leaves the room beside it empty. Moved into an empty corner of the rest,
 // beside or under what it is joined to, the drawing gets shorter and comes out larger on the page.
-import type { Box, Graph } from '@cartography/core';
+import type { Box, Graph } from '@linework/core';
 import type { Placement } from './dot.ts';
 
 const union = (list: Box[]): Box => {

@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { icon } from '@cartography/icons';
-import { render } from '@cartography/engine';
-import { groupFill, measureText, themes } from '@cartography/theme';
-import { drawSequence, sequenceGeometry, type SequenceGeometry } from '@cartography/render';
-import type { Box, SequenceShape } from '@cartography/core';
+import { icon } from '@linework/icons';
+import { render } from '@linework/engine';
+import { groupFill, measureText, themes } from '@linework/theme';
+import { drawSequence, sequenceGeometry, type SequenceGeometry } from '@linework/render';
+import type { Box, SequenceShape } from '@linework/core';
 import { kinds, sequence } from '../src/index.ts';
 
 async function geometry(yaml: string, theme: 'light' | 'dark' = 'light') {

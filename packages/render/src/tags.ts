@@ -1,7 +1,7 @@
 // Small text tags drawn on elements and lines: the environments something is in, and the ends of a
 // context map's relationships (U, D, ACL, OHS). They say what they mean in text, so colour only helps.
-import type { Box, Marker, Point } from '@cartography/core';
-import { baselineOffset, measureText, type Theme } from '@cartography/theme';
+import type { Box, Marker, Point } from '@linework/core';
+import { baselineOffset, measureText, type Theme } from '@linework/theme';
 import { esc, r1 } from './paint.ts';
 import { SMALL_PX } from './readable.ts';
 

@@ -18,11 +18,11 @@ const open = async (text, name, frameOn = true) => {
       if (sessionStorage.getItem('seeded')) return;
       sessionStorage.setItem('seeded', '1');
       localStorage.clear();
-      for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', doc: { text, doc: { name } }, ...(frameOn == null ? {} : { page: frameOn }) })) localStorage.setItem(`cartography:${k}`, JSON.stringify(v));
+      for (const [k, v] of Object.entries({ started: true, hinted: true, view: 'code', doc: { text, doc: { name } }, ...(frameOn == null ? {} : { page: frameOn }) })) localStorage.setItem(`linework:${k}`, JSON.stringify(v));
     },
     { text, name, frameOn },
   );
-  await page.goto(process.env.CARTO_URL ?? 'http://localhost:5178/');
+  await page.goto(process.env.LINEWORK_URL ?? 'http://localhost:5178/');
   await page.waitForSelector('.drawing svg');
   await wait(900);
 };

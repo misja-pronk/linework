@@ -1,6 +1,6 @@
 // Where things stay: pins, locks and bent lines of the view drawn (the sidecar), changed as one undo
 // step with the text when both change. Tidy, pin, lock, nudge and arrange.
-import { packLayout, withViewPins, type LayoutSidecar, type Point } from '@cartography/core';
+import { packLayout, withViewPins, type LayoutSidecar, type Point } from '@linework/core';
 import { t, type Message } from '../i18n/index.ts';
 import { arrange, type ArrangeOp } from '../craft.ts';
 import type { EditorHandle } from '../editor.tsx';

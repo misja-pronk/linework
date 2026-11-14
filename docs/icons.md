@@ -1,8 +1,8 @@
 # Official icons
 
-Cartography draws its own line icons (Lucide, ISC licence) on every shape. Customers often expect the vendors'
+Linework draws its own line icons (Lucide, ISC licence) on every shape. Customers often expect the vendors'
 own stencils: the Azure, AWS, Google Cloud and Kubernetes icons they know from the vendor's documentation. Those
-icons belong to the vendors, and their terms do not let us ship them. So you download each set once, Cartography
+icons belong to the vendors, and their terms do not let us ship them. So you download each set once, Linework
 indexes it on your machine (or in your browser), and a diagram can use it with one line:
 
 ```yaml
@@ -22,7 +22,7 @@ icons: official
 Vendors move these pages and rename their downloads now and then; if a link is dead, search for "Azure
 architecture icons", "AWS architecture icons", "Google Cloud icons" or "Kubernetes community icons". The importer
 does not depend on folder names or release numbers: it goes by the names of the icons themselves.
-`carto icons` prints this table in the terminal, with what you have imported already.
+`linework icons` prints this table in the terminal, with what you have imported already.
 
 ## 2. Import it
 
@@ -34,14 +34,14 @@ it got, how many have one, and which do not.
 **In the terminal**:
 
 ```sh
-carto icons import ~/Downloads/Azure_Public_Service_Icons_V23.zip      # the vendor is told from the files
-carto icons import ~/Downloads/Asset-Package_07312025 --pack aws        # or say it
-carto icons list                                                        # what is imported, and coverage
-carto icons show azure -o azure.png                                     # a contact sheet: each shape and its icon
+linework icons import ~/Downloads/Azure_Public_Service_Icons_V23.zip   # the vendor is told from the files
+linework icons import ~/Downloads/Asset-Package_07312025 --pack aws     # or say it
+linework icons list                                                     # what is imported, and coverage
+linework icons show azure -o azure.png                                  # a contact sheet: each shape and its icon
 ```
 
-The CLI keeps sets in your config folder: `~/.config/cartography/icons/<pack>` (`$XDG_CONFIG_HOME`, `%APPDATA%`
-on Windows, `CARTO_CONFIG_DIR` to put it elsewhere). Importing a newer release replaces the set and keeps what you
+The CLI keeps sets in your config folder: `~/.config/linework/icons/<pack>` (`$XDG_CONFIG_HOME`, `%APPDATA%`
+on Windows, `LINEWORK_CONFIG_DIR` to put it elsewhere). Importing a newer release replaces the set and keeps what you
 mapped by hand.
 
 ## 3. Check and fix the matching
@@ -60,9 +60,9 @@ To give a shape another icon, or one it did not get:
 - **Terminal**:
 
   ```sh
-  carto icons find azure search                 # icons of the set by name
-  carto icons map azure ai-search search        # by words of the name, or a file path in the set
-  carto icons unmap azure ai-search             # back to the line icon
+  linework icons find azure search              # icons of the set by name
+  linework icons map azure ai-search search     # by words of the name, or a file path in the set
+  linework icons unmap azure ai-search          # back to the line icon
   ```
 
 Hand mappings are stored in the set's own record (`pack.json` under `manual`; in the browser, next to the set) and
@@ -108,14 +108,14 @@ The vendors' terms are theirs; read the current text when you download. In short
   the icons.
 - **Kubernetes**: CC BY 4.0, by the Kubernetes authors; credit "Kubernetes icons, CC BY 4.0" where you publish.
 
-What that means for Cartography:
+What that means for Linework:
 
 | You can | You cannot |
 | --- | --- |
 | Send a customer the PNG, PDF, SVG or deck of a diagram drawn with official icons | Commit the downloaded set (or a folder of its SVGs) to a public repository |
 | Publish an interactive HTML page (it carries only the icons the diagram uses, as drawn) | Bundle the set with a tool, a template pack or an npm package |
-| Keep a pack file (`*.icons.yaml`) and the set in your company's private repository, for your team | Recolour or edit the icons to match a theme (Cartography never does) |
+| Keep a pack file (`*.icons.yaml`) and the set in your company's private repository, for your team | Recolour or edit the icons to match a theme (Linework never does) |
 
-Cartography itself never ships, downloads or changes vendor icons, and nothing of an imported set is ever part
+Linework itself never ships, downloads or changes vendor icons, and nothing of an imported set is ever part
 of the repository, the npm packages, a diagram file or a share link. Its own assets stay Lucide (ISC) and the
 bundled fonts (SIL OFL 1.1).

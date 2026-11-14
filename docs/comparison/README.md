@@ -1,23 +1,23 @@
-# Cartography next to Mermaid and D2
+# Linework next to Mermaid and D2
 
 Eleven everyday diagrams, written once in Mermaid (and by hand in D2 where D2 has the kind), each drawn by its own tool.
-The Cartography column is **not hand-tuned**: it is the Mermaid source converted to YAML once, by the
-importer Cartography had then, and rendered as is. The YAML is in [`cartography/`](cartography/). One thing
+The Linework column is **not hand-tuned**: it is the Mermaid source converted to YAML once, by the
+importer Linework had then, and rendered as is. The YAML is in [`linework/`](linework/). One thing
 was added by hand since: the card payment's three `divider:` lines, so that it goes on slides phase by phase.
 
 | Source | What |
 | --- | --- |
 | [`src/*.mmd`](src/) | Mermaid, rendered with the `mermaid` npm package (default theme) in headless Chromium |
 | [`src/*.d2`](src/) | D2 0.9, default layout (dagre) and theme |
-| [`cartography/*.yaml`](cartography/) | `src/<name>.mmd` converted, untouched (but for the card payment's dividers), default light theme |
+| [`linework/*.yaml`](linework/) | `src/<name>.mmd` converted, untouched (but for the card payment's dividers), default light theme |
 
 Regenerate everything with `pnpm compare` (needs `d2` on the PATH for the D2 column: `brew install d2`).
 
 ## Order platform — microservices (flowchart)
 
-| Mermaid | D2 | Cartography |
+| Mermaid | D2 | Linework |
 | --- | --- | --- |
-| ![Mermaid](png/microservices-mermaid.png) | ![D2](png/microservices-d2.png) | ![Cartography](png/microservices-cartography.png) |
+| ![Mermaid](png/microservices-mermaid.png) | ![D2](png/microservices-d2.png) | ![Linework](png/microservices-linework.png) |
 
 Imported as a `systems` diagram: the circle became a user, `[(…)]` databases, "Redis cache" a cache,
 "Kafka: order-events" an event stream, `-.->` async messages and `==>` the main request path. Plain
@@ -26,9 +26,9 @@ appear where they add something: "Order Service" is not captioned "Service" agai
 
 ## Photo uploads — serverless (architecture-beta)
 
-| Mermaid | D2 | Cartography |
+| Mermaid | D2 | Linework |
 | --- | --- | --- |
-| ![Mermaid](png/serverless-mermaid.png) | ![D2](png/serverless-d2.png) | ![Cartography](png/serverless-cartography.png) |
+| ![Mermaid](png/serverless-mermaid.png) | ![D2](png/serverless-d2.png) | ![Linework](png/serverless-linework.png) |
 
 Mermaid's architecture diagrams only know five icons (cloud, database, disk, internet, server), so every
 function and queue is a server there. The import reads the titles instead: Upload function is a function,
@@ -36,9 +36,9 @@ SQS resize queue a queue.
 
 ## Analytics platform — data pipeline (flowchart, top to bottom)
 
-| Mermaid | D2 | Cartography |
+| Mermaid | D2 | Linework |
 | --- | --- | --- |
-| ![Mermaid](png/data-platform-mermaid.png) | ![D2](png/data-platform-d2.png) | ![Cartography](png/data-platform-cartography.png) |
+| ![Mermaid](png/data-platform-mermaid.png) | ![D2](png/data-platform-d2.png) | ![Linework](png/data-platform-linework.png) |
 
 Subgraphs whose titles say nothing about what they are (Sources, Ingestion, …) become neutral groups
 without a caption. Boxes no word gives away ("Debezium CDC", "dbt transformations") are plain steps
@@ -46,9 +46,9 @@ instead of guessed services.
 
 ## Shop schema (erDiagram)
 
-| Mermaid | D2 | Cartography |
+| Mermaid | D2 | Linework |
 | --- | --- | --- |
-| ![Mermaid](png/shop-schema-mermaid.png) | ![D2](png/shop-schema-d2.png) | ![Cartography](png/shop-schema-cartography.png) |
+| ![Mermaid](png/shop-schema-mermaid.png) | ![D2](png/shop-schema-d2.png) | ![Linework](png/shop-schema-linework.png) |
 
 Imported as an `erd` diagram. `FK` attributes are matched to the related table (`customer_id` → customer),
 so lines attach to the column, with crow's feet from the relationship. Mermaid's "one or more" (`|{`)
@@ -57,9 +57,9 @@ unique mark. Table ids are lowercased (`ORDER` → `order`); the import says so.
 
 ## Sign-in flow (flowchart with decisions)
 
-| Mermaid | D2 | Cartography |
+| Mermaid | D2 | Linework |
 | --- | --- | --- |
-| ![Mermaid](png/login-flow-mermaid.png) | ![D2](png/login-flow-d2.png) | ![Cartography](png/login-flow-cartography.png) |
+| ![Mermaid](png/login-flow-mermaid.png) | ![D2](png/login-flow-d2.png) | ![Linework](png/login-flow-linework.png) |
 
 A flowchart that decides something imports as a `process`, not as an architecture diagram: here
 three of its nine nodes are diamonds and two are terminals. Questions, `{…}` and plain `{{…}}` shapes
@@ -77,9 +77,9 @@ diamonds with the question inside are the more familiar flowchart at first sight
 
 ## Leave request (flowchart with subgraphs)
 
-| Mermaid | D2 | Cartography |
+| Mermaid | D2 | Linework |
 | --- | --- | --- |
-| ![Mermaid](png/leave-request-mermaid.png) | ![D2](png/leave-request-d2.png) | ![Cartography](png/leave-request-cartography.png) |
+| ![Mermaid](png/leave-request-mermaid.png) | ![D2](png/leave-request-d2.png) | ![Linework](png/leave-request-linework.png) |
 
 Three subgraphs, one per role. Mermaid and D2 draw them as boxes wherever the layout puts them, so
 the flow runs from box to box and the "no" lines go back through the Manager box (Mermaid) or sweep
@@ -96,9 +96,9 @@ taken as a process at all.
 
 ## Order lifecycle (stateDiagram-v2)
 
-| Mermaid | Cartography |
+| Mermaid | Linework |
 | --- | --- |
-| ![Mermaid](png/order-states-mermaid.png) | ![Cartography](png/order-states-cartography.png) |
+| ![Mermaid](png/order-states-mermaid.png) | ![Linework](png/order-states-linework.png) |
 
 D2 has no state diagram. Imported as `states`: `[*]` became start and end at the level they stand
 on, `state Fulfilment { … }` a composite state with its substates nested, the description
@@ -116,9 +116,9 @@ from the note takes a jog under the corner of its state. Fork and join bars and 
 
 ## Card payment (sequenceDiagram)
 
-| Mermaid | D2 | Cartography |
+| Mermaid | D2 | Linework |
 | --- | --- | --- |
-| ![Mermaid](png/payment-sequence-mermaid.png) | ![D2](png/payment-sequence-d2.png) | ![Cartography](png/payment-sequence-cartography.png) |
+| ![Mermaid](png/payment-sequence-mermaid.png) | ![D2](png/payment-sequence-d2.png) | ![Linework](png/payment-sequence-linework.png) |
 
 Imported as a `sequence` diagram: the actor became a person, "Orders DB" a database and "order-events
 queue" a queue, each with its icon; `->>` became a call, `-->>` a reply and `-)` an async message
@@ -134,9 +134,9 @@ people recognise at once, and repeats the headers at the bottom by default (`foo
 
 ## Release with a hotfix (gitGraph)
 
-| Mermaid | Cartography |
+| Mermaid | Linework |
 | --- | --- |
-| ![Mermaid](png/release-gitgraph-mermaid.png) | ![Cartography](png/release-gitgraph-cartography.png) |
+| ![Mermaid](png/release-gitgraph-mermaid.png) | ![Linework](png/release-gitgraph-linework.png) |
 
 D2 has no git graph, so this one is Mermaid only. Imported as a `gitflow` diagram: each branch got
 the colour of its kind (main blue, develop violet, release amber, hotfix red, feature teal) and the
@@ -149,9 +149,9 @@ do not: `order:` on branches (our lane order follows the branch kind), and highl
 
 ## Migration plan (gantt)
 
-| Mermaid | Cartography |
+| Mermaid | Linework |
 | --- | --- |
-| ![Mermaid](png/migration-gantt-mermaid.png) | ![Cartography](png/migration-gantt-cartography.png) |
+| ![Mermaid](png/migration-gantt-mermaid.png) | ![Linework](png/migration-gantt-linework.png) |
 
 Imported as a `roadmap`: sections became lanes, `done`/`active`/`crit` became statuses with a legend,
 `after` stayed a dependency and is drawn as an arrow (Mermaid only uses it to schedule), the milestone
@@ -164,9 +164,9 @@ overflow.
 
 ## A developer's first week (journey)
 
-| Mermaid | Cartography |
+| Mermaid | Linework |
 | --- | --- |
-| ![Mermaid](png/onboarding-journey-mermaid.png) | ![Cartography](png/onboarding-journey-cartography.png) |
+| ![Mermaid](png/onboarding-journey-mermaid.png) | ![Linework](png/onboarding-journey-linework.png) |
 
 D2 has no journey. Imported as a `journey`: sections became phases, tasks numbered steps with their
 score, and the actor in every task (Dana) became the persona, so only the others are named on the
@@ -186,4 +186,4 @@ These have no import, so there is no column of the same source drawn three ways;
 - **PlantUML** has `@startwbs` and `@startmindmap` (outlines as trees) and no Team Topologies shapes.
 - **Team Topologies** shapes exist as draw.io and Miro libraries from the book's authors: drawn by hand, with zones placed and resized by hand.
 
-Cartography draws all three from a short YAML file, fits them to 16:9 by itself, keeps a heatmap readable without colour (a value in every box, patterns for categories), and exports native PowerPoint shapes. See [capabilities.md](../capabilities.md) and [teams.md](../teams.md) for the pictures.
+Linework draws all three from a short YAML file, fits them to 16:9 by itself, keeps a heatmap readable without colour (a value in every box, patterns for categories), and exports native PowerPoint shapes. See [capabilities.md](../capabilities.md) and [teams.md](../teams.md) for the pictures.

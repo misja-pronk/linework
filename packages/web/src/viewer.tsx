@@ -4,7 +4,7 @@
 import './app/topbar.css';
 import './viewer.css';
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react';
-import { decodeShare, type SharedDiagram } from '@cartography/core';
+import { decodeShare, type SharedDiagram } from '@linework/core';
 import { useRender } from './use-render.ts';
 import { Present } from './present.tsx';
 import { Icon } from './icon.tsx';
@@ -65,7 +65,7 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
   // The views as the editor's picker offers them: a type's own view as written is named, not "As written".
   const choices = viewChoices(result);
   useEffect(() => {
-    document.title = `${title} · Cartography`;
+    document.title = `${title} · Linework`;
   }, [title]);
 
   // Pan and zoom: the drawing fits at first; the wheel zooms at the pointer, a drag moves it.
@@ -122,7 +122,7 @@ function Shared({ doc, value, theme }: { doc: SharedDiagram; value: string; them
       <header className="topbar">
         <div className="brand">
           <span className="logo" aria-hidden="true" />
-          Cartography
+          Linework
         </div>
         <div className="doc-name">
           <Icon name="eye" />

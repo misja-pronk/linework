@@ -1,7 +1,7 @@
 // Between the YAML and the drawing: where each drawn element is written, so a click in the preview
 // can reveal its line and the cursor in the YAML can light up what it is on.
 import { isMap, isScalar, isSeq, parseDocument, type Node } from 'yaml';
-import type { Graph, Path } from '@cartography/core';
+import type { Graph, Path } from '@linework/core';
 
 export type ElementKind = 'node' | 'group' | 'edge';
 

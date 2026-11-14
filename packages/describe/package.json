@@ -1,5 +1,5 @@
 {
-  "name": "@cartography/describe",
+  "name": "@linework/describe",
   "version": "0.0.0",
   "type": "module",
   "license": "MIT",
@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@cartography/core": "workspace:*",
-    "@cartography/i18n": "workspace:*"
+    "@linework/core": "workspace:*",
+    "@linework/i18n": "workspace:*"
   }
 }

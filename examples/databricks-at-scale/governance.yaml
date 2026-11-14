@@ -37,7 +37,7 @@ resources:
   <domain>_prod_gold: { kind: schema, label: <domain>_prod.gold, in: <domain>_prod, tags: [prod] }
 
 roles:
-  # on: says where a privilege can be granted in Unity Catalog, so carto validate warns about a misplaced grant
+  # on: says where a privilege can be granted in Unity Catalog, so linework validate warns about a misplaced grant
   metastore-admin: { label: Metastore admin, tone: rose, permissions: [{ CREATE CATALOG: { on: metastore } }, take ownership] }
   workspace-admin: { label: Workspace admin, tone: rose, permissions: [manage workspace] }
   workspace-user: { label: Workspace user, tone: slate, permissions: [sign in] }

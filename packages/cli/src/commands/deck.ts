@@ -1,8 +1,8 @@
-// carto deck <file.yaml…> -o deck.pptx|deck.pdf: several diagrams, one file, a slide or page each in the order given.
+// linework deck <file.yaml…> -o deck.pptx|deck.pdf: several diagrams, one file, a slide or page each in the order given.
 import fs from 'node:fs';
 import path from 'node:path';
-import { render, type RenderResult } from '@cartography/engine';
-import { pages, type Drawing } from '@cartography/export';
+import { render, type RenderResult } from '@linework/engine';
+import { pages, type Drawing } from '@linework/export';
 import type { DeckOptions } from '../args.ts';
 import { document, documentFlags, optionsFor, stepsFlag } from '../draw.ts';
 import { t } from '../i18n.ts';
@@ -12,7 +12,7 @@ export async function deckCommand(ctx: Ctx, files: string[], o: DeckOptions, usa
   if (!files.length) return usage();
   const format = o.out?.toLowerCase().endsWith('.pdf') ? 'pdf' : 'pptx';
   if (!o.out || !/\.(pptx|pdf)$/i.test(o.out)) {
-    ctx.error(t('carto deck needs -o <file>.pptx or -o <file>.pdf'));
+    ctx.error(t('linework deck needs -o <file>.pptx or -o <file>.pdf'));
     return 1;
   }
   documentFlags(o);

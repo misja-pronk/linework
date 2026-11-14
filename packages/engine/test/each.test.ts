@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse } from 'yaml';
-import { expandEach, indexFile } from '@cartography/core';
-import { describe as describeGraph, toText } from '@cartography/describe';
+import { expandEach, indexFile } from '@linework/core';
+import { describe as describeGraph, toText } from '@linework/describe';
 import { render } from '../src/index.ts';
 
 const files = (map: Record<string, string>) => (f: string) => {

@@ -1,7 +1,7 @@
 // Screenshots of the running app for visual review: node e2e/shoot.mjs <outDir> [url]
 import { chromium } from '@playwright/test';
 const out = process.argv[2];
-const url = process.argv[3] ?? process.env.CARTO_URL ?? 'http://localhost:5178/';
+const url = process.argv[3] ?? process.env.LINEWORK_URL ?? 'http://localhost:5178/';
 const browser = await chromium.launch();
 const errors = [];
 for (const scheme of ['light', 'dark']) {
@@ -11,7 +11,7 @@ for (const scheme of ['light', 'dark']) {
   await page.goto(url);
   await page.evaluate(() => {
   localStorage.clear();
-  localStorage.setItem('cartography:started', 'true');
+  localStorage.setItem('linework:started', 'true');
 });
   await page.reload();
   await page.waitForSelector('.drawing svg');

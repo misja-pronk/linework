@@ -3,9 +3,9 @@
 // quality it can act on, and rendering to a file or straight back into the chat.
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseSidecar, parseSource, withoutBadges, type Diagnostic, type DiagramType, type LayoutSidecar, type Path } from '@cartography/core';
-import { findType, render, types, type RenderOptions, type RenderResult } from '@cartography/engine';
-import { measure, score, type LayoutMetrics } from '@cartography/layout';
+import { parseSidecar, parseSource, withoutBadges, type Diagnostic, type DiagramType, type LayoutSidecar, type Path } from '@linework/core';
+import { findType, render, types, type RenderOptions, type RenderResult } from '@linework/engine';
+import { measure, score, type LayoutMetrics } from '@linework/layout';
 import { toPng } from './png.ts';
 
 const examplesDir = new URL('../../../examples/', import.meta.url);

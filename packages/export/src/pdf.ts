@@ -2,8 +2,8 @@
 // lines and text stays selectable text in the theme's own faces, embedded as subsets. One page per diagram.
 import PDFDocument from 'pdfkit';
 import SVGtoPDF from 'svg-to-pdfkit';
-import { drawSvg, esc } from '@cartography/render';
-import { bundledFamily, inThemeFonts, look, themes, type Theme } from '@cartography/theme';
+import { drawSvg, esc } from '@linework/render';
+import { bundledFamily, inThemeFonts, look, themes, type Theme } from '@linework/theme';
 import type { Drawing } from './pptx.ts';
 import { pages } from './steps.ts';
 import { altOf } from './alt.ts';
@@ -51,7 +51,7 @@ function nameFaces(svg: string, monoFamily: string): string {
     const weight = /font-weight="(\d00)"/.exec(attrs)?.[1];
     if (tag === 'tspan' && !weight) return `<tspan${attrs}>`;
     const rest = attrs.replace(/ font-family="[^"]*"/, '');
-    return `<${tag}${rest} font-family="carto-${face}-${weight ?? '400'}">`;
+    return `<${tag}${rest} font-family="linework-${face}-${weight ?? '400'}">`;
   });
 }
 
@@ -171,7 +171,7 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
   const title = opts.title ?? drawings.find((d) => d.graph?.title)?.graph?.title ?? 'Diagram';
   // No default font: the browser build has no standard fonts unless registered, and Inter is all we use.
   // Tagged: each drawing has alt text, so a screen reader says what the page shows.
-  const doc = new PDFDocument({ autoFirstPage: false, margin: 0, compress: opts.compress !== false, font: opts.fonts[400] as unknown as string, tagged: true, lang: 'en', displayTitle: true, info: { Title: title, Creator: 'Cartography', Producer: 'Cartography', CreationDate: date } });
+  const doc = new PDFDocument({ autoFirstPage: false, margin: 0, compress: opts.compress !== false, font: opts.fonts[400] as unknown as string, tagged: true, lang: 'en', displayTitle: true, info: { Title: title, Creator: 'Linework', Producer: 'Linework', CreationDate: date } });
   const chunks: Uint8Array[] = [];
   doc.on('data', (c: Uint8Array) => chunks.push(c));
   const done = new Promise<void>((ok, fail) => (doc.on('end', ok), doc.on('error', fail)));
@@ -179,8 +179,8 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
   const sans = opts.families?.[theme.font.sans ?? ''];
   const mono = opts.families?.[theme.font.monoFace ?? ''];
   for (const w of [400, 500, 600] as const) {
-    doc.registerFont(`carto-sans-${w}`, (sans?.[w] ?? opts.fonts[w]) as unknown as string);
-    doc.registerFont(`carto-mono-${w}`, (mono?.[w] ?? (w === 600 ? mono?.[500] : undefined) ?? sans?.[w] ?? opts.fonts[w]) as unknown as string);
+    doc.registerFont(`linework-sans-${w}`, (sans?.[w] ?? opts.fonts[w]) as unknown as string);
+    doc.registerFont(`linework-mono-${w}`, (mono?.[w] ?? (w === 600 ? mono?.[500] : undefined) ?? sans?.[w] ?? opts.fonts[w]) as unknown as string);
   }
   const monoFamily = `font-family="${esc(theme.font.mono)}"`;
 
@@ -234,7 +234,7 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
             width: w,
             height: h,
             preserveAspectRatio: 'xMidYMid meet',
-            fontCallback: (family: string, bold: boolean) => /carto-(sans|mono)-\d00/.exec(family)?.[0] ?? (bold ? 'carto-sans-600' : 'carto-sans-400'),
+            fontCallback: (family: string, bold: boolean) => /linework-(sans|mono)-\d00/.exec(family)?.[0] ?? (bold ? 'linework-sans-600' : 'linework-sans-400'),
           }),
         ),
       ),
@@ -246,7 +246,7 @@ export async function toPdf(input: Drawing | Drawing[], opts: PdfOptions): Promi
       // In line with the drawing's own padding on a fitted page.
       const fx = sheet ? MARGIN : 30;
       const by = size[1] - (sheet ? MARGIN / 2 : 8) - 12;
-      doc.font('carto-sans-400').fontSize(7.5).fillColor(theme.textFaint);
+      doc.font('linework-sans-400').fontSize(7.5).fillColor(theme.textFaint);
       doc.text(label, fx, by, { lineBreak: false, width: size[0] / 2 - fx });
       doc.text(day, size[0] / 2, by, { lineBreak: false, width: size[0] / 2 - fx, align: 'right' });
       doc.endMarkedContent();

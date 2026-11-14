@@ -3,10 +3,10 @@
 `type: class` draws UML class diagrams: classes, interfaces, abstract classes, enums and records with their members, packages around them, and the relations UML draws, with the ends UML gives them. Parents stand above their children; wholes above their parts.
 
 ```sh
-carto new class orders.yaml
-carto render orders.yaml -o orders.png
-carto render orders.yaml -o orders.pptx       # native shapes: members stay text you can edit
-carto export orders.yaml -o orders.mmd        # a Mermaid classDiagram for a README
+linework new class orders.yaml
+linework render orders.yaml -o orders.png
+linework render orders.yaml -o orders.pptx    # native shapes: members stay text you can edit
+linework export orders.yaml -o orders.mmd     # a Mermaid classDiagram for a README
 ```
 
 ![The Order aggregate](class/order-aggregate.png)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render } from '@cartography/engine';
+import { render } from '@linework/engine';
 import { addStep, deleteStep, moveStep, renameStep, stepsPath } from '../src/steps-edit.ts';
 
 const shop = `# The shop, for the board

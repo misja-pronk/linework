@@ -1,7 +1,7 @@
 // Tidying a placement: node centres on an 8px grid, nearly lined-up nodes exactly lined up, and
 // groups fitted snugly around what they hold (header room kept). Small things, but together they
 // make a drawing look made rather than computed. Runs before pins, so pinned nodes stay exact.
-import type { Box, Graph } from '@cartography/core';
+import type { Box, Graph } from '@linework/core';
 import type { Placement } from './dot.ts';
 import { siblingSet } from './metrics.ts';
 

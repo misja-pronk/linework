@@ -1,6 +1,6 @@
 // Tucking (tuck.ts): a card outside the groups that makes the drawing longer goes into free room.
 import { describe, expect, it } from 'vitest';
-import type { Box, Graph } from '@cartography/core';
+import type { Box, Graph } from '@linework/core';
 import { tuck } from '../src/tuck.ts';
 import type { Placement } from '../src/dot.ts';
 

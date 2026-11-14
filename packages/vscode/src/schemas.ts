@@ -1,8 +1,8 @@
 // JSON Schemas for the YAML extension (completion, hover): the engine's own, per type. The extension
 // checks what the engine checks again in its own words, so the copy it gets leaves out what only
 // rejects (unknown keys, required keys): the Problems list then holds each problem once, as the CLI says it.
-import { eachSchema, modelKeys, modelProperties, modelSchema } from '@cartography/core';
-import { findType, schemaOf, types } from '@cartography/engine';
+import { eachSchema, modelKeys, modelProperties, modelSchema } from '@linework/core';
+import { findType, schemaOf, types } from '@linework/engine';
 
 type Json = Record<string, unknown>;
 
@@ -61,7 +61,7 @@ export function combinedSchema(): Json {
   }
   return {
     $schema: 'http://json-schema.org/draft-07/schema#',
-    title: 'Cartography diagram',
+    title: 'Linework diagram',
     type: 'object',
     properties: { type: { enum: ids, description: 'What kind of diagram this is' } },
     allOf: ids.map((id) => ({ if: { properties: { type: { const: id } }, required: ['type'] }, then: { $ref: `#/$defs/${id}` } })),
@@ -69,6 +69,6 @@ export function combinedSchema(): Json {
   };
 }
 
-export const SCHEMA_SCHEME = 'cartography';
+export const SCHEMA_SCHEME = 'linework';
 export const schemaUri = (id: string) => `${SCHEMA_SCHEME}://schema/${id}.json`;
-export const idOfSchemaUri = (uri: string) => /^cartography:\/\/schema\/([\w-]+)\.json$/.exec(uri)?.[1];
+export const idOfSchemaUri = (uri: string) => /^linework:\/\/schema\/([\w-]+)\.json$/.exec(uri)?.[1];

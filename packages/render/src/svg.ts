@@ -1,8 +1,8 @@
 // Draws a placed graph as a standalone SVG. Attributes only (no CSS classes), so browsers,
 // resvg and slide tools all render it the same.
-import { chips, linkHref, withBadgeIcons, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@cartography/core';
-import { baselineOffset, bundledFont, chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, monoCell, paperTint, type Face, type Theme } from '@cartography/theme';
-import { icon } from '@cartography/icons';
+import { chips, linkHref, withBadgeIcons, type Box, type Link, type CardShape, type Chip, type Graph, type GraphEdge, type GraphGroup, type Marker, type Placed, type Point, type TableShape } from '@linework/core';
+import { baselineOffset, bundledFont, chipText, fitText, groupCaptionInk, groupFill, groupLabel, groupLabelInk, groupLine, look, measureText, monoCell, paperTint, type Face, type Theme } from '@linework/theme';
+import { icon } from '@linework/icons';
 import { arrowBack, endMarker as marker, patternOver, patternWidth, cardStroke, chipBack, dashAttr, diamondTile, esc, glyph as drawIcon, iconTile, image, junctionMark, labelAttrs, labelBack, labelInk, labelString, linePath, monoAttr, numberMark, r1, shadowAttr, themedPath } from './paint.ts';
 import { groundOf } from './ground.ts';
 import { bridges } from './bridges.ts';
@@ -19,7 +19,7 @@ import { drawTags, endsRoom, endStyle, endTagAt, tagsWidth, TAG } from './tags.t
 import { blockMarks } from './block.ts';
 import { captionBlock, drawNote, noteMargins, placeNotes, quietTheme, strongTheme, type StepView } from './steps.ts';
 import { sketchSvg } from './sketch.ts';
-import { tr } from '@cartography/i18n/drawing';
+import { tr } from '@linework/i18n/drawing';
 
 export { legendItems, legendWidth } from './legend.ts';
 
@@ -54,7 +54,7 @@ export function drawSvg(source: Graph, placed: Placed, theme: Theme, opts: SvgOp
   const graph = withBadgeIcons(source);
   // A framed sheet keeps the title and the drawing clear of its frame.
   const pad = theme.space.pad + sheetPad(theme);
-  const id = opts.idPrefix ?? 'carto';
+  const id = opts.idPrefix ?? 'linework';
   const block = theme.titleBlock && Object.keys(theme.titleBlock).length ? theme.titleBlock : undefined;
   // With an imprint, client, version and date are one small line beside the legend; the header is then only for a logo.
   const brand = block && (!block.imprint || block.logo) ? brandHeader(graph, theme, block) : undefined;

@@ -1,8 +1,8 @@
 // "What ground is under this point": the fill of the deepest group there, or the page. Groups are
 // filled by nesting depth on a paper look, so labels and line bridges that cut a gap into a line
 // need the colour they lie on.
-import type { Box, Graph, GraphGroup, Placed } from '@cartography/core';
-import { groupFill, type Theme } from '@cartography/theme';
+import type { Box, Graph, GraphGroup, Placed } from '@linework/core';
+import { groupFill, type Theme } from '@linework/theme';
 
 export interface Ground {
   /** Nesting depth of a group: 0 for one that sits on the page. */

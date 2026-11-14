@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tones } from '@cartography/core';
+import { tones } from '@linework/core';
 import { builtinSpecs, classic, classicDark, contrast, deepestGround, deriveTheme, ensureContrast, fromHsl, light, dark, look, parseThemeSpec, resolveTheme, themes, type Theme, type ThemeWarning } from '../src/index.ts';
 
 const AA = 4.5;

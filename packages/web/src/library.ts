@@ -1,5 +1,5 @@
 // Starting points: each type's template plus every example from the repo, bundled at build time.
-import { types } from '@cartography/engine';
+import { types } from '@linework/engine';
 import { sourcedLoader, type Loader } from './render-client.ts';
 
 const raw = import.meta.glob('../../../examples/**/*.yaml', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;

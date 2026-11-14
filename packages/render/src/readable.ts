@@ -1,4 +1,4 @@
-// Which text of a drawing a reader needs, for how small it may get on a slide: one rule for carto
+// Which text of a drawing a reader needs, for how small it may get on a slide: one rule for linework
 // validate, the editor's page frame and its export notice, and the deck that reports its slides.
 
 /**
