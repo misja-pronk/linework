@@ -57,7 +57,7 @@ describe('Databricks kinds', () => {
 groups:
   ws: { kind: databricks, label: dbw-lakehouse-prod }
   uc: { kind: metastore, label: uc-weu }
-  cat: { kind: catalog, label: prod_orders, in: uc }
+  cat: { kind: catalog, label: orders_prod, in: uc }
 nodes:
   job: { kind: lakeflow-job, label: nightly, in: ws }
   pipe: { kind: lakeflow-pipeline, label: orders-pipeline, in: ws }
@@ -84,13 +84,13 @@ edges:
 principals:
   engineers: { kind: account-group, label: orders-engineers }
 resources:
-  prod_orders: { kind: catalog }
-  gold: { kind: schema, in: prod_orders }
+  orders_prod: { kind: catalog }
+  gold: { kind: schema, in: orders_prod }
 roles:
   use: { label: USE CATALOG }
   select: { label: SELECT }
 assignments:
-  - engineers is use on prod_orders
+  - engineers is use on orders_prod
   - engineers is select on gold
 `,
       { fonts: 'none' },
@@ -129,7 +129,24 @@ describe('examples/databricks/model.yaml', () => {
       expect(id.startsWith(abbr!), id).toBe(true);
       expect(el.label, id).toBe(id);
     }
-    expect(model.elements.stlakehouseprod.kind).toBe('storage');
+  });
+
+  it('names catalogs domain first, and gives every domain and environment its own storage', () => {
+    const model = parse(load('model.yaml'));
+    const uc = model.elements['uc-weu'].elements;
+    for (const env of ['dev', 'test', 'prod']) {
+      for (const domain of ['orders', 'webshop', 'finance', 'sales', 'customers', 'supply']) {
+        const st = `st${domain}${env}`;
+        expect(uc[`${domain}_${env}`]?.kind, `${domain}_${env}`).toBe('catalog');
+        expect(uc[`cred_${domain}_${env}`]?.kind).toBe('storage-credential');
+        expect(uc[`${domain}_${env}_catalog`]?.technology).toBe(`catalog@${st}`);
+        expect(uc[`${domain}_${env}_landing`]?.technology).toBe(`landing@${st}`);
+        expect(model.elements[st]?.kind, st).toBe('storage');
+        expect(st).toMatch(/^[a-z0-9]{3,24}$/);
+        expect(model.elements[`pep-${st}-dfs`]?.kind).toBe('private-endpoint');
+      }
+    }
+    expect(Object.keys(model.elements).filter((id) => id.startsWith('stlakehouse'))).toEqual([]);
   });
 
   it('can be placed in an Azure diagram and in an architecture diagram, every kind of it, without warnings', async () => {
