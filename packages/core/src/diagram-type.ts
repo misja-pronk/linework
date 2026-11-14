@@ -14,6 +14,11 @@ export interface DiagramType<Source = any> {
   icon?: string;
   /** One line: what you draw with it. */
   tagline?: string;
+  /**
+   * The type's name for what this source holds, where `name` would say more than it does (a file of
+   * Unity Catalog grants is not about access packages): the editor's type pill says it.
+   */
+  nameFor?(source: Source): string | undefined;
   /** Two to four concrete situations. */
   useWhen?: string[];
   /** Look-alike jobs this type is the wrong pick for; `use` is the id of the better type. */

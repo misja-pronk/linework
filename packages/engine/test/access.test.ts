@@ -171,6 +171,14 @@ describe('access checks', () => {
     expect(await warnings(source('graph'))).toEqual(['alice is Owner on rg directly, where sg-ops holds the same role: membership of the group would do']);
   });
 
+  it('names the type by what the file holds: Unity Catalog grants, roles and groups, or access packages', async () => {
+    const uc = 'type: access\nprincipals:\n  analysts: account-group\nresources:\n  sales: catalog\nroles:\n  read: { permissions: [SELECT] }\nassignments:\n  - analysts is read on sales\n';
+    expect((await render(uc, { fonts: 'none' })).typeName).toBe('Unity Catalog access');
+    expect((await render(uc.replace('sales: catalog', 'sales: subscription'), { fonts: 'none' })).typeName).toBe('Roles and groups');
+    // With access packages the type's own name says it.
+    expect((await render(source('graph'), { fonts: 'none' })).typeName).toBeUndefined();
+  });
+
   it('names a role granted on a kind of scope where it, or a permission in it, does not apply', async () => {
     const text = `type: access
 principals:

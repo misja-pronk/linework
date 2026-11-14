@@ -211,6 +211,7 @@ export function App() {
         doc={doc}
         dirty={document_.dirty}
         type={type}
+        typeName={(drawn ?? result)?.typeName}
         yamlOpen={panes.editorMode === 'open'}
         showYaml={prefs.showYaml}
         showDrawing={prefs.showDrawing}

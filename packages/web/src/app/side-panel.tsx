@@ -226,7 +226,7 @@ export function SidePanel(p: Props) {
             </span>
             <div className="inspector-title">
               <strong>{shown?.graph?.title || t('Drawing')}</strong>
-              <span>{say(type.name as Message)}</span>
+              <span>{say((shown?.typeName ?? type.name) as Message)}</span>
             </div>
           </header>
           <div className="inspector-body">

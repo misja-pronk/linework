@@ -212,6 +212,8 @@ export interface RenderResult {
   origin?: { x: number; y: number };
   /** The page the drawing is meant for (aspect: in the YAML, a 16:9 slide by default); none with aspect: auto. */
   page?: Page;
+  /** The type's name for what this diagram holds (DiagramType.nameFor), where it is not the type's name. */
+  typeName?: string;
   /** The views the diagram (and what it includes) defines, and the one drawn. */
   views?: { name: string; title?: string }[];
   view?: string;
@@ -569,6 +571,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
   // The type's views among those, and the one the file is written for: their titles in another language.
   const titled = new Set([...(model?.views.size ? (typeViews?.slice(1) ?? []) : (typeViews ?? [])).map((v) => v.name), ...(!model?.view && writtenView ? [writtenView.name] : [])]);
   const viewTitles = (other: Lang) => Object.fromEntries((type.views?.(rest, wordIn(other)) ?? []).filter((v) => v.title && titled.has(v.name)).map((v) => [v.name, v.title!]));
+  const typeName = type.nameFor?.(built);
   return {
     svg: out.svg,
     width: out.width,
@@ -577,6 +580,7 @@ export async function render(text: string, opts: RenderOptions = {}): Promise<Re
     ...(pageFor(aspect) ? { page: pageFor(aspect) } : {}),
     diagnostics,
     type,
+    ...(typeName && typeName !== type.name ? { typeName } : {}),
     graph,
     placed,
     theme,

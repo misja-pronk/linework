@@ -19,6 +19,8 @@ interface Props {
   doc: Doc;
   dirty: boolean;
   type: DiagramType | undefined;
+  /** The type's name for what this diagram holds (Unity Catalog access), where it is not the type's own. */
+  typeName?: string;
   /** The YAML is open beside the drawing (the YAML tab), or out of sight (the Drawing tab). */
   yamlOpen: boolean;
   showYaml(): void;
@@ -56,8 +58,8 @@ export function Topbar(p: Props) {
         <span className="doc-file">{ws && doc.path ? `${ws.name}/${doc.path}` : doc.name}</span>
         {type && (
           <div className="menu-anchor type-anchor">
-            <button className="type-pill" onClick={() => setTypeCard((o) => !o)} title={`${t('{name}, written type: {id}', { name: type.name, id: type.id })}${type.tagline ? ` · ${type.tagline}` : ''}`} aria-expanded={typeCard} aria-haspopup="menu">
-              {type.name}
+            <button className="type-pill" onClick={() => setTypeCard((o) => !o)} title={`${t('{name}, written type: {id}', { name: p.typeName ?? type.name, id: type.id })}${type.tagline ? ` · ${type.tagline}` : ''}`} aria-expanded={typeCard} aria-haspopup="menu">
+              {p.typeName ?? type.name}
             </button>
             {typeCard && (
               <Menu onClose={() => setTypeCard(false)}>

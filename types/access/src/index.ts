@@ -1311,6 +1311,13 @@ const palette: PaletteItem[] = [
 export const access: DiagramType<AccessSource> = {
   id: 'access',
   name: 'Roles, groups and access packages',
+  // Said as what the file holds: Unity Catalog grants, or roles and groups without packages.
+  nameFor: (src: AccessSource) => {
+    if (Object.keys(src.packages ?? {}).length) return undefined;
+    const kinds = new Set(Object.values(src.resources ?? {}).map((r) => (typeof r === 'string' ? r : r?.kind)));
+    if (['metastore', 'catalog', 'schema'].some((k) => kinds.has(k))) return 'Unity Catalog access';
+    return 'Roles and groups';
+  },
   description: 'Who can get access, through which package or group, with which role on what',
   icon: 'shield-user',
   tagline: 'Who gets access to what: groups, access packages and roles',
