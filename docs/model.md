@@ -280,6 +280,16 @@ links:
 - **In the editor** ⌘-click (Ctrl-click elsewhere) follows the first link, and the inspector lists them all: URLs open in a new tab, diagrams and views open in place (from the open folder, or among the bundled examples). **Back to …** over the drawing, or ⌘[ (Ctrl+[), goes back to where the link was followed from, in the view it showed; a walk of several links comes back one step at a time.
 - Double-click on a linked card still renames it, as on any card: the editor is for changing the drawing, and a slip of the mouse should not take you to another file. Following is the deliberate ⌘-click. While presenting (P), ⌘-click or Tab and ↵ follows a link, and ⌫ (or the Back button) comes back.
 - Links in an included model are relative to the model file; Cartography rebases them for the diagram.
+- **A `link:` on one thing** takes the same forms. A sequence's `ref:` box leads into another diagram, at the view it names:
+
+  ```yaml
+  messages:
+    - ref: Shipping flow
+      over: [shopper, orders]
+      link: shipping.yaml#phase-delivery         # or shipping.yaml, '#phase-payment', https://…
+  ```
+
+  ⌘-click on the box in the editor opens that view of `shipping.yaml`, and **Back** returns to the sequence; the SVG links to `shipping--phase-delivery.svg`, and in an HTML export a click on the box opens that drawing. A link that is none of these is an error on its line. A capability, a class, a mind map's topic, a person or team and a journey's touchpoint take `link:` the same way.
 
 ## Pins per view
 

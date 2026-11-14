@@ -408,7 +408,7 @@ messages:
   - divider: Fulfilment
   - ref: Shipping flow                      # a box pointing at another diagram
     over: [shopper, orders]
-    link: shipping.yaml
+    link: shipping.yaml                     # or shipping.yaml#view, '#view' here, a URL
 ```
 
 The messages are listed under `messages:` (inside a frame too). Older files that call them `steps:` still draw, with a warning: everywhere else `steps:` are the presenting steps.

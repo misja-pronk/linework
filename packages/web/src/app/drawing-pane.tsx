@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { t } from '../i18n/index.ts';
 import { Icon } from '../icon.tsx';
 import { keyHint } from '../keys.ts';
+import { parseLink } from '@cartography/core';
 import { BIG_CANVAS } from '@cartography/engine';
 import { AddMenu } from '../add-menu.tsx';
 import { FocusChip } from '../focus-chip.tsx';
@@ -185,6 +186,12 @@ export function DrawingPane(p: Props) {
           const links = s.kind === 'node' ? g?.nodes.find((n) => n.id === s.id)?.links : s.kind === 'group' ? g?.groups.find((x) => x.id === s.id)?.links : undefined;
           if (!links?.length) return false;
           nav.follow(links[0]!);
+          return true;
+        }}
+        onFollowLink={(target) => {
+          const link = parseLink(target);
+          if (!link) return false;
+          nav.follow(link);
           return true;
         }}
       >
