@@ -215,6 +215,7 @@ export async function layout(sized: Sized, spacing: Spacing, sidecar?: LayoutSid
     shape,
     ...(best.held ? { held: true } : {}),
     disorder: disorder(s.graph, best.p.groups),
+    lines: new Set(s.graph.edges.map(lineKey)),
     nodes: new Map([...best.p.nodes].map(([id, b]) => [id, { x: b.x + b.width / 2, y: b.y + b.height / 2 }])),
     groups: new Map(best.p.groups),
   };
@@ -799,11 +800,15 @@ async function choose(sized: Sized, spacing: Spacing, tuning: Tuning, prev: Layo
   return best!;
 }
 
+/** A line by its ends, as LayoutMemory.lines keeps it. */
+const lineKey = (e: Graph['edges'][number]) => `${e.from.node}>${e.to.node}`;
+
 /**
  * Lines whose far end comes before their near end in reading order: back along the flow, or, with
  * both ends in one layer, up (left in a top-down drawing). Only lines between two nodes the previous
  * drawing had, one of them with no other line: that end was placed with nothing to go by, so where it
- * stands says nothing worth keeping.
+ * stands says nothing worth keeping. A line the previous drawing had too is not counted: it was drawn
+ * that way on purpose (a card tucked under the one it feeds) and was seen so.
  */
 function upstream(graph: Graph, p: Placement, prev: LayoutMemory): number {
   const down = graph.direction === 'down';
@@ -812,7 +817,7 @@ function upstream(graph: Graph, p: Placement, prev: LayoutMemory): number {
   let n = 0;
   for (const e of graph.edges) {
     if (degree.get(e.from.node)! > 1 && degree.get(e.to.node)! > 1) continue;
-    if (!prev.nodes?.has(e.from.node) || !prev.nodes.has(e.to.node)) continue;
+    if (!prev.nodes?.has(e.from.node) || !prev.nodes.has(e.to.node) || prev.lines?.has(lineKey(e))) continue;
     const a = p.nodes.get(e.from.node);
     const b = p.nodes.get(e.to.node);
     if (e.loose || !a || !b || e.from.node === e.to.node) continue;
